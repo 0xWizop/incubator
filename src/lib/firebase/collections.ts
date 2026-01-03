@@ -14,13 +14,24 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Trade, Referral, Rewards, ChainId } from '@/types';
+import { User, Trade, Referral, Rewards, ChainId, UserPreferences } from '@/types';
 
 // Collection references
 export const usersCollection = collection(db, 'users');
 export const tradesCollection = collection(db, 'trades');
 export const referralsCollection = collection(db, 'referrals');
 export const rewardsCollection = collection(db, 'rewards');
+
+// Default user preferences
+export const defaultPreferences: UserPreferences = {
+    darkMode: true,
+    defaultChain: 'solana',
+    notifications: {
+        tradeAlerts: false,
+        rewardUpdates: true,
+        priceAlerts: false,
+    },
+};
 
 // Generate a unique referral code
 function generateReferralCode(): string {
@@ -50,6 +61,10 @@ export async function getUser(address: string): Promise<User | null> {
             referredBy: data.referredBy,
             totalVolume: data.totalVolume || 0,
             lastActive: data.lastActive?.toDate() || new Date(),
+            email: data.email,
+            displayName: data.displayName,
+            photoURL: data.photoURL,
+            preferences: data.preferences || defaultPreferences,
         };
     } catch (error) {
         console.error('Error getting user:', error);
@@ -108,6 +123,58 @@ export async function updateUserActivity(address: string): Promise<void> {
         });
     } catch (error) {
         console.error('Error updating user activity:', error);
+    }
+}
+
+// Update user preferences
+export async function updateUserPreferences(
+    userId: string,
+    preferences: Partial<UserPreferences>
+): Promise<boolean> {
+    try {
+        const userDoc = await getDoc(doc(usersCollection, userId.toLowerCase()));
+
+        if (!userDoc.exists()) {
+            console.error('User not found:', userId);
+            return false;
+        }
+
+        const currentPrefs = userDoc.data().preferences || defaultPreferences;
+        const updatedPrefs = {
+            ...currentPrefs,
+            ...preferences,
+            notifications: {
+                ...currentPrefs.notifications,
+                ...(preferences.notifications || {}),
+            },
+        };
+
+        await updateDoc(doc(usersCollection, userId.toLowerCase()), {
+            preferences: updatedPrefs,
+            lastActive: serverTimestamp(),
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error updating preferences:', error);
+        return false;
+    }
+}
+
+// Update user profile (display name, etc.)
+export async function updateUserProfile(
+    userId: string,
+    updates: { displayName?: string; email?: string; photoURL?: string }
+): Promise<boolean> {
+    try {
+        await updateDoc(doc(usersCollection, userId.toLowerCase()), {
+            ...updates,
+            lastActive: serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        return false;
     }
 }
 
@@ -382,6 +449,110 @@ export async function getLeaderboard(limitCount = 20): Promise<User[]> {
         });
     } catch (error) {
         console.error('Error getting leaderboard:', error);
+        return [];
+    }
+}
+
+// === TIER SYSTEM ===
+
+export interface RewardTier {
+    id: string;
+    name: string;
+    minVolume: number;
+    tradingRewardRate: number; // percentage of volume as reward
+    referralRewardRate: number; // percentage of referred volume
+    color: string;
+    icon: string;
+}
+
+export const REWARD_TIERS: RewardTier[] = [
+    { id: 'bronze', name: 'Bronze', minVolume: 0, tradingRewardRate: 0.10, referralRewardRate: 0.50, color: '#CD7F32', icon: '🥉' },
+    { id: 'silver', name: 'Silver', minVolume: 1000, tradingRewardRate: 0.12, referralRewardRate: 0.60, color: '#C0C0C0', icon: '🥈' },
+    { id: 'gold', name: 'Gold', minVolume: 10000, tradingRewardRate: 0.15, referralRewardRate: 0.75, color: '#FFD700', icon: '🥇' },
+    { id: 'platinum', name: 'Platinum', minVolume: 50000, tradingRewardRate: 0.20, referralRewardRate: 1.00, color: '#E5E4E2', icon: '💎' },
+    { id: 'diamond', name: 'Diamond', minVolume: 100000, tradingRewardRate: 0.25, referralRewardRate: 1.50, color: '#B9F2FF', icon: '👑' },
+];
+
+export function getUserTier(totalVolume: number): RewardTier {
+    // Find highest tier user qualifies for
+    for (let i = REWARD_TIERS.length - 1; i >= 0; i--) {
+        if (totalVolume >= REWARD_TIERS[i].minVolume) {
+            return REWARD_TIERS[i];
+        }
+    }
+    return REWARD_TIERS[0];
+}
+
+export function getNextTier(totalVolume: number): { tier: RewardTier; volumeNeeded: number } | null {
+    const currentTier = getUserTier(totalVolume);
+    const currentIndex = REWARD_TIERS.findIndex(t => t.id === currentTier.id);
+
+    if (currentIndex >= REWARD_TIERS.length - 1) {
+        return null; // Already at max tier
+    }
+
+    const nextTier = REWARD_TIERS[currentIndex + 1];
+    return {
+        tier: nextTier,
+        volumeNeeded: nextTier.minVolume - totalVolume,
+    };
+}
+
+export function calculateXP(totalVolume: number, referralCount: number): number {
+    // XP formula: 1 XP per $10 volume + 100 XP per referral
+    return Math.floor(totalVolume / 10) + (referralCount * 100);
+}
+
+// Enhanced leaderboard with rewards
+export interface LeaderboardEntry {
+    rank: number;
+    address: string;
+    displayName?: string;
+    totalVolume: number;
+    tier: RewardTier;
+    xp: number;
+    referralCount: number;
+    totalRewards: number;
+}
+
+export async function getEnhancedLeaderboard(limitCount = 20): Promise<LeaderboardEntry[]> {
+    try {
+        const q = query(
+            usersCollection,
+            orderBy('totalVolume', 'desc'),
+            limit(limitCount)
+        );
+
+        const snapshot = await getDocs(q);
+        const entries: LeaderboardEntry[] = [];
+
+        for (let i = 0; i < snapshot.docs.length; i++) {
+            const data = snapshot.docs[i].data();
+            const address = data.address;
+
+            // Get referral stats
+            const referral = await getReferralStats(address);
+            const referralCount = referral?.referredUsers.length || 0;
+
+            // Get rewards
+            const rewards = await getRewards(address);
+            const totalRewards = rewards ? (rewards.tradingRewards + rewards.referralRewards) : 0;
+
+            entries.push({
+                rank: i + 1,
+                address,
+                displayName: data.displayName,
+                totalVolume: data.totalVolume || 0,
+                tier: getUserTier(data.totalVolume || 0),
+                xp: calculateXP(data.totalVolume || 0, referralCount),
+                referralCount,
+                totalRewards,
+            });
+        }
+
+        return entries;
+    } catch (error) {
+        console.error('Error getting enhanced leaderboard:', error);
         return [];
     }
 }

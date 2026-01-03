@@ -383,10 +383,39 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
     const [balance, setBalance] = useState<string>('0');
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedChain, setSelectedChain] = useState<ChainId>(initialChain || selectedChains[0] || 'ethereum');
+
+    // Determine default chain based on address format
+    const isEvmAddress = address.startsWith('0x');
+    const defaultChain: ChainId = initialChain || (isEvmAddress ? 'ethereum' : 'solana');
+    const [selectedChain, setSelectedChain] = useState<ChainId>(defaultChain);
+
+    // Chain-specific configurations
+    const chainConfig: Record<ChainId, { symbol: string; price: number }> = {
+        ethereum: { symbol: 'ETH', price: 3500 },
+        base: { symbol: 'ETH', price: 3500 },
+        arbitrum: { symbol: 'ETH', price: 3500 },
+        solana: { symbol: 'SOL', price: 190 },
+    };
+
+    const nativeSymbol = chainConfig[selectedChain]?.symbol || 'ETH';
+    const nativePrice = chainConfig[selectedChain]?.price || 3500;
 
     useEffect(() => {
         async function fetchData() {
+            // Skip Solana for EVM addresses and vice versa
+            if (isEvmAddress && selectedChain === 'solana') {
+                setBalance('0');
+                setTransactions([]);
+                setLoading(false);
+                return;
+            }
+            if (!isEvmAddress && selectedChain !== 'solana') {
+                setBalance('0');
+                setTransactions([]);
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             try {
                 const balanceData = await alchemyService.getBalance(selectedChain, address);
@@ -400,7 +429,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
             }
         }
         fetchData();
-    }, [address, selectedChain]);
+    }, [address, selectedChain, isEvmAddress]);
 
     const chainLogos: Record<ChainId, string> = {
         ethereum: 'https://i.imgur.com/NKQlhQj.png',
@@ -410,7 +439,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
     };
 
     const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
-    const usdBalance = parseFloat(balance) * 3500;
+    const usdBalance = parseFloat(balance) * nativePrice;
 
     return (
         <div className="p-4 sm:p-6 max-w-6xl mx-auto pb-20 lg:pb-6">
@@ -429,26 +458,34 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    {selectedChains.filter(c => c !== 'solana').map((chain) => (
-                        <button key={chain} onClick={() => setSelectedChain(chain)} className={clsx('flex items-center gap-2 px-3 py-2 rounded-lg border transition-all', selectedChain === chain ? 'border-[var(--primary)] bg-[var(--primary)]/10' : 'border-[var(--border)]')}>
-                            <img src={chainLogos[chain]} alt={chain} className="w-5 h-5 rounded-full" />
-                            <span className="text-sm capitalize">{chain}</span>
-                        </button>
-                    ))}
-                </div>
+                {/* Only show chain selector if no chain was explicitly provided */}
+                {initialChain ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--primary)] bg-[var(--primary)]/10">
+                        <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
+                        <span className="text-sm font-medium capitalize">{selectedChain}</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {selectedChains.filter(c => c !== 'solana').map((chain) => (
+                            <button key={chain} onClick={() => setSelectedChain(chain)} className={clsx('flex items-center gap-2 px-3 py-2 rounded-lg border transition-all', selectedChain === chain ? 'border-[var(--primary)] bg-[var(--primary)]/10' : 'border-[var(--border)]')}>
+                                <img src={chainLogos[chain]} alt={chain} className="w-5 h-5 rounded-full" />
+                                <span className="text-sm capitalize">{chain}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="card p-6 mb-6 bg-gradient-to-br from-[var(--background-secondary)] to-[var(--background-tertiary)]">
                 <div className="flex items-center gap-2 mb-4">
                     <Wallet className="w-5 h-5 text-[var(--foreground-muted)]" />
-                    <span className="text-sm text-[var(--foreground-muted)]">Balance on {selectedChain}</span>
+                    <span className="text-sm text-[var(--foreground-muted)] capitalize">Balance on {selectedChain}</span>
                 </div>
                 {loading ? (
                     <div className="h-12 w-48 bg-[var(--background-tertiary)] rounded animate-pulse" />
                 ) : (
                     <>
-                        <p className="text-3xl sm:text-4xl font-bold font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">ETH</span></p>
+                        <p className="text-3xl sm:text-4xl font-bold font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
                         <p className="text-lg text-[var(--foreground-muted)]">≈ ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </>
                 )}

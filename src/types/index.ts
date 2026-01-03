@@ -115,6 +115,17 @@ export interface TokenBalance {
     value?: number;
 }
 
+// User preferences
+export interface UserPreferences {
+    darkMode: boolean;
+    defaultChain: ChainId;
+    notifications: {
+        tradeAlerts: boolean;
+        rewardUpdates: boolean;
+        priceAlerts: boolean;
+    };
+}
+
 // User types
 export interface User {
     address: string;
@@ -124,6 +135,10 @@ export interface User {
     referredBy?: string;
     totalVolume: number;
     lastActive: Date;
+    email?: string;
+    displayName?: string;
+    photoURL?: string;
+    preferences?: UserPreferences;
 }
 
 // Trade types

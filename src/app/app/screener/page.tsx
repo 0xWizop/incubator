@@ -18,11 +18,22 @@ import {
     Flame,
     ChevronUp,
     ChevronDown,
+    Filter,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 type SortField = 'price' | 'change' | 'volume' | 'liquidity' | 'txns';
 type SortDir = 'asc' | 'desc';
+type ChainFilter = 'all' | ChainId;
+
+// Chain config for filter UI
+const CHAIN_OPTIONS: { id: ChainFilter; name: string; logo: string; color: string }[] = [
+    { id: 'all', name: 'All Chains', logo: '', color: '#F7931A' },
+    { id: 'solana', name: 'Solana', logo: 'https://i.imgur.com/xp7PYKk.png', color: '#9945FF' },
+    { id: 'ethereum', name: 'Ethereum', logo: 'https://i.imgur.com/NKQlhQj.png', color: '#627EEA' },
+    { id: 'base', name: 'Base', logo: 'https://i.imgur.com/zn5hpMs.png', color: '#0052FF' },
+    { id: 'arbitrum', name: 'Arbitrum', logo: 'https://i.imgur.com/jmOXWlA.png', color: '#28a0f0' },
+];
 
 import { Suspense } from 'react';
 
@@ -48,6 +59,7 @@ function ScreenerContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<SortField>('volume');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
+    const [chainFilter, setChainFilter] = useState<ChainFilter>('all');
     const itemsPerPage = 50;
 
     const handleSort = (field: SortField) => {
@@ -117,8 +129,13 @@ function ScreenerContent() {
         }
     }
 
+    // Apply chain filter first
+    const filteredTokens = chainFilter === 'all'
+        ? tokens
+        : tokens.filter(t => t.chainId === chainFilter);
+
     // Sort tokens based on current sort field and direction
-    const sortedTokens = [...tokens].sort((a, b) => {
+    const sortedTokens = [...filteredTokens].sort((a, b) => {
         let aVal = 0, bVal = 0;
         switch (sortField) {
             case 'price': aVal = a.priceUsd; bVal = b.priceUsd; break;
@@ -203,6 +220,32 @@ function ScreenerContent() {
                     icon={Flame}
                     label="Volume"
                 />
+            </div>
+
+            {/* Chain Filter */}
+            <div className="flex items-center gap-2 mb-4 px-3 sm:px-0 overflow-x-auto pb-2 scrollbar-thin">
+                <Filter className="w-4 h-4 text-[var(--foreground-muted)] flex-shrink-0" />
+                {CHAIN_OPTIONS.map((chain) => (
+                    <button
+                        key={chain.id}
+                        onClick={() => {
+                            setChainFilter(chain.id);
+                            setCurrentPage(1);
+                        }}
+                        className={clsx(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 border',
+                            chainFilter === chain.id
+                                ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                                : 'border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)] hover:text-[var(--foreground)]'
+                        )}
+                    >
+                        {chain.logo && (
+                            <img src={chain.logo} alt={chain.name} className="w-4 h-4 rounded-full" />
+                        )}
+                        <span className="hidden sm:inline">{chain.name}</span>
+                        <span className="sm:hidden">{chain.id === 'all' ? 'All' : chain.name.slice(0, 3)}</span>
+                    </button>
+                ))}
             </div>
 
             {/* Token table */}
@@ -290,14 +333,14 @@ function ScreenerContent() {
                 </div>
 
                 {/* Pagination */}
-                {!loading && tokens.length > 0 && (
+                {!loading && sortedTokens.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 sm:p-4 border-t border-[var(--border)]">
                         <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
                             <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>-
-                            <span className="font-medium">{Math.min(currentPage * itemsPerPage, tokens.length)}</span> of{' '}
-                            <span className="font-medium">{tokens.length}</span>
+                            <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedTokens.length)}</span> of{' '}
+                            <span className="font-medium">{sortedTokens.length}</span>
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                             <button
                                 className="btn btn-secondary px-3 py-1.5 text-xs sm:text-sm"
                                 disabled={currentPage === 1}
@@ -305,6 +348,9 @@ function ScreenerContent() {
                             >
                                 Prev
                             </button>
+                            <span className="text-xs sm:text-sm text-[var(--foreground-muted)] px-2">
+                                Page {currentPage} of {totalPages}
+                            </span>
                             <button
                                 className="btn btn-secondary px-3 py-1.5 text-xs sm:text-sm"
                                 disabled={currentPage === totalPages}

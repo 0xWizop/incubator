@@ -16,9 +16,14 @@ import {
     ChevronDown,
     ExternalLink,
     Boxes,
+    User,
+    LogOut,
+    Settings,
 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { WalletButton } from '@/components/wallet';
+import { useAuth } from '@/context/AuthContext';
+import { AuthModal } from '@/components/auth';
 
 const navigation = [
     { name: 'Trade', href: '/app/trade/', icon: LineChart },
@@ -65,7 +70,7 @@ export function Sidebar() {
                 <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border)]">
                     <Link href="/" className="flex items-center gap-2.5">
                         <img
-                            src="https://i.imgur.com/OWwI16j.png"
+                            src="https://i.imgur.com/8UIQt03.png"
                             alt="Incubator Protocol"
                             className="w-8 h-8 rounded-lg"
                         />
@@ -181,11 +186,15 @@ export function Sidebar() {
 
 export function Header() {
     const { toggleSidebar, searchQuery, setSearchQuery } = useAppStore();
+    const { firebaseUser, loading: authLoading, signOut } = useAuth();
 
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showUserMenu, setShowUserMenu] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+    const userMenuRef = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
     // Close dropdown when clicking outside
@@ -193,6 +202,9 @@ export function Header() {
         const handleClickOutside = (e: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
                 setShowDropdown(false);
+            }
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+                setShowUserMenu(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -234,6 +246,11 @@ export function Header() {
         window.location.href = `/app/trade?chain=${pair.chainId}&pair=${pair.pairAddress}`;
     };
 
+    const handleSignOut = async () => {
+        await signOut();
+        setShowUserMenu(false);
+    };
+
     const chainLogos: Record<string, string> = {
         solana: 'https://i.imgur.com/xp7PYKk.png',
         ethereum: 'https://i.imgur.com/NKQlhQj.png',
@@ -242,83 +259,147 @@ export function Header() {
     };
 
     return (
-        <header className="h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-4 lg:px-6">
-            {/* Left side */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={toggleSidebar}
-                    className="lg:hidden p-2 hover:bg-[var(--background-tertiary)] rounded-lg"
-                >
-                    <Menu className="w-5 h-5" />
-                </button>
+        <>
+            <header className="h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-4 lg:px-6">
+                {/* Left side */}
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={toggleSidebar}
+                        className="lg:hidden p-2 hover:bg-[var(--background-tertiary)] rounded-lg"
+                    >
+                        <Menu className="w-5 h-5" />
+                    </button>
 
-                {/* Search bar with dropdown */}
-                <div className="hidden md:flex items-center flex-1 max-w-2xl" ref={searchRef}>
-                    <div className="relative w-full">
-                        <input
-                            type="text"
-                            placeholder="Search any token by name, symbol, or address..."
-                            className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm"
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                        />
-                        {isSearching && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <div className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-                            </div>
-                        )}
+                    {/* Search bar with dropdown */}
+                    <div className="hidden md:flex items-center flex-1 max-w-2xl" ref={searchRef}>
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search any token by name, symbol, or address..."
+                                className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm"
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                            />
+                            {isSearching && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            )}
 
-                        {/* Search Results Dropdown */}
-                        {showDropdown && searchResults.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-                                {searchResults.map((pair, i) => (
-                                    <button
-                                        key={`${pair.chainId}-${pair.pairAddress}-${i}`}
-                                        onClick={() => handleResultClick(pair)}
-                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
-                                    >
-                                        {/* Token Logo */}
-                                        <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            {pair.baseToken?.logo || pair.logo ? (
-                                                <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-xs font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
-                                            )}
-                                        </div>
-
-                                        {/* Token Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
-                                                <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                            {/* Search Results Dropdown */}
+                            {showDropdown && searchResults.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                                    {searchResults.map((pair, i) => (
+                                        <button
+                                            key={`${pair.chainId}-${pair.pairAddress}-${i}`}
+                                            onClick={() => handleResultClick(pair)}
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+                                        >
+                                            {/* Token Logo */}
+                                            <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                {pair.baseToken?.logo || pair.logo ? (
+                                                    <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                                                <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
-                                                <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
-                                                    {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
-                                                </span>
-                                            </div>
-                                        </div>
 
-                                        {/* Chain Logo */}
-                                        <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
-                                            <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                                            {/* Token Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
+                                                    <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                                    <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                    <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                        {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Chain Logo */}
+                                            <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+                                                <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-3">
-                {/* Wallet button */}
-                <WalletButton />
-            </div>
-        </header>
+                {/* Right side */}
+                <div className="flex items-center gap-3">
+                    {/* Wallet button */}
+                    <WalletButton />
+
+                    {/* Auth button / User menu */}
+                    {authLoading ? (
+                        <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] animate-pulse" />
+                    ) : firebaseUser ? (
+                        <div className="relative" ref={userMenuRef}>
+                            <button
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--background-tertiary)] hover:bg-[var(--background)] border border-[var(--border)] transition-colors"
+                            >
+                                {firebaseUser.photoURL ? (
+                                    <img src={firebaseUser.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                                ) : (
+                                    <div className="w-6 h-6 rounded-full bg-[var(--primary)]/20 flex items-center justify-center">
+                                        <User className="w-3.5 h-3.5 text-[var(--primary)]" />
+                                    </div>
+                                )}
+                                <span className="text-sm font-medium hidden sm:block max-w-[100px] truncate">
+                                    {firebaseUser.displayName || firebaseUser.email?.split('@')[0]}
+                                </span>
+                                <ChevronDown className="w-4 h-4 text-[var(--foreground-muted)]" />
+                            </button>
+
+                            {/* User dropdown menu */}
+                            {showUserMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden">
+                                    <div className="p-3 border-b border-[var(--border)]">
+                                        <p className="text-sm font-medium truncate">{firebaseUser.displayName || 'User'}</p>
+                                        <p className="text-xs text-[var(--foreground-muted)] truncate">{firebaseUser.email}</p>
+                                    </div>
+                                    <div className="p-1">
+                                        <Link
+                                            href="/app/settings/"
+                                            onClick={() => setShowUserMenu(false)}
+                                            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-[var(--background-tertiary)] transition-colors"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            Settings
+                                        </Link>
+                                        <button
+                                            onClick={handleSignOut}
+                                            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setShowAuthModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-black font-medium text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
+                        >
+                            <User className="w-4 h-4" />
+                            <span className="hidden sm:block">Sign In</span>
+                        </button>
+                    )}
+                </div>
+            </header>
+
+            {/* Auth Modal */}
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        </>
     );
 }
 

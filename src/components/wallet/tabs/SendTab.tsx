@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpRight, ChevronDown, AlertTriangle, Clock, User } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, AlertTriangle, Clock, Loader2, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
-import { CHAINS } from '@/lib/wallet';
+import { CHAINS, sendEvmTransaction, sendSolanaTransaction, ChainType } from '@/lib/wallet';
 
 export function SendTab() {
-    const { activeWallet, balances, activeChain } = useWalletStore();
+    const { activeWallet, balances, activeChain, refreshBalances } = useWalletStore();
 
     const [amount, setAmount] = useState('');
     const [recipient, setRecipient] = useState('');
     const [selectedToken, setSelectedToken] = useState(activeWallet?.type === 'solana' ? 'SOL' : 'ETH');
     const [isValidAddress, setIsValidAddress] = useState<boolean | null>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [txResult, setTxResult] = useState<{ success: boolean; hash?: string; error?: string } | null>(null);
 
     const currentBalance = activeWallet
         ? balances[`${activeWallet.address}-${activeChain}`] || '0'
@@ -38,16 +40,97 @@ export function SendTab() {
         }
     };
 
-    const handleSend = () => {
-        alert(`Send functionality coming soon! Would send ${amount} ${selectedToken} to ${recipient}`);
+    const handleSend = async () => {
+        if (!activeWallet || !amount || !recipient || !isValidAddress) return;
+
+        setIsSending(true);
+        setTxResult(null);
+
+        try {
+            let result;
+            if (activeWallet.type === 'solana') {
+                result = await sendSolanaTransaction(activeWallet.address, recipient, amount);
+            } else {
+                result = await sendEvmTransaction(activeWallet.address, recipient, amount, activeChain as ChainType);
+            }
+
+            setTxResult(result);
+
+            if (result.success) {
+                // Clear form on success
+                setAmount('');
+                setRecipient('');
+                setIsValidAddress(null);
+                // Refresh balance
+                refreshBalances();
+            }
+        } catch (error: any) {
+            setTxResult({ success: false, error: error.message || 'Transaction failed' });
+        } finally {
+            setIsSending(false);
+        }
     };
 
-    const recentRecipients = [
-        // Would be populated from transaction history
-    ];
+    const getExplorerUrl = (hash: string) => {
+        if (activeWallet?.type === 'solana') {
+            return `https://solscan.io/tx/${hash}`;
+        }
+        const explorers: Record<string, string> = {
+            ethereum: `https://etherscan.io/tx/${hash}`,
+            base: `https://basescan.org/tx/${hash}`,
+            arbitrum: `https://arbiscan.io/tx/${hash}`,
+        };
+        return explorers[activeChain] || explorers.ethereum;
+    };
+
+    // Reset result when inputs change
+    const handleAmountChange = (value: string) => {
+        setAmount(value);
+        setTxResult(null);
+    };
+
+    const handleRecipientChange = (value: string) => {
+        setRecipient(value);
+        validateAddress(value);
+        setTxResult(null);
+    };
 
     return (
         <div className="space-y-4">
+            {/* Transaction Result */}
+            {txResult && (
+                <div className={clsx(
+                    'p-4 rounded-xl border flex items-start gap-3',
+                    txResult.success
+                        ? 'bg-[var(--accent-green)]/10 border-[var(--accent-green)]/20'
+                        : 'bg-[var(--accent-red)]/10 border-[var(--accent-red)]/20'
+                )}>
+                    {txResult.success ? (
+                        <CheckCircle className="w-5 h-5 text-[var(--accent-green)] flex-shrink-0" />
+                    ) : (
+                        <XCircle className="w-5 h-5 text-[var(--accent-red)] flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <p className={clsx('font-medium text-sm', txResult.success ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]')}>
+                            {txResult.success ? 'Transaction Sent!' : 'Transaction Failed'}
+                        </p>
+                        {txResult.hash && (
+                            <a
+                                href={getExplorerUrl(txResult.hash)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 mt-1"
+                            >
+                                View on Explorer <ExternalLink className="w-3 h-3" />
+                            </a>
+                        )}
+                        {txResult.error && (
+                            <p className="text-xs text-[var(--foreground-muted)] mt-1">{txResult.error}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Token Selection */}
             <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)]">
                 <label className="block text-xs text-[var(--foreground-muted)] mb-2">Asset to send</label>
@@ -75,9 +158,10 @@ export function SendTab() {
                     <input
                         type="number"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        onChange={(e) => handleAmountChange(e.target.value)}
                         placeholder="0.00"
-                        className="flex-1 bg-transparent text-2xl font-mono font-bold outline-none placeholder:text-[var(--foreground-muted)]/30"
+                        disabled={isSending}
+                        className="flex-1 bg-transparent text-2xl font-mono font-bold outline-none placeholder:text-[var(--foreground-muted)]/30 disabled:opacity-50"
                     />
                     <span className="text-lg font-medium text-[var(--foreground-muted)]">{selectedToken}</span>
                 </div>
@@ -86,8 +170,9 @@ export function SendTab() {
                         {[25, 50, 75, 100].map((pct) => (
                             <button
                                 key={pct}
-                                onClick={() => setAmount((parseFloat(currentBalance) * pct / 100).toFixed(6))}
-                                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all"
+                                onClick={() => handleAmountChange((parseFloat(currentBalance) * pct / 100).toFixed(6))}
+                                disabled={isSending}
+                                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all disabled:opacity-50"
                             >
                                 {pct === 100 ? 'MAX' : `${pct}%`}
                             </button>
@@ -102,13 +187,11 @@ export function SendTab() {
                 <input
                     type="text"
                     value={recipient}
-                    onChange={(e) => {
-                        setRecipient(e.target.value);
-                        validateAddress(e.target.value);
-                    }}
+                    onChange={(e) => handleRecipientChange(e.target.value)}
                     placeholder={activeWallet?.type === 'solana' ? 'Enter Solana address' : 'Enter 0x address'}
+                    disabled={isSending}
                     className={clsx(
-                        'w-full bg-transparent text-sm font-mono outline-none placeholder:text-[var(--foreground-muted)]/30',
+                        'w-full bg-transparent text-sm font-mono outline-none placeholder:text-[var(--foreground-muted)]/30 disabled:opacity-50',
                         isValidAddress === false && 'text-[var(--accent-red)]'
                     )}
                 />
@@ -120,16 +203,6 @@ export function SendTab() {
                 )}
             </div>
 
-            {/* Recent Recipients */}
-            {recentRecipients.length > 0 && (
-                <div>
-                    <p className="text-xs text-[var(--foreground-muted)] mb-2">Recent</p>
-                    <div className="space-y-2">
-                        {/* Would render recent recipients here */}
-                    </div>
-                </div>
-            )}
-
             {/* Network Fee */}
             {amount && recipient && isValidAddress && (
                 <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)]">
@@ -137,7 +210,7 @@ export function SendTab() {
                         <span className="text-[var(--foreground-muted)]">Network Fee</span>
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-[var(--foreground-muted)]" />
-                            ~$2.50
+                            ~${activeWallet?.type === 'solana' ? '0.01' : '2.50'}
                         </span>
                     </div>
                 </div>
@@ -154,16 +227,25 @@ export function SendTab() {
             {/* Send Button */}
             <button
                 onClick={handleSend}
-                disabled={!amount || !recipient || !isValidAddress || parseFloat(amount) <= 0}
+                disabled={!amount || !recipient || !isValidAddress || parseFloat(amount) <= 0 || isSending}
                 className={clsx(
                     'w-full py-4 text-lg font-bold rounded-xl transition-all flex items-center justify-center gap-2',
-                    amount && recipient && isValidAddress && parseFloat(amount) > 0
-                        ? 'bg-gradient-to-r from-[var(--primary)] to-[#00a804] text-black shadow-[0_4px_20px_rgba(0,200,5,0.3)] hover:shadow-[0_6px_30px_rgba(0,200,5,0.4)] hover:-translate-y-0.5'
+                    amount && recipient && isValidAddress && parseFloat(amount) > 0 && !isSending
+                        ? 'bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5'
                         : 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed'
                 )}
             >
-                <ArrowUpRight className="w-5 h-5" />
-                {!amount ? 'Enter Amount' : !recipient ? 'Enter Recipient' : !isValidAddress ? 'Invalid Address' : 'Send'}
+                {isSending ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sending...
+                    </>
+                ) : (
+                    <>
+                        <ArrowUpRight className="w-5 h-5" />
+                        {!amount ? 'Enter Amount' : !recipient ? 'Enter Recipient' : !isValidAddress ? 'Invalid Address' : 'Send'}
+                    </>
+                )}
             </button>
         </div>
     );

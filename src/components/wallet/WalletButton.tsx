@@ -119,7 +119,7 @@ export function WalletButton() {
                                     onClick={() => setShowWalletSwitcher(!showWalletSwitcher)}
                                     className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--background-tertiary)] transition-colors flex-1"
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#00a804] flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
                                         <Wallet className="w-4 h-4 text-black" />
                                     </div>
                                     <div className="flex-1 text-left">

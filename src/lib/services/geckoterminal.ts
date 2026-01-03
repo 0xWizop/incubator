@@ -166,12 +166,22 @@ export async function getPoolTrades(
 
         return trades.slice(0, limit).map((trade: any) => {
             const attrs = trade.attributes;
+            const kind = attrs.kind === 'buy' ? 'buy' : 'sell';
+            const fromAmount = parseFloat(attrs.from_token_amount) || 0;
+            const toAmount = parseFloat(attrs.to_token_amount) || 0;
+
+            // Mapping based on trade direction:
+            // Buy: Quote -> Base (From = Quote, To = Base)
+            // Sell: Base -> Quote (From = Base, To = Quote)
+            const amountBase = kind === 'buy' ? toAmount : fromAmount;
+            const amountQuote = kind === 'buy' ? fromAmount : toAmount;
+
             return {
                 txHash: attrs.tx_hash || '',
-                type: attrs.kind === 'buy' ? 'buy' : 'sell',
+                type: kind,
                 priceUsd: parseFloat(attrs.price_to_in_usd) || 0,
-                amountBase: parseFloat(attrs.from_token_amount) || 0,
-                amountQuote: parseFloat(attrs.to_token_amount) || 0,
+                amountBase,
+                amountQuote,
                 totalUsd: parseFloat(attrs.volume_in_usd) || 0,
                 timestamp: new Date(attrs.block_timestamp).getTime(),
                 maker: attrs.tx_from_address || '0x',

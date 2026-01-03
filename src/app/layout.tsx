@@ -18,7 +18,9 @@ export const metadata: Metadata = {
   title: 'Incubator Protocol',
   description: 'Unified multichain trading terminal, explorer, and analytics hub for Solana, Ethereum, Base, and Arbitrum.',
   keywords: ['crypto', 'trading', 'defi', 'multichain', 'solana', 'ethereum', 'base', 'arbitrum', 'dex', 'swap'],
-
+  icons: {
+    icon: 'https://i.imgur.com/8UIQt03.png',
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${inter.variable} ${orbitron.variable} font-sans antialiased`}>
         <Providers>
           {children}

@@ -11,13 +11,13 @@
   --foreground: #e5e5e5;
   --foreground-muted: #666666;
 
-  /* Green-Yellow/Lime Primary - less saturated, more sophisticated */
-  --primary: #b8e600;
-  --primary-hover: #d4ff00;
-  --primary-dim: rgba(184, 230, 0, 0.08);
+  /* Bitcoin Orange Primary */
+  --primary: #F7931A;
+  --primary-hover: #FFAF4D;
+  --primary-dim: rgba(247, 147, 26, 0.08);
 
   /* Accent Colors */
-  --accent-yellow: #e6c200;
+  --accent-yellow: #F7931A;
   --accent-green: #00e676;
   --accent-red: #ff4444;
 
@@ -36,14 +36,14 @@
   /* Semantic Colors */
   --success: #00e676;
   --error: #ff4444;
-  --warning: #e6c200;
+  --warning: #F7931A;
 
   --border: #151515;
   --border-hover: #252525;
   --radius: 0.5rem;
 
   /* Shadows */
-  --shadow-glow: 0 0 40px rgba(184, 230, 0, 0.1);
+  --shadow-glow: 0 0 40px rgba(247, 147, 26, 0.1);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.9);
 
   /* Radius */
@@ -51,6 +51,50 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
+}
+
+[data-theme='light'] {
+  /* Clean Light Theme with High Contrast */
+  --background: #ffffff;
+  --background-secondary: #f3f4f6;
+  /* Gray-100 */
+  --background-tertiary: #e5e7eb;
+  /* Gray-200 */
+
+  --foreground: #111827;
+  /* Gray-900 */
+  --foreground-muted: #6b7280;
+  /* Gray-500 */
+
+  /* Darker Primary for Light Mode visibility or keep same but adjust context */
+  --primary: #D97706;
+  /* Slightly darker shade of orange for contrast on white */
+  --primary-hover: #F7931A;
+  --primary-dim: rgba(217, 119, 6, 0.1);
+
+  /* Accent Colors - Tuned for light mode */
+  --accent-yellow: #F7931A;
+  /* Amber-600 */
+  --accent-green: #059669;
+  /* Emerald-600 */
+  --accent-red: #dc2626;
+  /* Red-600 */
+
+  /* Chain Colors */
+  /* Keep brand colors mostly same, maybe slightly darkened if needed for contrast */
+  --solana: #9945FF;
+  --ethereum: #627EEA;
+  --base: #0052FF;
+  --arbitrum: #28a0f0;
+
+  --border: #e5e7eb;
+  /* Gray-200 */
+  --border-hover: #d1d5db;
+  /* Gray-300 */
+
+  /* Shadows - softer for light mode */
+  --shadow-glow: 0 0 20px rgba(217, 119, 6, 0.15);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 @theme inline {
@@ -142,7 +186,6 @@ body {
 }
 
 .card-glow:hover {
-  box-shadow: var(--shadow-glow);
   border-color: var(--primary);
 }
 
@@ -172,7 +215,7 @@ body {
 
 /* Gradient backgrounds */
 .gradient-bg {
-  background: linear-gradient(135deg, var(--primary) 0%, #00a804 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #FFAF4D 100%);
 }
 
 .gradient-border {
@@ -253,16 +296,16 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, #00a804 100%);
+  background: var(--primary);
   color: black;
-  /* High contrast on bright green */
-  box-shadow: 0 2px 10px rgba(0, 200, 5, 0.2);
+  /* High contrast on bright orange */
+  box-shadow: 0 2px 10px rgba(247, 147, 26, 0.2);
   font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(0, 200, 5, 0.3);
+  box-shadow: 0 4px 20px rgba(247, 147, 26, 0.3);
 }
 
 .btn-secondary {
@@ -455,6 +498,213 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+/* === WOW FACTOR ANIMATIONS === */
+
+/* Gradient orb morphing */
+@keyframes morph {
+
+  0%,
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    transform: rotate(0deg) scale(1);
+  }
+
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+    transform: rotate(180deg) scale(1.1);
+  }
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Particle rise animation */
+@keyframes particle-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(100px) scale(0);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(1);
+  }
+}
+
+/* Glow pulse for CTAs */
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(247, 147, 26, 0.4), 0 0 40px rgba(247, 147, 26, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(247, 147, 26, 0.6), 0 0 60px rgba(247, 147, 26, 0.3);
+  }
+}
+
+/* Text reveal */
+@keyframes text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Stagger reveal for cards */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Orbit animation for chain logos */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg) translateX(60px) rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg) translateX(60px) rotate(-360deg);
+  }
+}
+
+/* Light beam sweep */
+@keyframes beam-sweep {
+  0% {
+    transform: translateX(-100%) rotate(-45deg);
+  }
+
+  100% {
+    transform: translateX(200%) rotate(-45deg);
+  }
+}
+
+/* Utility classes for wow factor */
+.animate-morph {
+  animation: morph 8s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-text-reveal {
+  animation: text-reveal 0.8s ease-out forwards;
+}
+
+.animate-stagger-in {
+  animation: stagger-in 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* Stagger delays */
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+
+.stagger-4 {
+  animation-delay: 0.4s;
+}
+
+.stagger-5 {
+  animation-delay: 0.5s;
+}
+
+.stagger-6 {
+  animation-delay: 0.6s;
+}
+
+/* 3D Card transform on hover */
+.card-3d {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.card-3d:hover {
+  transform: translateY(-8px) rotateX(2deg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(247, 147, 26, 0.15);
+}
+
+/* Glassmorphism effect */
+.glass-card {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Particle container */
+.particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 50%;
+  opacity: 0;
+  animation: particle-rise 8s ease-in-out infinite;
+}
+
+/* Beam effect */
+.beam {
+  position: absolute;
+  width: 100px;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(247, 147, 26, 0.1), transparent);
+  animation: beam-sweep 8s ease-in-out infinite;
+}
+
 @keyframes progress-bar {
   0% {
     width: 0%;
@@ -553,8 +803,8 @@ body {
 /* Grid background */
 .grid-bg {
   background-image:
-    linear-gradient(rgba(0, 200, 5, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 5, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(247, 147, 26, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247, 147, 26, 0.05) 1px, transparent 1px);
   background-size: 50px 50px;
 }
 

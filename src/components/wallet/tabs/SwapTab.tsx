@@ -7,7 +7,7 @@ import { useWalletStore } from '@/store/walletStore';
 import { CHAINS } from '@/lib/wallet';
 
 export function SwapTab() {
-    const { activeWallet, balances, activeChain } = useWalletStore();
+    const { activeWallet, balances, activeChain, openModal } = useWalletStore();
 
     const [fromAmount, setFromAmount] = useState('');
     const [toAmount, setToAmount] = useState('');
@@ -170,19 +170,28 @@ export function SwapTab() {
                 </div>
             )}
 
-            {/* Swap Button */}
-            <button
-                onClick={handleSwap}
-                disabled={!fromAmount || parseFloat(fromAmount) <= 0}
-                className={clsx(
-                    'w-full py-4 text-lg font-bold rounded-xl transition-all',
-                    fromAmount && parseFloat(fromAmount) > 0
-                        ? 'bg-gradient-to-r from-[var(--primary)] to-[#00a804] text-black shadow-[0_4px_20px_rgba(0,200,5,0.3)] hover:shadow-[0_6px_30px_rgba(0,200,5,0.4)] hover:-translate-y-0.5'
-                        : 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed'
-                )}
-            >
-                {fromAmount && parseFloat(fromAmount) > 0 ? 'Swap' : 'Enter Amount'}
-            </button>
+            {/* Action Button */}
+            {!activeWallet ? (
+                <button
+                    onClick={() => openModal()}
+                    className="w-full py-4 text-lg font-bold rounded-xl transition-all bg-[var(--primary)] text-black shadow-[0_0_15px_var(--primary-glow)] hover:opacity-90 hover:shadow-[0_0_25px_var(--primary-glow)]"
+                >
+                    Connect Wallet
+                </button>
+            ) : (
+                <button
+                    onClick={handleSwap}
+                    disabled={!fromAmount || parseFloat(fromAmount) <= 0}
+                    className={clsx(
+                        'w-full py-4 text-lg font-bold rounded-xl transition-all',
+                        fromAmount && parseFloat(fromAmount) > 0
+                            ? 'bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5'
+                            : 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed'
+                    )}
+                >
+                    {fromAmount && parseFloat(fromAmount) > 0 ? 'Swap' : 'Enter Amount'}
+                </button>
+            )}
         </div>
     );
 }

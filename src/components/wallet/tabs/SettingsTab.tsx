@@ -13,8 +13,13 @@ import {
     EyeOff,
     Check,
     Download,
-    Trash2
+    Trash2,
+    Sun,
+    Moon,
+    Monitor
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { getSessionKey, getStoredWalletData, clearStoredWalletData } from '@/lib/wallet';
@@ -25,10 +30,16 @@ interface SettingsTabProps {
 
 export function SettingsTab({ onLock }: SettingsTabProps) {
     const { wallets, activeWallet, setActiveWallet, openModal, initialize } = useWalletStore();
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [privateKeyVisible, setPrivateKeyVisible] = useState(false);
     const [confirmLock, setConfirmLock] = useState(false);
     const [revealedKey, setRevealedKey] = useState<string | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleExportKey = () => {
         if (!activeWallet) return;
@@ -128,6 +139,53 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                 </div>
             </div>
 
+
+
+            {/* Appearance */}
+            <div>
+                <h4 className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider mb-3 px-1">
+                    Appearance
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                    <button
+                        onClick={() => setTheme('light')}
+                        className={clsx(
+                            'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
+                            mounted && theme === 'light'
+                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                        )}
+                    >
+                        <Sun className="w-5 h-5" />
+                        <span className="text-xs font-medium">Light</span>
+                    </button>
+                    <button
+                        onClick={() => setTheme('dark')}
+                        className={clsx(
+                            'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
+                            mounted && theme === 'dark'
+                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                        )}
+                    >
+                        <Moon className="w-5 h-5" />
+                        <span className="text-xs font-medium">Dark</span>
+                    </button>
+                    <button
+                        onClick={() => setTheme('system')}
+                        className={clsx(
+                            'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
+                            mounted && theme === 'system'
+                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                        )}
+                    >
+                        <Monitor className="w-5 h-5" />
+                        <span className="text-xs font-medium">System</span>
+                    </button>
+                </div>
+            </div>
+
             {/* Security */}
             <div>
                 <h4 className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider mb-3 px-1">
@@ -203,75 +261,77 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
             </div>
 
             {/* Private Key Modal */}
-            {showPrivateKey && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-                    <div
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                        onClick={() => {
-                            setShowPrivateKey(false);
-                            setPrivateKeyVisible(false);
-                        }}
-                    />
-                    <div className="relative w-full max-w-md bg-[var(--background-secondary)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl">
-                        <div className="flex gap-3 p-3 rounded-xl bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 mb-4">
-                            <AlertTriangle className="w-5 h-5 text-[var(--accent-red)] flex-shrink-0" />
-                            <div className="text-xs text-[var(--foreground-muted)]">
-                                <p className="font-medium text-[var(--accent-red)] mb-1">Warning</p>
-                                <p>Never share your private key. Anyone with this key has full control of your wallet.</p>
-                            </div>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-xs text-[var(--foreground-muted)]">
-                                    {activeWallet?.type === 'solana' ? 'Private Key (Base58)' : 'Private Key'}
-                                </p>
-                                <button
-                                    onClick={() => setPrivateKeyVisible(!privateKeyVisible)}
-                                    className="p-1.5 hover:bg-[var(--border)] rounded-lg transition-colors"
-                                >
-                                    {privateKeyVisible ? (
-                                        <EyeOff className="w-4 h-4 text-[var(--foreground-muted)]" />
-                                    ) : (
-                                        <Eye className="w-4 h-4 text-[var(--foreground-muted)]" />
-                                    )}
-                                </button>
-                            </div>
-                            <div className="relative min-h-[40px] flex items-center">
-                                <p className="font-mono text-sm break-all w-full leading-5">
-                                    {privateKeyVisible
-                                        ? revealedKey
-                                        : '•'.repeat(Math.min(revealedKey?.length || 64, 64))
-                                    }
-                                </p>
-                                {privateKeyVisible && (
-                                    <button
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(revealedKey || '');
-                                            alert('Copied to clipboard');
-                                        }}
-                                        className="absolute right-0 bottom-0 p-1.5 bg-[var(--background-tertiary)] hover:bg-[var(--background)] rounded-lg border border-[var(--border)] shadow-sm"
-                                        title="Copy"
-                                    >
-                                        <Key className="w-3 h-3" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <button
+            {
+                showPrivateKey && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
+                        <div
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                             onClick={() => {
                                 setShowPrivateKey(false);
                                 setPrivateKeyVisible(false);
                             }}
-                            className="w-full mt-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
-                        >
-                            Close
-                        </button>
+                        />
+                        <div className="relative w-full max-w-md bg-[var(--background-secondary)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl">
+                            <div className="flex gap-3 p-3 rounded-xl bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 mb-4">
+                                <AlertTriangle className="w-5 h-5 text-[var(--accent-red)] flex-shrink-0" />
+                                <div className="text-xs text-[var(--foreground-muted)]">
+                                    <p className="font-medium text-[var(--accent-red)] mb-1">Warning</p>
+                                    <p>Never share your private key. Anyone with this key has full control of your wallet.</p>
+                                </div>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                                <div className="flex justify-between items-center mb-2">
+                                    <p className="text-xs text-[var(--foreground-muted)]">
+                                        {activeWallet?.type === 'solana' ? 'Private Key (Base58)' : 'Private Key'}
+                                    </p>
+                                    <button
+                                        onClick={() => setPrivateKeyVisible(!privateKeyVisible)}
+                                        className="p-1.5 hover:bg-[var(--border)] rounded-lg transition-colors"
+                                    >
+                                        {privateKeyVisible ? (
+                                            <EyeOff className="w-4 h-4 text-[var(--foreground-muted)]" />
+                                        ) : (
+                                            <Eye className="w-4 h-4 text-[var(--foreground-muted)]" />
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="relative min-h-[40px] flex items-center">
+                                    <p className="font-mono text-sm break-all w-full leading-5">
+                                        {privateKeyVisible
+                                            ? revealedKey
+                                            : '•'.repeat(Math.min(revealedKey?.length || 64, 64))
+                                        }
+                                    </p>
+                                    {privateKeyVisible && (
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(revealedKey || '');
+                                                alert('Copied to clipboard');
+                                            }}
+                                            className="absolute right-0 bottom-0 p-1.5 bg-[var(--background-tertiary)] hover:bg-[var(--background)] rounded-lg border border-[var(--border)] shadow-sm"
+                                            title="Copy"
+                                        >
+                                            <Key className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    setShowPrivateKey(false);
+                                    setPrivateKeyVisible(false);
+                                }}
+                                className="w-full mt-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

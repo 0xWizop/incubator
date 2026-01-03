@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Check, Share2, AlertTriangle, QrCode } from 'lucide-react';
+import { Copy, Check, Share2, AlertTriangle, Download } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { CHAINS, ChainType } from '@/lib/wallet';
+import { QRCodeSVG } from 'qrcode.react';
 
 export function ReceiveTab() {
     const { activeWallet, activeChain, setActiveChain } = useWalletStore();
@@ -31,6 +32,30 @@ export function ReceiveTab() {
                 // User cancelled or share failed
             }
         }
+    };
+
+    const handleDownloadQR = () => {
+        const svg = document.getElementById('wallet-qr-code');
+        if (!svg) return;
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            const pngFile = canvas.toDataURL('image/png');
+
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `${chainConfig.symbol}-wallet-qr.png`;
+            downloadLink.href = pngFile;
+            downloadLink.click();
+        };
+
+        img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
     };
 
     const evmChains: ChainType[] = ['ethereum', 'base', 'arbitrum'];
@@ -63,19 +88,18 @@ export function ReceiveTab() {
 
             {/* QR Code */}
             <div className="flex flex-col items-center p-6 rounded-2xl bg-white">
-                <div className="w-48 h-48 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
-                    {/* Simple QR code placeholder - would use a QR library in production */}
-                    <div className="grid grid-cols-5 gap-1">
-                        {[...Array(25)].map((_, i) => (
-                            <div
-                                key={i}
-                                className={clsx(
-                                    'w-6 h-6 rounded-sm',
-                                    Math.random() > 0.5 ? 'bg-black' : 'bg-transparent'
-                                )}
-                            />
-                        ))}
-                    </div>
+                <div className="mb-4">
+                    {activeWallet && (
+                        <QRCodeSVG
+                            id="wallet-qr-code"
+                            value={activeWallet.address}
+                            size={180}
+                            level="H"
+                            includeMargin={true}
+                            bgColor="#ffffff"
+                            fgColor="#000000"
+                        />
+                    )}
                 </div>
                 <p className="text-xs text-gray-500">Scan to receive {chainConfig.symbol}</p>
             </div>
@@ -110,11 +134,16 @@ export function ReceiveTab() {
                     {copied ? 'Copied!' : 'Copy Address'}
                 </button>
                 <button
+                    onClick={handleDownloadQR}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                >
+                    <Download className="w-4 h-4" />
+                </button>
+                <button
                     onClick={handleShare}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
                 >
                     <Share2 className="w-4 h-4" />
-                    Share
                 </button>
             </div>
 

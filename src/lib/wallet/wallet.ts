@@ -238,3 +238,84 @@ export async function signEvmMessage(address: string, message: string): Promise<
         return null;
     }
 }
+
+// Send EVM transaction
+export async function sendEvmTransaction(
+    fromAddress: string,
+    toAddress: string,
+    amount: string,
+    chainId: ChainType = 'ethereum'
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+    if (chainId === 'solana') {
+        return { success: false, error: 'Use sendSolanaTransaction for Solana' };
+    }
+
+    const privateKey = getSessionKey(fromAddress);
+    if (!privateKey) {
+        return { success: false, error: 'Wallet not unlocked' };
+    }
+
+    const chainConfig = CHAINS[chainId];
+    if (!('chain' in chainConfig)) {
+        return { success: false, error: 'Invalid chain' };
+    }
+
+    try {
+        const account = privateKeyToAccount(privateKey as `0x${string}`);
+
+        const walletClient = createWalletClient({
+            account,
+            chain: chainConfig.chain,
+            transport: http(chainConfig.rpcUrl),
+        });
+
+        const hash = await walletClient.sendTransaction({
+            to: toAddress as `0x${string}`,
+            value: parseEther(amount),
+        });
+
+        return { success: true, hash };
+    } catch (error: any) {
+        console.error('Failed to send EVM transaction:', error);
+        return { success: false, error: error.message || 'Transaction failed' };
+    }
+}
+
+// Send Solana transaction
+export async function sendSolanaTransaction(
+    fromAddress: string,
+    toAddress: string,
+    amount: string
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+    const privateKeyBase64 = getSessionKey(fromAddress);
+    if (!privateKeyBase64) {
+        return { success: false, error: 'Wallet not unlocked' };
+    }
+
+    try {
+        // Dynamic import to avoid SSR issues
+        const { Transaction, SystemProgram, sendAndConfirmTransaction } = await import('@solana/web3.js');
+
+        const connection = new Connection(CHAINS.solana.rpcUrl, 'confirmed');
+        const secretKey = Buffer.from(privateKeyBase64, 'base64');
+        const keypair = Keypair.fromSecretKey(new Uint8Array(secretKey));
+        const toPubkey = new PublicKey(toAddress);
+
+        const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
+
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: keypair.publicKey,
+                toPubkey,
+                lamports,
+            })
+        );
+
+        const signature = await sendAndConfirmTransaction(connection, transaction, [keypair]);
+
+        return { success: true, hash: signature };
+    } catch (error: any) {
+        console.error('Failed to send Solana transaction:', error);
+        return { success: false, error: error.message || 'Transaction failed' };
+    }
+}

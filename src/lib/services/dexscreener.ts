@@ -174,14 +174,20 @@ export async function getTrendingTokens(chainIds: ChainId[] = []): Promise<Token
         // Sort by 24h volume (highest first) - this gives us the most active pairs
         allPairs.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
 
-        // Take top 100 per chain, then combine
-        const perChainLimit = 100;
+        // Take different amounts per chain - Arbitrum is less active
+        const CHAIN_LIMITS: Record<string, number> = {
+            solana: 100,
+            ethereum: 100,
+            base: 100,
+            arbitrum: 50, // Less active chain
+        };
         const chainCounts: Record<string, number> = {};
         const finalPairs: TokenPair[] = [];
 
         for (const pair of allPairs) {
+            const limit = CHAIN_LIMITS[pair.chainId] || 100;
             const count = chainCounts[pair.chainId] || 0;
-            if (count < perChainLimit) {
+            if (count < limit) {
                 finalPairs.push(pair);
                 chainCounts[pair.chainId] = count + 1;
             }

@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import {
-    TrendingUp,
-    TrendingDown,
     ArrowUpRight,
     ArrowDownLeft,
     RefreshCw,
@@ -20,7 +18,6 @@ interface TokenHolding {
     logo: string;
     balance: string;
     valueUsd: number;
-    change24h: number;
     chainId: string;
 }
 
@@ -28,7 +25,6 @@ export function PortfolioTab() {
     const { activeWallet, balances, activeChain } = useWalletStore();
     const [holdings, setHoldings] = useState<TokenHolding[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [assetFilter, setAssetFilter] = useState<'crypto' | 'defi' | 'testnets'>('crypto');
 
     useEffect(() => {
         const loadHoldings = async () => {
@@ -50,7 +46,6 @@ export function PortfolioTab() {
                     logo: chainConfig.logo,
                     balance: parseFloat(currentBalance).toFixed(4),
                     valueUsd: parseFloat(currentBalance) * price,
-                    change24h: 2.34,
                     chainId: activeChain,
                 });
 
@@ -62,7 +57,6 @@ export function PortfolioTab() {
                         logo: 'https://dd.dexscreener.com/ds-data/tokens/base/0x532f27101965dd16442e59d40670faf5ebb142e4.png',
                         balance: '480485.6',
                         valueUsd: 14.37,
-                        change24h: -5.2,
                         chainId: activeChain,
                     });
                     mockHoldings.push({
@@ -71,7 +65,6 @@ export function PortfolioTab() {
                         logo: 'https://dd.dexscreener.com/ds-data/tokens/base/0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b.png',
                         balance: '1161.3',
                         valueUsd: 0.39,
-                        change24h: 12.5,
                         chainId: activeChain,
                     });
                 }
@@ -85,46 +78,22 @@ export function PortfolioTab() {
     }, [activeWallet, balances, activeChain]);
 
     return (
-        <div className="space-y-6 pt-2">
-            {/* Action Buttons */}
-            <div className="flex justify-between px-4 sm:px-8">
+        <div className="space-y-4">
+            {/* Action Buttons Row */}
+            <div className="flex justify-between px-6 pt-2">
                 <ActionButton icon={Plus} label="Buy" />
-                <ActionButton icon={RefreshCw} label="Swap" className="rotate-0" />
+                <ActionButton icon={RefreshCw} label="Swap" />
                 <ActionButton icon={ArrowUpRight} label="Send" />
                 <ActionButton icon={ArrowDownLeft} label="Receive" />
                 <ActionButton icon={Maximize2} label="Expand" />
             </div>
 
-            {/* Asset Toggle */}
-            <div className="px-4">
-                <div className="flex gap-4 border-b border-[var(--border)] pb-0">
-                    <button
-                        onClick={() => setAssetFilter('crypto')}
-                        className={clsx(
-                            "pb-3 text-sm font-medium border-b-2 transition-all",
-                            assetFilter === 'crypto' ? "border-[var(--primary)] text-white" : "border-transparent text-[var(--foreground-muted)]"
-                        )}
-                    >
+            {/* Crypto Header */}
+            <div className="px-4 pt-2">
+                <div className="border-b border-[var(--border)]">
+                    <span className="inline-block pb-2 text-sm font-medium border-b-2 border-[var(--primary)] text-white">
                         Crypto
-                    </button>
-                    <button
-                        onClick={() => setAssetFilter('defi')}
-                        className={clsx(
-                            "pb-3 text-sm font-medium border-b-2 transition-all",
-                            assetFilter === 'defi' ? "border-[var(--primary)] text-white" : "border-transparent text-[var(--foreground-muted)]"
-                        )}
-                    >
-                        DeFi
-                    </button>
-                    <button
-                        onClick={() => setAssetFilter('testnets')}
-                        className={clsx(
-                            "pb-3 text-sm font-medium border-b-2 transition-all",
-                            assetFilter === 'testnets' ? "border-[var(--primary)] text-white" : "border-transparent text-[var(--foreground-muted)]"
-                        )}
-                    >
-                        Testnets
-                    </button>
+                    </span>
                 </div>
             </div>
 
@@ -136,42 +105,36 @@ export function PortfolioTab() {
                     </div>
                 ) : holdings.length === 0 ? (
                     <div className="text-center py-8 text-[var(--foreground-muted)]">
-                        <p className="text-sm">No assets found</p>
+                        <p className="text-sm">No tokens found</p>
+                        <p className="text-xs mt-1">Your crypto tokens will appear here</p>
                     </div>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                         {holdings.map((token) => (
                             <div
                                 key={`${token.chainId}-${token.symbol}`}
-                                className="flex items-center gap-4 p-3 hover:bg-[var(--background-tertiary)] rounded-xl transition-colors cursor-pointer group"
+                                className="flex items-center gap-3 p-3 hover:bg-[var(--background-tertiary)] rounded-xl transition-colors cursor-pointer"
                             >
                                 {/* Token Icon */}
-                                <div className="relative">
-                                    <img src={token.logo} alt={token.symbol} className="w-10 h-10 rounded-full" />
-                                    {/* Chain Badge (optional, small) */}
-                                    <div className="absolute -bottom-1 -right-1 bg-[var(--background-secondary)] rounded-full p-0.5">
-                                        {/* Could show chain icon here */}
-                                    </div>
+                                <img
+                                    src={token.logo}
+                                    alt={token.symbol}
+                                    className="w-10 h-10 rounded-full bg-[var(--background-tertiary)]"
+                                />
+
+                                {/* Name */}
+                                <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-sm">{token.name}</span>
                                 </div>
 
-                                {/* Name & Balance */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-base">{token.name}</span>
-                                        <span className="font-semibold text-base font-mono">
-                                            ${token.valueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-0.5">
-                                        <span className="text-sm text-[var(--foreground-muted)] overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]">
-                                            ${(token.valueUsd / parseFloat(token.balance)).toFixed(2)}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-[var(--foreground-muted)] font-mono">
-                                                {parseFloat(token.balance).toLocaleString()} {token.symbol}
-                                            </span>
-                                        </div>
-                                    </div>
+                                {/* Value & Balance */}
+                                <div className="text-right">
+                                    <p className="font-semibold text-sm">
+                                        ${token.valueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                    <p className="text-xs text-[var(--foreground-muted)] font-mono">
+                                        {parseFloat(token.balance).toLocaleString()} {token.symbol}
+                                    </p>
                                 </div>
                             </div>
                         ))}
@@ -182,13 +145,13 @@ export function PortfolioTab() {
     );
 }
 
-function ActionButton({ icon: Icon, label, className }: { icon: any, label: string, className?: string }) {
+function ActionButton({ icon: Icon, label }: { icon: any; label: string }) {
     return (
-        <button className="flex flex-col items-center gap-2 group">
-            <div className="w-11 h-11 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] flex items-center justify-center transition-transform group-hover:scale-105 shadow-lg shadow-[var(--primary)]/20">
-                <Icon className={clsx("w-5 h-5 text-black", className)} />
+        <button className="flex flex-col items-center gap-1.5 group">
+            <div className="w-11 h-11 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] flex items-center justify-center transition-all group-hover:scale-105">
+                <Icon className="w-5 h-5 text-black" />
             </div>
-            <span className="text-xs font-medium text-white">{label}</span>
+            <span className="text-[11px] font-medium text-[var(--foreground-muted)] group-hover:text-white transition-colors">{label}</span>
         </button>
     );
 }

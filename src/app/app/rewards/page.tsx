@@ -44,7 +44,12 @@ function RewardsContent() {
 
     const [rewards, setRewards] = useState<Rewards | null>(null);
     const [referral, setReferral] = useState<Referral | null>(null);
-    const [leaderboard, setLeaderboard] = useState<User[]>([]);
+    const [leaderboard, setLeaderboard] = useState<firebase.LeaderboardEntry[]>([]);
+    const [userTier, setUserTier] = useState<firebase.RewardTier | null>(null);
+    const [nextTier, setNextTier] = useState<{ tier: firebase.RewardTier; volumeNeeded: number } | null>(null);
+    const [userXP, setUserXP] = useState(0);
+    const [totalVolume, setTotalVolume] = useState(0);
+    const [isClaiming, setIsClaiming] = useState(false);
 
     useEffect(() => {
         if (isConnected && address) {
@@ -59,11 +64,31 @@ function RewardsContent() {
 
         const referralData = await firebase.getReferralStats(addr);
         setReferral(referralData);
+
+        // Get user data for tier calculation
+        const userData = await firebase.getUser(addr);
+        if (userData) {
+            setTotalVolume(userData.totalVolume || 0);
+            const tier = firebase.getUserTier(userData.totalVolume || 0);
+            setUserTier(tier);
+            setNextTier(firebase.getNextTier(userData.totalVolume || 0));
+            setUserXP(firebase.calculateXP(userData.totalVolume || 0, referralData?.referredUsers.length || 0));
+        }
     }
 
     async function loadLeaderboard() {
-        const data = await firebase.getLeaderboard(10);
+        const data = await firebase.getEnhancedLeaderboard(10);
         setLeaderboard(data);
+    }
+
+    async function handleClaim() {
+        if (!address || !rewards) return;
+        setIsClaiming(true);
+        const claimed = await firebase.claimRewards(address);
+        if (claimed > 0) {
+            await loadData(address);
+        }
+        setIsClaiming(false);
     }
 
     const referralLink = referral ? `https://cypherx.trade/ref/${referral.code}` : '...';
@@ -135,9 +160,60 @@ function RewardsContent() {
                 </p>
             </div>
 
+            {/* Tier Progress Card */}
+            {userTier && (
+                <div className="card p-4 sm:p-6 mb-4 sm:mb-8 bg-gradient-to-r from-[var(--background-secondary)] to-transparent border-l-4" style={{ borderLeftColor: userTier.color }}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl">{userTier.icon}</span>
+                            <div>
+                                <p className="text-sm text-[var(--foreground-muted)]">Your Tier</p>
+                                <p className="text-xl font-bold" style={{ color: userTier.color }}>{userTier.name}</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-[var(--foreground-muted)]">XP</p>
+                            <p className="text-lg font-bold font-mono">{userXP.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    {nextTier && (
+                        <div>
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="text-[var(--foreground-muted)]">Progress to {nextTier.tier.name}</span>
+                                <span className="font-medium">${(nextTier.tier.minVolume - nextTier.volumeNeeded).toLocaleString()} / ${nextTier.tier.minVolume.toLocaleString()}</span>
+                            </div>
+                            <div className="h-2 bg-[var(--background-tertiary)] rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{
+                                        width: `${Math.min(100, ((totalVolume) / nextTier.tier.minVolume) * 100)}%`,
+                                        backgroundColor: nextTier.tier.color
+                                    }}
+                                />
+                            </div>
+                            <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                                ${nextTier.volumeNeeded.toLocaleString()} more volume needed
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-4 mt-4 pt-4 border-t border-[var(--border)]">
+                        <div>
+                            <p className="text-xs text-[var(--foreground-muted)]">Trading Rate</p>
+                            <p className="font-bold text-[var(--primary)]">{userTier.tradingRewardRate}%</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-[var(--foreground-muted)]">Referral Rate</p>
+                            <p className="font-bold text-[var(--accent-purple)]">{userTier.referralRewardRate}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Stats Cards - 2x2 on mobile, 4 across on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-                <div className="card card-glow border-[var(--accent-green)]/30 p-3 sm:p-4">
+                <div className="card card-glow p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-2 sm:mb-4">
                         <span className="text-[0.65rem] sm:text-sm font-bold text-[var(--accent-green)] uppercase tracking-wide">Claimable</span>
                         <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-green)]" />
@@ -146,14 +222,15 @@ function RewardsContent() {
                         ${claimable.toFixed(2)}
                     </p>
                     <button
-                        className="btn btn-primary w-full mt-2 sm:mt-4 text-xs sm:text-sm py-1.5 sm:py-2 bg-gradient-to-r from-[var(--accent-green)] to-emerald-600"
-                        disabled={claimable <= 0}
+                        onClick={handleClaim}
+                        disabled={claimable <= 0 || isClaiming}
+                        className="btn w-full mt-2 sm:mt-4 text-xs sm:text-sm py-1.5 sm:py-2 bg-[var(--accent-green)] text-black font-bold hover:-translate-y-0.5 transition-all disabled:opacity-50"
                     >
-                        Claim
+                        {isClaiming ? 'Claiming...' : 'Claim'}
                     </button>
                 </div>
 
-                <div className="card p-3 sm:p-4">
+                <div className="card card-glow p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-2 sm:mb-4">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Trading</span>
                         <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
@@ -162,7 +239,7 @@ function RewardsContent() {
                     <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] mt-1">Lifetime</p>
                 </div>
 
-                <div className="card p-3 sm:p-4">
+                <div className="card card-glow p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-2 sm:mb-4">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Referral</span>
                         <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
@@ -173,7 +250,7 @@ function RewardsContent() {
                     </p>
                 </div>
 
-                <div className="card p-3 sm:p-4">
+                <div className="card card-glow p-3 sm:p-4">
                     <div className="flex items-center justify-between mb-2 sm:mb-4">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Ref Vol</span>
                         <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
@@ -185,112 +262,119 @@ function RewardsContent() {
 
             {/* Referral Management */}
             <div className="grid lg:grid-cols-2 gap-4 mb-4 sm:mb-8">
-                {/* My Referral Link Manager */}
-                {rewards?.userId && (!referral || isEditing) ? (
-                    <div className="card p-3 sm:p-6 bg-gradient-to-br from-[var(--primary)]/5 to-transparent">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-bold flex items-center gap-2 text-sm sm:text-lg">
-                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
-                                {isEditing ? 'Customize Code' : 'Create Referral Code'}
-                            </h3>
-                            {isEditing && (
-                                <button onClick={() => setIsEditing(false)} className="text-xs text-[var(--foreground-muted)] hover:text-white">
-                                    Cancel
-                                </button>
-                            )}
-                        </div>
-                        <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-4">
-                            Create a unique code to start earning <span className="text-white font-bold">0.5%</span> fees.
-                        </p>
-
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="ENTER CODE (e.g. CRYPTOKING)"
-                                className="input flex-1 uppercase font-mono"
-                                value={createCode}
-                                onChange={(e) => setCreateCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                                maxLength={12}
-                            />
-                            <button
-                                onClick={handleCreateCode}
-                                disabled={isSubmitting || !createCode || createCode.length < 3}
-                                className="btn btn-primary px-4 whitespace-nowrap"
-                            >
-                                {isSubmitting ? 'Creating...' : 'Create Code'}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="card p-3 sm:p-6 bg-gradient-to-r from-[var(--primary)]/10 to-[var(--accent-purple)]/10 border-[var(--primary)]/30">
-                        <div className="flex flex-col gap-3 sm:gap-6">
-                            <div>
-                                <h3 className="font-bold flex items-center gap-2 mb-1 text-sm sm:text-lg">
-                                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
-                                    Your Referral Link
-                                </h3>
-                                <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
-                                    Earn <span className="text-white font-bold">0.5%</span> of fees from referrals. Forever.
-                                </p>
-                            </div>
+                {/* My Referral Code Section */}
+                <div className="card p-4 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold flex items-center gap-2 text-sm sm:text-lg">
+                            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
+                            Your Referral Code
+                        </h3>
+                        {referral && !isEditing && (
                             <button
                                 onClick={() => setIsEditing(true)}
-                                className="text-xs bg-[var(--background-tertiary)] hover:bg-[var(--background-secondary)] px-2 py-1 rounded text-[var(--foreground-muted)]"
+                                className="text-xs text-[var(--primary)] hover:underline"
                             >
-                                Edit
+                                Customize
                             </button>
-                        </div>
-                        <div className="flex items-center gap-2 w-full">
-                            <div className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-[var(--background-tertiary)] rounded-lg sm:rounded-xl font-mono text-[0.65rem] sm:text-sm border border-[var(--border)] truncate">
-                                {referralLink}
-                            </div>
-                            <button
-                                onClick={handleCopy}
-                                className={clsx(
-                                    'btn px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm',
-                                    copied ? 'btn-primary' : 'btn-secondary'
-                                )}
-                            >
-                                {copied ? '✓' : 'Copy'}
-                            </button>
-                        </div>
+                        )}
                     </div>
-                )}
 
-                {/* Redeem Referral Code */}
-                {!rewards?.referralRewards /* Just a check to see if we have user data loaded */ && (
-                    <div className="hidden" />
-                )}
+                    {/* Show create form if no code yet OR if editing */}
+                    {(!referral || isEditing) ? (
+                        <div>
+                            <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-4">
+                                {referral ? 'Change your referral code:' : 'Create a unique code to start earning'}{' '}
+                                <span className="text-[var(--primary)] font-bold">0.5%</span> of referral fees.
+                            </p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="e.g. CRYPTOKING"
+                                    className="input flex-1 uppercase font-mono text-sm"
+                                    value={createCode}
+                                    onChange={(e) => setCreateCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                                    maxLength={12}
+                                />
+                                <button
+                                    onClick={handleCreateCode}
+                                    disabled={isSubmitting || !createCode || createCode.length < 3}
+                                    className="btn btn-primary px-4 text-sm whitespace-nowrap"
+                                >
+                                    {isSubmitting ? '...' : (referral ? 'Update' : 'Create')}
+                                </button>
+                                {isEditing && (
+                                    <button
+                                        onClick={() => { setIsEditing(false); setCreateCode(''); }}
+                                        className="btn btn-secondary px-3 text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-[var(--foreground-muted)] mt-2">
+                                3-12 alphanumeric characters
+                            </p>
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-3">
+                                Share your link and earn <span className="text-[var(--primary)] font-bold">0.5%</span> of all referral trading fees. Forever.
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 px-3 py-2.5 bg-[var(--background-tertiary)] rounded-lg font-mono text-xs sm:text-sm border border-[var(--border)] truncate">
+                                    {referralLink}
+                                </div>
+                                <button
+                                    onClick={handleCopy}
+                                    className={clsx(
+                                        'btn px-4 py-2.5 text-sm font-medium',
+                                        copied ? 'btn-primary' : 'btn-secondary'
+                                    )}
+                                >
+                                    {copied ? (
+                                        <span className="flex items-center gap-1">
+                                            <CheckCircle className="w-4 h-4" />
+                                            Copied
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1">
+                                            <Copy className="w-4 h-4" />
+                                            Copy
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-[var(--foreground-muted)] mt-2">
+                                Your code: <span className="font-mono text-[var(--primary)]">{referral.code}</span>
+                            </p>
+                        </div>
+                    )}
+                </div>
 
-                {/* Show "Enter Code" if user not referred yet */}
-                {/* We need to fetch user profile to check 'referredBy'. For now assuming if we are loaded and no referredBy we show it. 
-                    But wait, we stored 'referredBy' in user profile, but didn't pass it to state. 
-                    Let's update the loadData logic or assume if we can redeem we show it.
-                    Since we don't have 'referredBy' in state easily yet (it's in user object we don't fetch fully here),
-                    let's add it or specific state. 
-                */}
-                <div className="card p-3 sm:p-6">
-                    <h3 className="font-bold flex items-center gap-2 mb-2 text-sm sm:text-lg">
+                {/* Apply Someone Else's Code */}
+                <div className="card p-4 sm:p-6">
+                    <h3 className="font-bold flex items-center gap-2 mb-4 text-sm sm:text-lg">
                         <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
-                        Enter Referral Code
+                        Got a Referral Code?
                     </h3>
                     <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mb-4">
-                        Referred by a friend? Enter their code to link your account.
+                        Enter a friend's code to link your account to their referral.
                     </p>
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="REFERRAL CODE"
-                            className="input flex-1 uppercase font-mono"
+                            placeholder="Enter code"
+                            className="input flex-1 uppercase font-mono text-sm"
                             value={redeemCode}
-                            onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                            onChange={(e) => setRedeemCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                            maxLength={12}
                         />
                         <button
                             onClick={handleRedeemCode}
-                            disabled={isSubmitting || !redeemCode}
-                            className="btn btn-secondary px-4 whitespace-nowrap"
+                            disabled={isSubmitting || !redeemCode || redeemCode.length < 3}
+                            className="btn btn-secondary px-4 text-sm whitespace-nowrap"
                         >
-                            {isSubmitting ? 'Linking...' : 'Apply Code'}
+                            {isSubmitting ? 'Applying...' : 'Apply'}
                         </button>
                     </div>
                 </div>
@@ -329,12 +413,12 @@ function RewardsContent() {
                                 <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Calculate rewards based on your trading volume tier.</p>
                             </div>
                             <div>
-                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#9945FF]/20 text-[#9945FF] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">2</div>
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">2</div>
                                 <h4 className="font-bold text-xs sm:text-base mb-1 sm:mb-2">Refer</h4>
                                 <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Share your link and earn a percentage of their fees.</p>
                             </div>
                             <div>
-                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--accent-green)]/20 text-[var(--accent-green)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">3</div>
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">3</div>
                                 <h4 className="font-bold text-xs sm:text-base mb-1 sm:mb-2">Claim</h4>
                                 <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Rewards are distributed to your claimable balance weekly.</p>
                             </div>
@@ -349,35 +433,47 @@ function RewardsContent() {
                         <table className="table">
                             <thead>
                                 <tr>
-                                    <th className="w-16">Rank</th>
-                                    <th>User</th>
+                                    <th className="w-12">Rank</th>
+                                    <th>Trader</th>
+                                    <th className="text-center hidden sm:table-cell">Tier</th>
                                     <th className="text-right">Volume</th>
                                     <th className="text-right">Rewards</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {leaderboard.length === 0 ? (
-                                    <tr><td colSpan={4} className="text-center py-8 text-[var(--foreground-muted)]">No data yet</td></tr>
+                                    <tr><td colSpan={5} className="text-center py-8 text-[var(--foreground-muted)]">No data yet</td></tr>
                                 ) : (
-                                    leaderboard.map((user, i) => (
-                                        <tr key={user.address}>
+                                    leaderboard.map((entry) => (
+                                        <tr key={entry.address}>
                                             <td>
                                                 <span className={clsx(
                                                     "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                                                    i === 0 && "bg-[#FFD700] text-black",
-                                                    i === 1 && "bg-[#C0C0C0] text-black",
-                                                    i === 2 && "bg-[#CD7F32] text-black",
-                                                    i > 2 && "text-[var(--foreground-muted)]"
+                                                    entry.rank === 1 && "bg-[#FFD700] text-black",
+                                                    entry.rank === 2 && "bg-[#C0C0C0] text-black",
+                                                    entry.rank === 3 && "bg-[#CD7F32] text-black",
+                                                    entry.rank > 3 && "text-[var(--foreground-muted)]"
                                                 )}>
-                                                    {i + 1}
+                                                    {entry.rank}
                                                 </span>
                                             </td>
-                                            <td className="font-mono">
-                                                {user.address.slice(0, 6)}...{user.address.slice(-4)}
-                                                {user.address === address?.toLowerCase() && <span className="ml-2 text-xs text-[var(--primary)]">(You)</span>}
+                                            <td>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="sm:hidden">{entry.tier.icon}</span>
+                                                    <div>
+                                                        <p className="font-mono text-sm">
+                                                            {entry.displayName || `${entry.address.slice(0, 6)}...${entry.address.slice(-4)}`}
+                                                            {entry.address.toLowerCase() === address?.toLowerCase() && <span className="ml-2 text-xs text-[var(--primary)]">(You)</span>}
+                                                        </p>
+                                                        <p className="text-xs text-[var(--foreground-muted)]">{entry.xp.toLocaleString()} XP</p>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="text-right font-mono">${user.totalVolume.toLocaleString()}</td>
-                                            <td className="text-right font-mono text-[var(--accent-green)]">???</td>
+                                            <td className="text-center hidden sm:table-cell">
+                                                <span className="text-xl" title={entry.tier.name}>{entry.tier.icon}</span>
+                                            </td>
+                                            <td className="text-right font-mono">${entry.totalVolume.toLocaleString()}</td>
+                                            <td className="text-right font-mono text-[var(--accent-green)]">${entry.totalRewards.toFixed(2)}</td>
                                         </tr>
                                     ))
                                 )}

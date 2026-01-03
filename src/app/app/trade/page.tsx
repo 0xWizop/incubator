@@ -358,23 +358,23 @@ function TradePageContent() {
                     <div className="flex items-center gap-3 sm:gap-8 text-[10px] sm:text-sm border-t border-[var(--border)] pt-2 sm:pt-4 overflow-x-auto scrollbar-thin">
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">MCap</span>
-                            <span className="font-mono font-medium">
+                            <span className="font-mono tabular-nums font-medium">
                                 ${coinData?.marketCap ? formatNumber(coinData.marketCap) : (tokenData?.fdv ? formatNumber(tokenData.fdv) : '-')}
                             </span>
                         </div>
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">Vol</span>
-                            <span className="font-mono font-medium">
+                            <span className="font-mono tabular-nums font-medium">
                                 ${coinData?.volume24h ? formatNumber(coinData.volume24h) : (tokenData?.volume24h ? formatNumber(tokenData.volume24h) : '-')}
                             </span>
                         </div>
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">Liq</span>
-                            <span className="font-mono font-medium">${tokenData ? formatNumber(tokenData.liquidity) : '-'}</span>
+                            <span className="font-mono tabular-nums font-medium">${tokenData ? formatNumber(tokenData.liquidity) : '-'}</span>
                         </div>
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
                             <span className="text-[var(--foreground-muted)]">ATH</span>
-                            <span className="font-mono font-medium text-[var(--accent-yellow)]">
+                            <span className="font-mono tabular-nums font-medium text-[var(--accent-yellow)]">
                                 ${coinData?.ath ? formatNumber(coinData.ath) : '-'}
                             </span>
                         </div>
@@ -580,45 +580,53 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
     return (
         <div className="overflow-y-auto w-full h-full text-[11px]">
             {/* Header row */}
-            <div className="grid grid-cols-[60px_48px_80px_1fr_80px] gap-2 px-3 py-1.5 text-[10px] text-[var(--foreground-muted)] font-medium border-b border-[var(--border)] bg-[#0a0a0a] sticky top-0 z-20">
-                <span>Time</span>
-                <span>Type</span>
-                <span className="text-right">USD Value</span>
-                <span className="text-right">Amount</span>
+            <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] text-[var(--foreground-muted)] font-medium border-b border-[var(--border)] bg-[#0a0a0a] sticky top-0 z-20 items-center">
+                <span className="text-left">Time</span>
+                <span className="text-left pl-2">Type</span>
+                <span className="text-center">USD Value</span>
+                <span className="text-center">{tokenData?.quoteToken?.symbol || 'Quote'}</span>
+                <span className="text-right">Amount {tokenData?.baseToken?.symbol ? `(${tokenData.baseToken.symbol})` : ''}</span>
                 <span className="text-right">Maker</span>
             </div>
 
             {/* Trade rows */}
             {trades.map((trade, i) => {
                 const isBuy = trade.type === 'buy';
-                const barWidth = Math.min((trade.totalUsd / maxTradeSize) * 60, 60); // Cap at 60% width
+                /* Use Log scale to dampen huge outliers, then normalize against max */
+                const normalizedSize = Math.log(trade.totalUsd + 1) / Math.log(maxTradeSize + 1);
+                const barWidth = Math.min(normalizedSize * 50, 50); // Capped at 50% width
                 const isNew = (trade as any).isNew;
 
                 return (
                     <div
                         key={`${i}-${trade.txHash}`}
                         className={clsx(
-                            'relative grid grid-cols-[60px_48px_80px_1fr_80px] gap-2 px-3 py-1.5 border-b border-[var(--border)]/20',
+                            'relative grid grid-cols-6 gap-2 px-4 py-1.5 border-b border-[var(--border)]/20 items-center hover:bg-[var(--background-secondary)]/50 transition-colors',
                             isNew && 'animate-pulse'
                         )}
                     >
-                        {/* Subtle background size bar */}
+                        {/* Background size bar */}
                         <div
                             className={clsx(
-                                'absolute inset-y-0 left-0 opacity-20 transition-all duration-500',
-                                isBuy ? 'bg-[var(--accent-green)]' : 'bg-[var(--accent-red)]'
+                                'absolute inset-y-0 left-0 transition-all duration-500',
+                                isBuy
+                                    ? 'bg-gradient-to-r from-[var(--accent-green)]/15 to-transparent'
+                                    : 'bg-gradient-to-r from-[var(--accent-red)]/15 to-transparent'
                             )}
-                            style={{ width: `${barWidth}%` }}
+                            style={{
+                                width: `${barWidth}%`,
+                                opacity: 0.6 + (normalizedSize * 0.4)
+                            }}
                         />
 
                         {/* Time */}
-                        <span className="relative z-10 text-[var(--foreground-muted)] font-mono">
-                            {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <span className="relative z-10 text-[var(--foreground-muted)] font-mono tabular-nums text-left">
+                            {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
 
                         {/* Type */}
                         <span className={clsx(
-                            'relative z-10 font-bold uppercase',
+                            'relative z-10 font-bold uppercase text-[10px] text-left pl-2',
                             isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
                         )}>
                             {trade.type}
@@ -626,7 +634,7 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
 
                         {/* USD Value */}
                         <span className={clsx(
-                            'relative z-10 text-right font-semibold font-mono',
+                            'relative z-10 text-center font-semibold font-mono tabular-nums',
                             isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
                         )}>
                             ${trade.totalUsd >= 1000
@@ -634,15 +642,25 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
                                 : trade.totalUsd.toFixed(2)}
                         </span>
 
+                        {/* Quote Value (NEW) */}
+                        <span className="relative z-10 text-center text-[var(--foreground-muted)] font-mono tabular-nums">
+                            {trade.amountQuote >= 1000
+                                ? (trade.amountQuote / 1000).toFixed(1) + 'K'
+                                : trade.amountQuote.toFixed(trade.amountQuote < 1 ? 4 : 2)}
+                        </span>
+
                         {/* Token amount */}
-                        <span className="relative z-10 text-right text-[var(--foreground)] font-mono truncate">
-                            {formatNumber(trade.amountBase)} {tokenData?.baseToken?.symbol}
+                        <span className="relative z-10 text-right text-[var(--foreground)] font-mono tabular-nums whitespace-nowrap">
+                            {formatNumber(trade.amountBase)}
                         </span>
 
                         {/* Maker address */}
-                        <span className="relative z-10 text-right text-[var(--foreground-muted)] font-mono">
-                            {trade.maker.slice(0, 4)}..{trade.maker.slice(-3)}
-                        </span>
+                        <Link
+                            href={`/app/explorer/detail/?type=address&id=${trade.maker}&chain=${tokenData?.chainId || 'ethereum'}`}
+                            className="relative z-10 text-right text-[var(--foreground-muted)] font-mono tabular-nums text-[10px] hover:text-[var(--primary)] transition-colors"
+                        >
+                            {trade.maker.slice(0, 6)}...{trade.maker.slice(-4)}
+                        </Link>
                     </div>
                 );
             })}
@@ -767,7 +785,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
             <div className="mt-6 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3">
                 <div className="flex justify-between text-sm">
                     <span className="text-[var(--foreground-muted)]">Rate</span>
-                    <span className="font-mono text-xs">1 ETH ≈ {token?.priceUsd ? (3500 / token.priceUsd).toFixed(2) : '---'} {token?.baseToken.symbol}</span>
+                    <span className="font-mono text-xs">1 {token?.quoteToken?.symbol || 'Quote'} ≈ {token?.priceUsd && token?.quoteToken?.symbol ? (1 / (token.priceUsd / (token.quoteToken.symbol === 'SOL' ? 190 : token.quoteToken.symbol === 'ETH' ? 3500 : 1))).toFixed(2) : '---'} {token?.baseToken.symbol}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                     <span className="text-[var(--foreground-muted)]">Slippage</span>
@@ -792,10 +810,10 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                 className={clsx(
                     "mt-auto w-full py-4 text-lg font-bold rounded-xl transition-all",
                     isConnected && payAmount && parseFloat(payAmount) > 0
-                        ? "bg-gradient-to-r from-[var(--primary)] to-[#00a804] text-black shadow-[0_4px_20px_rgba(0,200,5,0.3)] hover:shadow-[0_6px_30px_rgba(0,200,5,0.4)] hover:-translate-y-0.5 active:translate-y-0"
+                        ? "bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5 active:translate-y-0"
                         : isConnected
                             ? "bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed"
-                            : "bg-gradient-to-r from-[var(--primary)] to-[#00a804] text-black shadow-[0_4px_20px_rgba(0,200,5,0.3)] hover:shadow-[0_6px_30px_rgba(0,200,5,0.4)] hover:-translate-y-0.5"
+                            : "bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5"
                 )}
             >
                 {isConnected

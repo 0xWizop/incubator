@@ -2,6 +2,9 @@
 
 import { ReactNode } from 'react';
 import { WalletProvider } from '@/context/WalletProvider';
+import { AuthProvider } from '@/context/AuthContext';
+
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
 interface ProvidersProps {
     children: ReactNode;
@@ -9,8 +12,12 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
     return (
-        <WalletProvider>
-            {children}
-        </WalletProvider>
+        <NextThemesProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
+            <AuthProvider>
+                <WalletProvider>
+                    {children}
+                </WalletProvider>
+            </AuthProvider>
+        </NextThemesProvider>
     );
 }

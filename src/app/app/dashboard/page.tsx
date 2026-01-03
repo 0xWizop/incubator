@@ -11,11 +11,13 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Wallet,
+    User as UserIcon,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useAppStore } from '@/store'; // Assuming wallet address is here or need new hook
+import { useAppStore } from '@/store';
 import * as firebase from '@/lib/firebase';
 import { User, Trade, ChainId } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 import { useWalletStore } from '@/store/walletStore';
 
@@ -41,16 +43,23 @@ export default function DashboardPage() {
 
 function DashboardContent() {
     const { address, isConnected, connect } = useWallet();
+    const { firebaseUser, user: authUser } = useAuth();
     const [user, setUser] = useState<User | null>(null);
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(false);
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
 
+    // Get display name from auth or wallet
+    const displayName = firebaseUser?.displayName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Trader');
+
     useEffect(() => {
         if (isConnected && address) {
             loadUserData(address);
+        } else if (firebaseUser) {
+            // Load data by Firebase UID if no wallet connected
+            loadUserData(firebaseUser.uid);
         }
-    }, [isConnected, address]);
+    }, [isConnected, address, firebaseUser]);
 
     async function loadUserData(addr: string) {
         setLoading(true);
@@ -135,7 +144,7 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                <div className="card p-2.5 sm:p-4">
+                <div className="card card-glow p-2.5 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Volume</span>
                         <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--primary)]/10">
@@ -150,7 +159,7 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                <div className="card p-2.5 sm:p-4">
+                <div className="card card-glow p-2.5 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Avg Trade</span>
                         <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-purple)]/10">

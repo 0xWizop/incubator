@@ -324,7 +324,11 @@ function ExplorerContent() {
                     selectedChains.map((chainId) => {
                         const latestBlock = blocks.find(b => b.chainId === chainId)?.number;
                         return (
-                            <div key={chainId} className="card relative overflow-hidden group p-2 sm:p-4">
+                            <Link
+                                key={chainId}
+                                href={`/app/explorer/${chainId}/`}
+                                className="card relative overflow-hidden group p-2 sm:p-4 hover:border-[var(--primary)] transition-colors cursor-pointer"
+                            >
                                 <div
                                     className="absolute top-0 right-0 w-12 sm:w-16 h-12 sm:h-16 opacity-10 rounded-bl-full transition-transform group-hover:scale-110"
                                     style={{ backgroundColor: chainColors[chainId] }}
@@ -348,7 +352,7 @@ function ExplorerContent() {
                                     {latestBlock?.toLocaleString() || '...'}
                                 </p>
                                 <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">Latest Block</p>
-                            </div>
+                            </Link>
                         );
                     })
                 }
@@ -415,7 +419,7 @@ function ExplorerContent() {
                             </div>
                         )}
                     </div>
-                    <Link href="#" className="p-2 sm:p-3 text-center text-xs sm:text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] border-t border-[var(--border)]">
+                    <Link href={`/app/explorer/${selectedChains[0] || 'ethereum'}/`} className="p-2 sm:p-3 text-center text-xs sm:text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] border-t border-[var(--border)]">
                         View All Blocks
                     </Link>
                 </div>
@@ -483,7 +487,7 @@ function ExplorerContent() {
                             </div>
                         )}
                     </div>
-                    <Link href="#" className="p-2 sm:p-3 text-center text-xs sm:text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] border-t border-[var(--border)]">
+                    <Link href={`/app/explorer/${selectedChains[0] || 'ethereum'}/`} className="p-2 sm:p-3 text-center text-xs sm:text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] border-t border-[var(--border)]">
                         View All Transactions
                     </Link>
                 </div>
