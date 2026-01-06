@@ -1,13 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { useAppStore } from '@/store';
 import { TokenPair, ChainId } from '@/types';
-import { searchPairs, getTrendingTokens, getTopPairs } from '@/lib/services/dexscreener';
+import { searchPairs, getTrendingTokens } from '@/lib/services/dexscreener';
 import {
     Search,
     TrendingUp,
@@ -21,6 +18,7 @@ import {
     Filter,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { formatNumber, formatPrice } from '@/lib/utils/format';
 
 type SortField = 'price' | 'change' | 'volume' | 'liquidity' | 'txns';
 type SortDir = 'asc' | 'desc';
@@ -60,6 +58,8 @@ function ScreenerContent() {
     const [sortField, setSortField] = useState<SortField>('volume');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [chainFilter, setChainFilter] = useState<ChainFilter>('all');
+    const [totalCount, setTotalCount] = useState(0);
+    const [isCached, setIsCached] = useState(false);
     const itemsPerPage = 50;
 
     const handleSort = (field: SortField) => {
@@ -74,29 +74,32 @@ function ScreenerContent() {
     const fetchTokens = useCallback(async () => {
         setLoading(true);
         try {
-            let pairs: TokenPair[];
+            // Fetch from enhanced dexscreener service with client-side caching
+            const chainsToFetch = selectedChains.length > 0
+                ? selectedChains
+                : ['ethereum', 'base', 'arbitrum', 'solana'] as ChainId[];
 
-            if (tab === 'trending') {
-                pairs = await getTrendingTokens(selectedChains);
-            } else {
-                pairs = await getTopPairs(selectedChains, 100);
-            }
+            const pairs = await getTrendingTokens(chainsToFetch);
+            setTotalCount(pairs.length);
+            setIsCached(false); // Service handles caching internally
+
+            let sortedPairs = [...pairs];
 
             // Apply sorting based on tab
             if (tab === 'gainers') {
-                pairs = pairs
+                sortedPairs = sortedPairs
                     .filter(p => p.priceChange.h24 > 0)
                     .sort((a, b) => b.priceChange.h24 - a.priceChange.h24);
             } else if (tab === 'losers') {
-                pairs = pairs
+                sortedPairs = sortedPairs
                     .filter(p => p.priceChange.h24 < 0)
                     .sort((a, b) => a.priceChange.h24 - b.priceChange.h24);
             } else if (tab === 'volume') {
-                pairs.sort((a, b) => b.volume24h - a.volume24h);
+                sortedPairs.sort((a, b) => b.volume24h - a.volume24h);
             }
 
-            setTokens(pairs); // Store all, paginate locally
-            setCurrentPage(1); // Reset to page 1 on new fetch
+            setTokens(sortedPairs);
+            setCurrentPage(1);
         } catch (error) {
             console.error('Error fetching tokens:', error);
         } finally {
@@ -161,41 +164,47 @@ function ScreenerContent() {
                 <h1 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2 flex items-center gap-2">
                     <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-yellow)]" />
                     Token Screener
+                    {totalCount > 0 && (
+                        <span className="text-xs sm:text-sm font-normal text-[var(--foreground-muted)] ml-2">
+                            ({totalCount} tokens{isCached && ' • cached'})
+                        </span>
+                    )}
                 </h1>
-                <p className="text-xs sm:text-base text-[var(--foreground-muted)]">
+                <p className="hidden sm:block text-xs sm:text-base text-[var(--foreground-muted)]">
                     Discover trending tokens across all chains
                 </p>
             </div>
 
-            {/* Search and filters */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6 px-3 sm:px-0">
+            {/* Search and Refresh */}
+            <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6 px-3 sm:px-0">
                 <div className="relative flex-1">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]">
+                        <Search className="w-4 h-4" />
+                    </div>
                     <input
                         type="text"
                         placeholder="Search token..."
-                        className="input input-no-icon text-sm"
+                        className="w-full bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-base sm:text-sm py-2 pl-3 pr-9 outline-none focus:border-[var(--primary)] transition-colors"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={handleSearch} className="btn btn-secondary flex-1 sm:flex-none text-sm py-2">
-                        <Search className="w-4 h-4" />
-                        <span className="hidden sm:inline">Search</span>
-                    </button>
-                    <button
-                        onClick={fetchTokens}
-                        className="btn btn-ghost text-sm py-2"
-                        disabled={loading}
-                    >
-                        <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
-                    </button>
-                </div>
+                <button onClick={handleSearch} className="hidden lg:flex btn btn-secondary text-sm py-2">
+                    <Search className="w-4 h-4" />
+                    <span>Search</span>
+                </button>
+                <button
+                    onClick={fetchTokens}
+                    className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                    disabled={loading}
+                >
+                    <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
+                </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 px-2 sm:px-0 scrollbar-thin relative z-10">
+            <div className="flex gap-1 sm:gap-2 mb-2 sm:mb-6 overflow-x-auto px-3 sm:px-0 scrollbar-thin relative z-10">
                 <TabButton
                     active={tab === 'trending'}
                     onClick={() => setTab('trending')}
@@ -223,8 +232,8 @@ function ScreenerContent() {
             </div>
 
             {/* Chain Filter */}
-            <div className="flex items-center gap-2 mb-4 px-3 sm:px-0 overflow-x-auto pb-2 scrollbar-thin">
-                <Filter className="w-4 h-4 text-[var(--foreground-muted)] flex-shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-4 px-3 sm:px-0 overflow-x-auto scrollbar-thin">
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--foreground-muted)] flex-shrink-0" />
                 {CHAIN_OPTIONS.map((chain) => (
                     <button
                         key={chain.id}
@@ -233,14 +242,14 @@ function ScreenerContent() {
                             setCurrentPage(1);
                         }}
                         className={clsx(
-                            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 border',
+                            'flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all flex-shrink-0 border',
                             chainFilter === chain.id
                                 ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
                                 : 'border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)] hover:text-[var(--foreground)]'
                         )}
                     >
                         {chain.logo && (
-                            <img src={chain.logo} alt={chain.name} className="w-4 h-4 rounded-full" />
+                            <img src={chain.logo} alt={chain.name} className="w-3 h-3 sm:w-4 sm:h-4 rounded-full" />
                         )}
                         <span className="hidden sm:inline">{chain.name}</span>
                         <span className="sm:hidden">{chain.id === 'all' ? 'All' : chain.name.slice(0, 3)}</span>
@@ -249,7 +258,7 @@ function ScreenerContent() {
             </div>
 
             {/* Token table */}
-            <div className="card overflow-hidden p-0 mx-0 rounded-none sm:rounded-lg border-x-0 sm:border-x border-b-0 sm:border-b">
+            <div className="overflow-hidden p-0 mx-0 w-full bg-transparent border-0 rounded-none sm:bg-[var(--background-secondary)] sm:border sm:border-[var(--border)] sm:rounded-lg sm:shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="table w-full text-xs sm:text-sm">
                         <thead>
@@ -468,17 +477,3 @@ function TokenRow({ token, index }: { token: TokenPair; index: number }) {
     );
 }
 
-function formatPrice(num: number): string {
-    if (num < 0.00001) return num.toExponential(2);
-    if (num < 0.01) return num.toFixed(6);
-    if (num < 1) return num.toFixed(4);
-    if (num < 1000) return num.toFixed(2);
-    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatNumber(num: number): string {
-    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-    return num.toFixed(2);
-}

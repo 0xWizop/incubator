@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to check if the authenticated user owns this document
+    // Works with both Firebase UID and wallet addresses (lowercase)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    // - Users can read/write their own document
+    // - Leaderboard queries allowed for authenticated users
+    match /users/{userId} {
+      // Allow user to read/write their own profile
+      allow read, write: if isOwner(userId);
+      
+      // Allow authenticated users to read for leaderboard (public profile data)
+      allow read: if isAuthenticated();
+    }
+    
+    // Trades collection
+    // - Private to the user who made the trade
+    // - Users can only read/create their own trades
+    match /trades/{tradeId} {
+      allow read: if isAuthenticated() 
+                  && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() 
+                    && request.resource.data.userId == request.auth.uid;
+      // No update/delete - trades are immutable records
+    }
+    
+    // Rewards collection
+    // - Users can read their own rewards
+    // - Users can update only the claimedRewards field
+    match /rewards/{userId} {
+      allow read: if isOwner(userId);
+      
+      // Allow claiming rewards (only updating claimedRewards)
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['claimedRewards', 'lastUpdated']);
+      
+      // Creation handled by user signup flow
+      allow create: if isOwner(userId);
+    }
+    
+    // Referrals collection
+    // - Anyone authenticated can read (to look up codes)
+    // - Only owner can create/update their referral code
+    match /referrals/{code} {
+      allow read: if isAuthenticated();
+      
+      allow create: if isAuthenticated() 
+                    && request.resource.data.ownerId == request.auth.uid;
+      
+      allow update: if isAuthenticated() 
+                    && resource.data.ownerId == request.auth.uid;
+    }
+  }
+}

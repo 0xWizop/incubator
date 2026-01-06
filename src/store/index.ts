@@ -67,40 +67,8 @@ export const useAppStore = create<AppState>()(
     )
 );
 
-// Wallet state (separate for performance)
-interface WalletState {
-    // EVM wallet
-    evmAddress: string | null;
-    evmConnected: boolean;
-
-    // Solana wallet
-    solanaAddress: string | null;
-    solanaConnected: boolean;
-
-    // Actions
-    setEvmWallet: (address: string | null) => void;
-    setSolanaWallet: (address: string | null) => void;
-    disconnectAll: () => void;
-}
-
-export const useWalletStore = create<WalletState>()((set) => ({
-    evmAddress: null,
-    evmConnected: false,
-    solanaAddress: null,
-    solanaConnected: false,
-
-    setEvmWallet: (address) =>
-        set({ evmAddress: address, evmConnected: !!address }),
-    setSolanaWallet: (address) =>
-        set({ solanaAddress: address, solanaConnected: !!address }),
-    disconnectAll: () =>
-        set({
-            evmAddress: null,
-            evmConnected: false,
-            solanaAddress: null,
-            solanaConnected: false,
-        }),
-}));
+// Re-export wallet store from dedicated module
+export { useWalletStore } from './walletStore';
 
 // Trading state
 interface TradingState {

@@ -16,7 +16,10 @@ import {
     Trash2,
     Sun,
     Moon,
-    Monitor
+    Monitor,
+    Edit2,
+    CheckCircle2,
+    X
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect } from 'react';
@@ -29,13 +32,17 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({ onLock }: SettingsTabProps) {
-    const { wallets, activeWallet, setActiveWallet, openModal, initialize } = useWalletStore();
+    const { wallets, activeWallet, setActiveWallet, openModal, initialize, renameWallet } = useWalletStore();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [privateKeyVisible, setPrivateKeyVisible] = useState(false);
     const [confirmLock, setConfirmLock] = useState(false);
     const [revealedKey, setRevealedKey] = useState<string | null>(null);
+
+    // Rename state
+    const [editingWallet, setEditingWallet] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -85,6 +92,19 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
         }
     };
 
+    const handleRename = (address: string) => {
+        if (!editName.trim()) return;
+        renameWallet(address, editName);
+        setEditingWallet(null);
+        setEditName('');
+    };
+
+    const startEditing = (e: React.MouseEvent, wallet: { address: string; name: string }) => {
+        e.stopPropagation();
+        setEditingWallet(wallet.address);
+        setEditName(wallet.name);
+    };
+
     return (
         <div className="space-y-6 pt-2">
             {/* Wallet Management */}
@@ -115,7 +135,50 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                                 )} />
                             </div>
                             <div className="flex-1 text-left min-w-0">
-                                <p className="font-medium text-sm truncate">{wallet.name}</p>
+                                {editingWallet === wallet.address ? (
+                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="text"
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded px-2 py-1 text-sm"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleRename(wallet.address);
+                                                if (e.key === 'Escape') setEditingWallet(null);
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRename(wallet.address);
+                                            }}
+                                            className="p-1 hover:text-[var(--primary)]"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingWallet(null);
+                                            }}
+                                            className="p-1 hover:text-[var(--accent-red)]"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 group/name">
+                                        <p className="font-medium text-sm truncate">{wallet.name}</p>
+                                        <button
+                                            onClick={(e) => startEditing(e, wallet)}
+                                            className="opacity-0 group-hover/name:opacity-100 p-1 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-opacity"
+                                        >
+                                            <Edit2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                )}
                                 <p className="text-xs text-[var(--foreground-muted)] font-mono truncate">
                                     {wallet.address}
                                 </p>
@@ -138,8 +201,6 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                     </button>
                 </div>
             </div>
-
-
 
             {/* Appearance */}
             <div>

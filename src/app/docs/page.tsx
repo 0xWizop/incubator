@@ -265,20 +265,40 @@ function TradingContent() {
                 ]} />
             </SubSection>
 
-            <SubSection title="Executing a Swap">
-                <StepList steps={[
-                    "Select your input token and enter the amount you want to swap",
-                    "Choose your output token — the quote updates automatically",
-                    "Review the estimated output, price impact, and route",
-                    "Adjust slippage tolerance if needed (default: auto)",
-                    "Click 'Swap' and confirm the transaction in your wallet"
+            <SectionTitle>Lightspeed Integration</SectionTitle>
+            <Paragraph>
+                Incubator Protocol exclusively uses <strong>Lightspeed</strong> for all token swaps.
+                Lightspeed provides high-performance cross-chain capabilities, allowing you to swap assets seamlessly between networks.
+            </Paragraph>
+
+            <SubSection title="Why Lightspeed?">
+                <FeatureList items={[
+                    { title: "Cross-Chain Swaps", description: "Swap native tokens between Solana, Ethereum, Base, and Arbitrum" },
+                    { title: "Best Rates", description: "Aggregates liquidity to ensure minimal slippage" },
+                    { title: "Fast Execution", description: "Optimized routing for rapid transaction confirmation" },
+                    { title: "Secure", description: "Non-custodial architecture keeps your assets safe" }
                 ]} />
             </SubSection>
 
-            <InfoCard type="info">
-                Trades are routed through Jupiter (Solana) and 1inch (EVM chains) aggregators
-                to find the best prices across multiple DEX liquidity sources.
-            </InfoCard>
+            <SubSection title="How it Works">
+                <StepList steps={[
+                    "We request a quote via the Lightspeed API for your desired swap",
+                    "You approve the transaction in your wallet",
+                    "Lightspeed executes the swap and delivers the tokens to your destination chart/wallet"
+                ]} />
+            </SubSection>
+
+            <div className="mt-6">
+                <a
+                    href="https://lightspeed-9288f.web.app/docs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black font-bold hover:opacity-90 transition-opacity"
+                >
+                    View Official Lightspeed Docs
+                    <ExternalLink className="w-4 h-4" />
+                </a>
+            </div>
         </>
     );
 }
@@ -575,7 +595,7 @@ export default function DocsPage() {
                 {/* Sidebar Footer */}
                 <div className="p-4 border-t border-[var(--border)]">
                     <a
-                        href="https://twitter.com/cypherx"
+                        href="https://twitter.com/IncubatorProt"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"

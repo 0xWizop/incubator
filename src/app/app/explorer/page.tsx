@@ -224,9 +224,9 @@ function ExplorerContent() {
     };
 
     return (
-        <div className="p-2 sm:p-6 max-w-7xl mx-auto">
+        <div className="p-2 sm:p-6 max-w-7xl mx-auto overflow-x-hidden w-full pb-24 lg:pb-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
                 <div>
                     <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
                         <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" />
@@ -236,13 +236,24 @@ function ExplorerContent() {
                         Live blocks and transactions
                     </p>
                 </div>
+
+                {/* Desktop Refresh Button */}
                 <button
                     onClick={() => fetchData(false)}
-                    className="btn btn-secondary text-sm py-2"
+                    className="hidden lg:flex btn btn-secondary text-sm py-2"
                     disabled={loading}
                 >
                     <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
                     Refresh
+                </button>
+
+                {/* Mobile Refresh Button (Icon Only) */}
+                <button
+                    onClick={() => fetchData(false)}
+                    className="lg:hidden p-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    disabled={loading}
+                >
+                    <RefreshCw className={clsx('w-5 h-5', loading && 'animate-spin')} />
                 </button>
             </div>
 
@@ -253,7 +264,7 @@ function ExplorerContent() {
                         <input
                             type="text"
                             placeholder="Search tx hash, block, address..."
-                            className="input input-no-icon border-0 bg-transparent focus:shadow-none text-sm w-full"
+                            className="input input-no-icon border-0 bg-transparent focus:shadow-none text-base sm:text-sm w-full"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -263,7 +274,7 @@ function ExplorerContent() {
                     </div>
                     <button
                         onClick={() => handleSearch()}
-                        className="px-6 sm:px-8 py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
+                        className="px-4 sm:px-8 py-2 sm:py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
                     >
                         Search
                     </button>
@@ -327,10 +338,10 @@ function ExplorerContent() {
                             <Link
                                 key={chainId}
                                 href={`/app/explorer/${chainId}/`}
-                                className="card relative overflow-hidden group p-2 sm:p-4 hover:border-[var(--primary)] transition-colors cursor-pointer"
+                                className="card relative overflow-hidden group p-2.5 sm:p-4 hover:border-[var(--primary)] transition-colors cursor-pointer"
                             >
                                 <div
-                                    className="absolute top-0 right-0 w-12 sm:w-16 h-12 sm:h-16 opacity-10 rounded-bl-full transition-transform group-hover:scale-110"
+                                    className="absolute top-0 right-0 w-8 sm:w-16 h-8 sm:h-16 opacity-10 rounded-bl-full transition-transform group-hover:scale-110"
                                     style={{ backgroundColor: chainColors[chainId] }}
                                 />
                                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
@@ -348,7 +359,7 @@ function ExplorerContent() {
                                     </div>
                                     <span className="text-xs sm:text-sm font-bold capitalize tracking-wide">{chainId}</span>
                                 </div>
-                                <p className="text-base sm:text-xl font-mono font-bold">
+                                <p className="text-sm sm:text-xl font-mono font-bold">
                                     {latestBlock?.toLocaleString() || '...'}
                                 </p>
                                 <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">Latest Block</p>
@@ -362,7 +373,7 @@ function ExplorerContent() {
             <div className="grid lg:grid-cols-2 gap-3 sm:gap-6">
 
                 {/* Latest Blocks */}
-                <div className="card flex flex-col h-[300px] sm:h-[400px] lg:h-[500px] p-0">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[250px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden">
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
                         <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
                             <Box className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
@@ -378,7 +389,7 @@ function ExplorerContent() {
                                     <Link
                                         key={`${block.chainId}-${block.number}`}
                                         href={`/app/explorer/detail/?type=block&id=${block.number}&chain=${block.chainId}`}
-                                        className="block p-2 sm:p-3 hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
+                                        className="block px-2 py-2 sm:px-4 sm:py-3 hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
                                     >
                                         <div className="flex justify-between items-start mb-1">
                                             <div className="flex items-center gap-2">
@@ -425,7 +436,7 @@ function ExplorerContent() {
                 </div>
 
                 {/* Latest Transactions */}
-                <div className="card flex flex-col h-[300px] sm:h-[400px] lg:h-[500px] p-0">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[250px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden">
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
                         <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
                             <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
@@ -441,7 +452,7 @@ function ExplorerContent() {
                                     <Link
                                         key={`${tx.chainId}-${tx.hash}`}
                                         href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${tx.chainId}`}
-                                        className="block p-2 sm:p-3 hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
+                                        className="block px-2 py-2 sm:px-4 sm:py-3 hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
                                     >
                                         <div className="flex justify-between items-start mb-1">
                                             <div className="flex items-center gap-2 max-w-[70%]">

@@ -11,7 +11,6 @@ import {
     Compass,
     Gift,
     BookOpen,
-    Menu,
     X,
     ChevronDown,
     ExternalLink,
@@ -19,6 +18,7 @@ import {
     User,
     LogOut,
     Settings,
+    Mail,
 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { WalletButton } from '@/components/wallet';
@@ -127,56 +127,78 @@ export function Sidebar() {
                     })}
                 </nav>
 
-                {/* Chain filter section */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-[var(--border)]">
-                    <p className="text-[10px] text-[var(--foreground-muted)] mb-2 uppercase tracking-widest">
-                        Networks
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {(['solana', 'ethereum', 'base', 'arbitrum'] as const).map((chainId) => {
-                            const isActive = selectedChains.includes(chainId);
-                            // Lazy import or assume it's available. 
-                            // Better: we should import CHAINS at top.
-                            // Since this is a replacement block, we can't easily add import at top if we only replace this block.
-                            // I will use `CHAINS` global if possible but I need to ensure it's imported.
-                            // Wait, I should add the import first or do a multi replacement.
-                            // For now, hardcode the logos here or assume CHAINS is available.
-                            // Actually, I'll update the component to accept CHAINS or import it in a separate step if needed.
-                            // Let's assume I can't add import in this block.
+                {/* Bottom Section: Socials + Networks */}
+                <div className="mt-auto">
+                    {/* Socials */}
+                    <div className="px-4 pb-4 flex items-center justify-start gap-4">
+                        <a
+                            href="https://x.com/theincubatorxyz"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors hover:scale-110 transform duration-200"
+                        >
+                            {/* X (Twitter) Logo */}
+                            <svg viewBox="0 0 24 24" aria-hidden="true" className="w-4 h-4 fill-current">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                        </a>
+                        <a
+                            href="https://discord.gg/366nqwwz"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--foreground-muted)] hover:text-[#5865F2] transition-colors hover:scale-110 transform duration-200"
+                        >
+                            {/* Discord Logo */}
+                            <svg viewBox="0 0 127.14 96.36" aria-hidden="true" className="w-4 h-4 fill-current">
+                                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22c.12-9.23-1.69-19-4.35-27.66C119.95,41.66,115.36,23.33,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.06-12.74,11.37-12.74S96.15,46,96.06,53,91,65.69,84.69,65.69Z" />
+                            </svg>
+                        </a>
+                        <a
+                            href="mailto:incubatorprotocol@gmail.com"
+                            className="text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors hover:scale-110 transform duration-200"
+                        >
+                            <Mail className="w-4 h-4" />
+                        </a>
+                    </div>
 
-                            // Let's verify imports in Navigation.tsx first. It does NOT import CHAINS.
-                            // I will use a separate step to add the import.
-                            // Here I will modify the logic to use the logos.
+                    {/* Chain filter section */}
+                    <div className="p-3 border-t border-[var(--border)]">
+                        <p className="text-[10px] text-[var(--foreground-muted)] mb-2 uppercase tracking-widest">
+                            Networks
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(['solana', 'ethereum', 'base', 'arbitrum'] as const).map((chainId) => {
+                                const isActive = selectedChains.includes(chainId);
+                                const logos: Record<string, string> = {
+                                    solana: 'https://i.imgur.com/xp7PYKk.png',
+                                    ethereum: 'https://i.imgur.com/NKQlhQj.png',
+                                    base: 'https://i.imgur.com/zn5hpMs.png',
+                                    arbitrum: 'https://i.imgur.com/jmOXWlA.png',
+                                };
 
-                            const logos: Record<string, string> = {
-                                solana: 'https://i.imgur.com/xp7PYKk.png',
-                                ethereum: 'https://i.imgur.com/NKQlhQj.png',
-                                base: 'https://i.imgur.com/zn5hpMs.png',
-                                arbitrum: 'https://i.imgur.com/jmOXWlA.png',
-                            };
-
-                            return (
-                                <button
-                                    key={chainId}
-                                    onClick={() => toggleChain(chainId)}
-                                    className={clsx(
-                                        'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-all group',
-                                        isActive
-                                            ? 'opacity-100 bg-[var(--background-tertiary)] border border-[var(--border)]'
-                                            : 'opacity-40 hover:opacity-100 hover:bg-[var(--background-tertiary)]/50'
-                                    )}
-                                >
-                                    <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
-                                        <img
-                                            src={logos[chainId]}
-                                            alt={chainId}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                    <span className="capitalize text-[var(--foreground-muted)]">{chainId}</span>
-                                </button>
-                            );
-                        })}
+                                return (
+                                    <button
+                                        key={chainId}
+                                        onClick={() => toggleChain(chainId)}
+                                        className={clsx(
+                                            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-all group',
+                                            isActive
+                                                ? 'opacity-100 bg-[var(--background-tertiary)] border border-[var(--border)]'
+                                                : 'opacity-40 hover:opacity-100 hover:bg-[var(--background-tertiary)]/50'
+                                        )}
+                                    >
+                                        <div className="relative w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
+                                            <img
+                                                src={logos[chainId]}
+                                                alt={chainId}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <span className="capitalize text-[var(--foreground-muted)]">{chainId}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </aside >
@@ -260,15 +282,10 @@ export function Header() {
 
     return (
         <>
-            <header className="h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-4 lg:px-6">
+            <header className="h-12 lg:h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-3 lg:px-6">
                 {/* Left side */}
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={toggleSidebar}
-                        className="lg:hidden p-2 hover:bg-[var(--background-tertiary)] rounded-lg"
-                    >
-                        <Menu className="w-5 h-5" />
-                    </button>
+
 
                     {/* Search bar with dropdown */}
                     <div className="hidden md:flex items-center flex-1 max-w-2xl" ref={searchRef}>
@@ -343,7 +360,7 @@ export function Header() {
                         <div className="relative" ref={userMenuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--background-tertiary)] hover:bg-[var(--background)] border border-[var(--border)] transition-colors"
+                                className="flex items-center gap-2 px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg bg-[var(--background-tertiary)] hover:bg-[var(--background)] border border-[var(--border)] transition-colors"
                             >
                                 {firebaseUser.photoURL ? (
                                     <img src={firebaseUser.photoURL} alt="" className="w-6 h-6 rounded-full" />
@@ -388,7 +405,7 @@ export function Header() {
                     ) : (
                         <button
                             onClick={() => setShowAuthModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-black font-medium text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
+                            className="flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl bg-[var(--primary)] text-black font-medium text-xs lg:text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
                         >
                             <User className="w-4 h-4" />
                             <span className="hidden sm:block">Sign In</span>

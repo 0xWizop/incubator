@@ -12,7 +12,7 @@ if (!API_KEY || API_KEY === 'demo') {
 const NETWORK_URLS: Record<string, string> = {
     // Alchemy key provided seems restricted to Base. Use public RPCs for others.
     ethereum: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
-    base: process.env.BASE_RPC_URL || `https://base-mainnet.g.alchemy.com/v2/${API_KEY}`,
+    base: process.env.BASE_RPC_URL || (API_KEY && API_KEY !== 'demo' ? `https://base-mainnet.g.alchemy.com/v2/${API_KEY}` : 'https://mainnet.base.org'),
     arbitrum: process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc',
     solana: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
 };

@@ -17,12 +17,14 @@ export function WalletModal() {
         closeModal,
         openModal,
         createWallet,
+        importWallet,
         unlock,
         setError,
     } = useWalletStore();
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [privateKey, setPrivateKey] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [walletType, setWalletType] = useState<'evm' | 'solana'>('evm');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -32,6 +34,7 @@ export function WalletModal() {
     const handleClose = () => {
         setPassword('');
         setConfirmPassword('');
+        setPrivateKey('');
         setShowPassword(false);
         setAgreedToTerms(false);
         setError(null);
@@ -57,6 +60,26 @@ export function WalletModal() {
             // Don't close - stay open to show dashboard
             setPassword('');
             setConfirmPassword('');
+            setAgreedToTerms(false);
+            setAgreedToTerms(false);
+        }
+    };
+
+    const handleImportWallet = async () => {
+        if (!privateKey) {
+            setError('Please enter your private key');
+            return;
+        }
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters');
+            return;
+        }
+
+        const success = await importWallet(password, privateKey, walletType);
+        if (success) {
+            setPassword('');
+            setConfirmPassword('');
+            setPrivateKey('');
             setAgreedToTerms(false);
         }
     };
@@ -319,16 +342,97 @@ export function WalletModal() {
             <div className="text-center mb-4">
                 <h2 className="text-xl font-bold">Import Wallet</h2>
                 <p className="text-sm text-[var(--foreground-muted)] mt-1">
-                    Coming soon - Import via seed phrase or private key
+                    Enter your private key to import
                 </p>
             </div>
 
-            <div className="p-6 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] text-center">
-                <Key className="w-12 h-12 text-[var(--foreground-muted)] mx-auto mb-3" />
-                <p className="text-sm text-[var(--foreground-muted)]">
-                    Seed phrase and private key import will be available in the next update.
-                </p>
+            {/* Wallet Type Selection */}
+            <div className="flex gap-2 p-1 bg-[var(--background-tertiary)] rounded-lg">
+                <button
+                    onClick={() => setWalletType('evm')}
+                    className={clsx(
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
+                        walletType === 'evm'
+                            ? 'bg-[var(--primary)] text-black'
+                            : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                    )}
+                >
+                    EVM (ETH/Base/Arb)
+                </button>
+                <button
+                    onClick={() => setWalletType('solana')}
+                    className={clsx(
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
+                        walletType === 'solana'
+                            ? 'bg-[var(--solana)] text-white'
+                            : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                    )}
+                >
+                    Solana
+                </button>
             </div>
+
+            <div className="space-y-3">
+                {/* Private Key Input */}
+                <div>
+                    <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                        {walletType === 'solana' ? 'Private Key (Base58)' : 'Private Key (0x...)'}
+                    </label>
+                    <div className="relative">
+                        <textarea
+                            value={privateKey}
+                            onChange={(e) => setPrivateKey(e.target.value)}
+                            placeholder="Paste your private key here"
+                            className="input input-no-icon w-full h-24 py-2 resize-none font-mono text-xs"
+                        />
+                    </div>
+                </div>
+
+                {/* Password Input for Encryption */}
+                <div>
+                    <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                        Set Password (to encrypt locally)
+                    </label>
+                    <div className="relative">
+                        <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter a strong password"
+                            className="input input-no-icon w-full pr-10"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                        >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+                <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-sm text-[var(--accent-red)]">
+                    {error}
+                </div>
+            )}
+
+            <button
+                onClick={handleImportWallet}
+                disabled={isLoading || !privateKey || !password}
+                className="btn btn-primary w-full py-3"
+            >
+                {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                    <>
+                        <Key className="w-4 h-4 mr-2" />
+                        Import Wallet
+                    </>
+                )}
+            </button>
         </div>
     );
 

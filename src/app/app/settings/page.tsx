@@ -15,7 +15,14 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { updateUserPreferences, updateUserProfile, defaultPreferences } from '@/lib/firebase/collections';
-import { ChainId, UserPreferences } from '@/types';
+import { useTheme } from 'next-themes';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase/config';
+import { Camera } from 'lucide-react';
+import { updateProfile } from 'firebase/auth';
+
+import { ChainId, UserPreferences, CurrencyDisplay } from '@/types';
+import { Eye, EyeOff, DollarSign, Percent } from 'lucide-react';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -34,10 +41,12 @@ const chainOptions: { id: ChainId; name: string; logo: string }[] = [
 export default function SettingsPage() {
     const { firebaseUser, user, loading } = useAuth();
     const router = useRouter();
+    const { setTheme } = useTheme();
     const [activeTab, setActiveTab] = useState('profile');
     const [displayName, setDisplayName] = useState('');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     // Preferences state
     const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
@@ -54,18 +63,59 @@ export default function SettingsPage() {
         }
     }, [firebaseUser, user, loading, router]);
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0] || !firebaseUser) return;
+
+        const file = e.target.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            return;
+        }
+
+        try {
+            setUploading(true);
+            const storageRef = ref(storage, `users/${firebaseUser.uid}/profile_pic`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            // Update Auth and Firestore
+            await updateProfile(firebaseUser, { photoURL: downloadURL });
+            await updateUserProfile(firebaseUser.uid, { photoURL: downloadURL });
+
+            // Reload to reflect changes immediately
+            window.location.reload();
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert('Failed to upload image. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleSaveProfile = async () => {
         if (!firebaseUser) return;
         setSaving(true);
 
-        await updateUserProfile(firebaseUser.uid, { displayName });
+        try {
+            // Update Auth and Firestore
+            if (displayName !== firebaseUser.displayName) {
+                await updateProfile(firebaseUser, { displayName });
+            }
+            await updateUserProfile(firebaseUser.uid, { displayName });
 
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+            setSaving(false);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            setSaving(false);
+        }
     };
 
     const handleToggleDarkMode = async (value: boolean) => {
+        // Immediate UI update via next-themes
+        setTheme(value ? 'dark' : 'light');
+
         if (!firebaseUser) return;
         const newPrefs = { ...preferences, darkMode: value };
         setPreferences(newPrefs);
@@ -87,6 +137,71 @@ export default function SettingsPage() {
         await updateUserPreferences(firebaseUser.uid, { notifications: newNotifications });
     };
 
+    const handleChangeSlippage = async (value: number) => {
+        if (!firebaseUser) return;
+        const newPrefs = { ...preferences, defaultSlippage: value, customSlippage: value === 0 ? preferences.customSlippage : undefined };
+        setPreferences(newPrefs);
+        await updateUserPreferences(firebaseUser.uid, { defaultSlippage: value });
+    };
+
+    const handleChangeCustomSlippage = async (value: number) => {
+        if (!firebaseUser) return;
+        const newPrefs = { ...preferences, defaultSlippage: 'custom' as any, customSlippage: value }; // Cast to any to bypass strict type check if needed or adjust type
+        // Actually typical pattern is just setting customSlippage and maybe a specific flag or just using customSlippage if default is set to a specific value
+        // Let's stick to the type definition: defaultSlippage is number.
+        // If we want "custom", we might need to handle it.
+        // Let's assume defaultSlippage stores the actual number used, and customSlippage is strictly for the input persistence.
+        // Wait, the type says: defaultSlippage: number.
+        // So we just set defaultSlippage to the value.
+        // But the UI needs to know if it's one of the presets (0.5, 1, 3) or custom.
+
+        setPreferences({ ...preferences, customSlippage: value, defaultSlippage: value });
+        await updateUserPreferences(firebaseUser.uid, { customSlippage: value, defaultSlippage: value });
+    };
+
+    // Better handler for slippage
+    const handleSlippageSelect = async (value: number | 'custom') => {
+        if (!firebaseUser) return;
+
+        let newPrefs: UserPreferences;
+
+        if (value === 'custom') {
+            // Don't update backend yet, just local state if needed or focus input
+            // We'll let the input change handler do the actual update
+            return;
+        } else {
+            newPrefs = { ...preferences, defaultSlippage: value };
+            setPreferences(newPrefs);
+            await updateUserPreferences(firebaseUser.uid, { defaultSlippage: value });
+        }
+    };
+
+    // Input handler for custom slippage
+    const handleCustomSlippageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseFloat(e.target.value);
+        if (isNaN(val) || val < 0 || val > 50) return;
+
+        if (!firebaseUser) return;
+        const newPrefs = { ...preferences, defaultSlippage: val, customSlippage: val };
+        setPreferences(newPrefs);
+        // Debounce this in a real app, but for now simple update
+        await updateUserPreferences(firebaseUser.uid, { defaultSlippage: val, customSlippage: val });
+    };
+
+    const handleChangeCurrency = async (currency: CurrencyDisplay) => {
+        if (!firebaseUser) return;
+        const newPrefs = { ...preferences, currencyDisplay: currency };
+        setPreferences(newPrefs);
+        await updateUserPreferences(firebaseUser.uid, { currencyDisplay: currency });
+    };
+
+    const handleToggleHideBalances = async (value: boolean) => {
+        if (!firebaseUser) return;
+        const newPrefs = { ...preferences, hideBalances: value };
+        setPreferences(newPrefs);
+        await updateUserPreferences(firebaseUser.uid, { hideBalances: value });
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -100,267 +215,374 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="p-4 lg:p-6 max-w-4xl mx-auto pb-24 lg:pb-6">
-            <h1 className="text-2xl font-bold mb-6">Settings</h1>
+        <div className="h-[calc(100vh-5rem)] p-4 lg:p-6 max-w-7xl mx-auto flex flex-col overflow-hidden">
+            <h1 className="text-xl font-bold mb-4 flex-shrink-0">Settings</h1>
 
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
                 {/* Sidebar tabs */}
-                <div className="lg:w-56 flex-shrink-0">
-                    <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-2 lg:pb-0">
+                <div className="lg:w-60 flex-shrink-0 bg-[var(--background-secondary)] rounded-2xl border border-[var(--border)] overflow-hidden flex flex-col">
+                    <div className="p-2 space-y-1">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={clsx(
-                                    'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+                                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                                     activeTab === tab.id
                                         ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
-                                        : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)]'
+                                        : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
                                 )}
                             >
-                                <tab.icon className="w-4 h-4" />
+                                <tab.icon className={clsx("w-4 h-4", activeTab === tab.id && "text-[var(--primary)]")} />
                                 {tab.label}
                             </button>
                         ))}
-                    </nav>
+                    </div>
                 </div>
 
                 {/* Content area */}
-                <div className="flex-1">
-                    {activeTab === 'profile' && (
-                        <div className="card p-6">
-                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                <User className="w-5 h-5" />
-                                Profile Information
-                            </h2>
+                <div className="flex-1 bg-[var(--background-secondary)] rounded-2xl border border-[var(--border)] overflow-hidden flex flex-col min-w-0">
+                    <div className="h-full overflow-y-auto p-4 lg:p-6 custom-scrollbar">
+                        {activeTab === 'profile' && (
+                            <div className="max-w-2xl mx-auto">
+                                <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                    <User className="w-5 h-5 text-[var(--primary)]" />
+                                    Profile Information
+                                </h2>
 
-                            <div className="space-y-6">
-                                {/* Avatar */}
-                                <div className="flex items-center gap-4">
-                                    {firebaseUser.photoURL ? (
-                                        <img
-                                            src={firebaseUser.photoURL}
-                                            alt=""
-                                            className="w-16 h-16 rounded-full"
-                                        />
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-full bg-[var(--primary)]/20 flex items-center justify-center">
-                                            <User className="w-8 h-8 text-[var(--primary)]" />
+                                <div className="space-y-6">
+                                    {/* Avatar */}
+                                    <div className="flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)]">
+                                        <div className="relative group">
+                                            {firebaseUser.photoURL ? (
+                                                <img
+                                                    src={firebaseUser.photoURL}
+                                                    alt=""
+                                                    className="w-16 h-16 rounded-full ring-2 ring-[var(--border)] object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 rounded-full bg-[var(--primary)]/20 flex items-center justify-center ring-2 ring-[var(--border)]">
+                                                    <User className="w-8 h-8 text-[var(--primary)]" />
+                                                </div>
+                                            )}
+                                            <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                                <Camera className="w-6 h-6 text-white" />
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={handleImageUpload}
+                                                    disabled={uploading}
+                                                />
+                                            </label>
+                                            {uploading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full">
+                                                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                        <div>
+                                            <p className="font-bold text-lg">{firebaseUser.displayName || 'User'}</p>
+                                            <p className="text-sm text-[var(--foreground-muted)]">{firebaseUser.email}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Display Name */}
                                     <div>
-                                        <p className="font-medium">{firebaseUser.displayName || 'User'}</p>
-                                        <p className="text-sm text-[var(--foreground-muted)]">{firebaseUser.email}</p>
+                                        <label className="block text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">Display Name</label>
+                                        <input
+                                            type="text"
+                                            value={displayName}
+                                            onChange={(e) => setDisplayName(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-colors"
+                                            placeholder="Your display name"
+                                        />
                                     </div>
-                                </div>
 
-                                {/* Display Name */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={displayName}
-                                        onChange={(e) => setDisplayName(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-colors"
-                                        placeholder="Your display name"
-                                    />
-                                </div>
+                                    {/* Email (read-only) */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">Email</label>
+                                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] text-[var(--foreground-muted)]">
+                                            <Mail className="w-4 h-4" />
+                                            <span>{firebaseUser.email}</span>
+                                            {firebaseUser.emailVerified && (
+                                                <span className="ml-auto text-xs text-[var(--accent-green)] flex items-center gap-1 bg-[var(--accent-green)]/10 px-2 py-0.5 rounded-full">
+                                                    <Check className="w-3 h-3" /> Verified
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                {/* Email (read-only) */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Email</label>
-                                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] text-[var(--foreground-muted)]">
-                                        <Mail className="w-4 h-4" />
-                                        <span>{firebaseUser.email}</span>
-                                        {firebaseUser.emailVerified && (
-                                            <span className="ml-auto text-xs text-[var(--accent-green)] flex items-center gap-1">
-                                                <Check className="w-3 h-3" /> Verified
-                                            </span>
+                                    {/* User ID */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">User ID</label>
+                                        <div className="px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-mono text-sm text-[var(--foreground-muted)] truncate">
+                                            {firebaseUser.uid}
+                                        </div>
+                                    </div>
+
+                                    {/* Save button */}
+                                    <button
+                                        onClick={handleSaveProfile}
+                                        disabled={saving}
+                                        className={clsx(
+                                            'w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all transform active:scale-95',
+                                            saving || saved
+                                                ? 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)]'
+                                                : 'bg-[var(--primary)] text-black hover:bg-[var(--primary)]/90 shadow-lg shadow-[var(--primary)]/20'
                                         )}
-                                    </div>
+                                    >
+                                        {saving ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : saved ? (
+                                            <>
+                                                <Check className="w-4 h-4" />
+                                                Saved!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4" />
+                                                Save Changes
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
+                            </div>
+                        )}
 
-                                {/* User ID */}
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">User ID</label>
-                                    <div className="px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-mono text-sm text-[var(--foreground-muted)] truncate">
-                                        {firebaseUser.uid}
-                                    </div>
+                        {activeTab === 'wallets' && (
+                            <div className="max-w-2xl mx-auto text-center py-12">
+                                <div className="w-16 h-16 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center mx-auto mb-6">
+                                    <Wallet className="w-8 h-8 text-[var(--foreground-muted)]" />
                                 </div>
-
-                                {/* Save button */}
+                                <h3 className="text-xl font-bold mb-2">Manage Wallets</h3>
+                                <p className="text-[var(--foreground-muted)] mb-8 max-w-md mx-auto">
+                                    Connect multiple wallets to track your portfolio across chains. Use the wallet button in the header to manage your connections.
+                                </p>
                                 <button
-                                    onClick={handleSaveProfile}
-                                    disabled={saving}
-                                    className={clsx(
-                                        'flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold transition-all',
-                                        saving || saved
-                                            ? 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)]'
-                                            : 'bg-[var(--primary)] text-black hover:bg-[var(--primary)]/90'
-                                    )}
+                                    onClick={() => document.getElementById('wallet-connect-trigger')?.click()}
+                                    className="px-6 py-3 rounded-xl bg-[var(--primary)] text-black font-bold hover:bg-[var(--primary)]/90 transition-all"
                                 >
-                                    {saving ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            Saving...
-                                        </>
-                                    ) : saved ? (
-                                        <>
-                                            <Check className="w-4 h-4" />
-                                            Saved!
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="w-4 h-4" />
-                                            Save Changes
-                                        </>
-                                    )}
+                                    Open Wallet Manager
                                 </button>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {activeTab === 'wallets' && (
-                        <div className="card p-6">
-                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                <Wallet className="w-5 h-5" />
-                                Connected Wallets
-                            </h2>
-                            <p className="text-[var(--foreground-muted)] text-sm mb-4">
-                                Link your wallet addresses to your account for tracking and rewards.
-                            </p>
-                            <div className="p-8 rounded-xl border-2 border-dashed border-[var(--border)] text-center">
-                                <Wallet className="w-8 h-8 mx-auto mb-3 text-[var(--foreground-muted)]" />
-                                <p className="text-sm text-[var(--foreground-muted)]">No wallets connected yet</p>
-                                <p className="text-xs text-[var(--foreground-muted)] mt-1">Use the Connect Wallet button in the header</p>
-                            </div>
-                        </div>
-                    )}
+                        {activeTab === 'preferences' && (
+                            <div className="h-full flex flex-col">
+                                <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                    <Palette className="w-5 h-5 text-[var(--primary)]" />
+                                    Preferences
+                                </h2>
 
-                    {activeTab === 'preferences' && (
-                        <div className="card p-6">
-                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                <Palette className="w-5 h-5" />
-                                Preferences
-                            </h2>
-                            <div className="space-y-4">
-                                {/* Dark Mode Toggle */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]">
-                                    <div>
-                                        <p className="font-medium">Dark Mode</p>
-                                        <p className="text-sm text-[var(--foreground-muted)]">Use dark theme</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Left Column: Trading & Chains */}
+                                    <div className="space-y-6">
+                                        {/* Slippage Settings */}
+                                        <section className="space-y-3">
+                                            <h3 className="text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider px-1">Trading</h3>
+                                            <div className="p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/30 transition-colors">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className="p-1.5 rounded-lg bg-[var(--background)]">
+                                                        <Percent className="w-4 h-4 text-[var(--primary)]" />
+                                                    </div>
+                                                    <p className="font-medium">Default Slippage</p>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-2 mb-3">
+                                                    {[0.5, 1, 3].map((val) => (
+                                                        <button
+                                                            key={val}
+                                                            onClick={() => handleSlippageSelect(val)}
+                                                            className={clsx(
+                                                                'py-2 rounded-lg text-sm font-medium transition-all',
+                                                                preferences.defaultSlippage === val
+                                                                    ? 'bg-[var(--primary)] text-black font-bold shadow-sm'
+                                                                    : 'bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--foreground-muted)]'
+                                                            )}
+                                                        >
+                                                            {val}%
+                                                        </button>
+                                                    ))}
+                                                    <div className="relative">
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Custom"
+                                                            value={preferences.defaultSlippage && ![0.5, 1, 3].includes(preferences.defaultSlippage) ? preferences.defaultSlippage : ''}
+                                                            onChange={handleCustomSlippageChange}
+                                                            className={clsx(
+                                                                "w-full h-full px-2 rounded-lg bg-[var(--background)] border text-sm text-center focus:outline-none transition-colors",
+                                                                ![0.5, 1, 3].includes(preferences.defaultSlippage)
+                                                                    ? "border-[var(--primary)] text-[var(--primary)] font-bold"
+                                                                    : "border-[var(--border)] focus:border-[var(--primary)]"
+                                                            )}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-[var(--foreground-muted)]">
+                                                    Transaction reverts if price changes unfavorably by &gt;{preferences.defaultSlippage || 0}%.
+                                                </p>
+                                            </div>
+                                        </section>
+
+                                        {/* Default Chain */}
+                                        <section className="space-y-3">
+                                            <h3 className="text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider px-1">Default Chain</h3>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {chainOptions.map((chain) => (
+                                                    <button
+                                                        key={chain.id}
+                                                        onClick={() => handleChangeDefaultChain(chain.id)}
+                                                        className={clsx(
+                                                            'flex items-center gap-3 p-3 rounded-xl transition-all text-left relative overflow-hidden group',
+                                                            preferences.defaultChain === chain.id
+                                                                ? 'bg-[var(--primary)]/10 border-2 border-[var(--primary)]'
+                                                                : 'bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/50'
+                                                        )}
+                                                    >
+                                                        <img src={chain.logo} alt={chain.name} className="w-6 h-6 rounded-full" />
+                                                        <span className={clsx("text-sm font-medium", preferences.defaultChain === chain.id ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]")}>
+                                                            {chain.name}
+                                                        </span>
+                                                        {preferences.defaultChain === chain.id && (
+                                                            <div className="absolute right-0 top-0 bottom-0 w-1 bg-[var(--primary)]" />
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </section>
                                     </div>
-                                    <button
-                                        onClick={() => handleToggleDarkMode(!preferences.darkMode)}
-                                        className={clsx(
-                                            'w-12 h-6 rounded-full relative transition-colors',
-                                            preferences.darkMode ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
-                                        )}
-                                    >
-                                        <div className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full transition-all',
-                                            preferences.darkMode ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
-                                        )} />
-                                    </button>
-                                </div>
 
-                                {/* Default Chain */}
-                                <div className="p-4 rounded-xl bg-[var(--background-tertiary)]">
-                                    <p className="font-medium mb-3">Default Chain</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {chainOptions.map((chain) => (
+                                    {/* Right Column: Display & Theme */}
+                                    <div className="space-y-6">
+                                        <section className="space-y-3">
+                                            <h3 className="text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider px-1">Display</h3>
+
+                                            {/* Currency Display */}
+                                            <div className="p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/30 transition-colors">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className="p-1.5 rounded-lg bg-[var(--background)]">
+                                                        <DollarSign className="w-4 h-4 text-[var(--accent-green)]" />
+                                                    </div>
+                                                    <p className="font-medium">Currency Display</p>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                    {(['USD', 'EUR', 'GBP', 'BTC'] as CurrencyDisplay[]).map((curr) => (
+                                                        <button
+                                                            key={curr}
+                                                            onClick={() => handleChangeCurrency(curr)}
+                                                            className={clsx(
+                                                                'px-2 py-2 rounded-lg text-sm font-medium transition-all',
+                                                                preferences.currencyDisplay === curr
+                                                                    ? 'bg-[var(--primary)] text-black font-bold shadow-sm'
+                                                                    : 'bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--foreground-muted)]'
+                                                            )}
+                                                        >
+                                                            {curr}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Toggles Grid */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                                {/* Hide Balances */}
+                                                <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] flex items-center justify-between hover:border-[var(--primary)]/30 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-1.5 rounded-lg bg-[var(--background)]">
+                                                            {preferences.hideBalances ? (
+                                                                <EyeOff className="w-4 h-4 text-[var(--primary)]" />
+                                                            ) : (
+                                                                <Eye className="w-4 h-4 text-[var(--foreground-muted)]" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium">Hide Balances</p>
+                                                            <p className="text-[10px] text-[var(--foreground-muted)]">Mask values</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleToggleHideBalances(!preferences.hideBalances)}
+                                                        className={clsx(
+                                                            'w-10 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20',
+                                                            preferences.hideBalances ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
+                                                        )}
+                                                    >
+                                                        <div className={clsx(
+                                                            'absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm',
+                                                            preferences.hideBalances ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
+                                                        )} />
+                                                    </button>
+                                                </div>
+
+                                                {/* Dark Mode */}
+                                                <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] flex items-center justify-between hover:border-[var(--primary)]/30 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-1.5 rounded-lg bg-[var(--background)]">
+                                                            <Palette className="w-4 h-4 text-[var(--secondary)]" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium">Dark Mode</p>
+                                                            <p className="text-[10px] text-[var(--foreground-muted)]">Theme</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleToggleDarkMode(!preferences.darkMode)}
+                                                        className={clsx(
+                                                            'w-10 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20',
+                                                            preferences.darkMode ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
+                                                        )}
+                                                    >
+                                                        <div className={clsx(
+                                                            'absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm',
+                                                            preferences.darkMode ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
+                                                        )} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'notifications' && (
+                            <div className="max-w-2xl mx-auto">
+                                <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                    <Bell className="w-5 h-5 text-[var(--primary)]" />
+                                    Notifications
+                                </h2>
+                                <div className="space-y-4">
+                                    {[
+                                        { id: 'tradeAlerts', label: 'Trade Alerts', desc: 'Get notified on price movements' },
+                                        { id: 'rewardUpdates', label: 'Reward Updates', desc: 'New rewards and tier progress' },
+                                        { id: 'priceAlerts', label: 'Price Alerts', desc: 'Custom price target notifications' }
+                                    ].map((item) => (
+                                        <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/30 transition-colors">
+                                            <div>
+                                                <p className="font-medium">{item.label}</p>
+                                                <p className="text-sm text-[var(--foreground-muted)]">{item.desc}</p>
+                                            </div>
                                             <button
-                                                key={chain.id}
-                                                onClick={() => handleChangeDefaultChain(chain.id)}
+                                                onClick={() => handleToggleNotification(item.id as keyof UserPreferences['notifications'], !preferences.notifications[item.id as keyof UserPreferences['notifications']])}
                                                 className={clsx(
-                                                    'flex items-center gap-2 p-3 rounded-lg transition-all',
-                                                    preferences.defaultChain === chain.id
-                                                        ? 'bg-[var(--primary)]/10 border-2 border-[var(--primary)]'
-                                                        : 'bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)]/50'
+                                                    'w-12 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20',
+                                                    preferences.notifications[item.id as keyof UserPreferences['notifications']] ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
                                                 )}
                                             >
-                                                <img src={chain.logo} alt={chain.name} className="w-5 h-5 rounded-full" />
-                                                <span className="text-sm font-medium">{chain.name}</span>
-                                                {preferences.defaultChain === chain.id && (
-                                                    <Check className="w-4 h-4 text-[var(--primary)] ml-auto" />
-                                                )}
+                                                <div className={clsx(
+                                                    'absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm',
+                                                    preferences.notifications[item.id as keyof UserPreferences['notifications']] ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
+                                                )} />
                                             </button>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'notifications' && (
-                        <div className="card p-6">
-                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                <Bell className="w-5 h-5" />
-                                Notifications
-                            </h2>
-                            <div className="space-y-4">
-                                {/* Trade Alerts */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]">
-                                    <div>
-                                        <p className="font-medium">Trade Alerts</p>
-                                        <p className="text-sm text-[var(--foreground-muted)]">Get notified on price movements</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleToggleNotification('tradeAlerts', !preferences.notifications.tradeAlerts)}
-                                        className={clsx(
-                                            'w-12 h-6 rounded-full relative transition-colors',
-                                            preferences.notifications.tradeAlerts ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
-                                        )}
-                                    >
-                                        <div className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full transition-all',
-                                            preferences.notifications.tradeAlerts ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
-                                        )} />
-                                    </button>
-                                </div>
-
-                                {/* Reward Updates */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]">
-                                    <div>
-                                        <p className="font-medium">Reward Updates</p>
-                                        <p className="text-sm text-[var(--foreground-muted)]">New rewards and tier progress</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleToggleNotification('rewardUpdates', !preferences.notifications.rewardUpdates)}
-                                        className={clsx(
-                                            'w-12 h-6 rounded-full relative transition-colors',
-                                            preferences.notifications.rewardUpdates ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
-                                        )}
-                                    >
-                                        <div className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full transition-all',
-                                            preferences.notifications.rewardUpdates ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
-                                        )} />
-                                    </button>
-                                </div>
-
-                                {/* Price Alerts */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]">
-                                    <div>
-                                        <p className="font-medium">Price Alerts</p>
-                                        <p className="text-sm text-[var(--foreground-muted)]">Custom price target notifications</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleToggleNotification('priceAlerts', !preferences.notifications.priceAlerts)}
-                                        className={clsx(
-                                            'w-12 h-6 rounded-full relative transition-colors',
-                                            preferences.notifications.priceAlerts ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
-                                        )}
-                                    >
-                                        <div className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full transition-all',
-                                            preferences.notifications.priceAlerts ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
-                                        )} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

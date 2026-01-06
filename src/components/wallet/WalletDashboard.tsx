@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useCurrency } from '@/hooks/useCurrency';
 import { CHAINS } from '@/lib/wallet';
 
 // Tab components
@@ -27,6 +29,8 @@ interface WalletDashboardProps {
 }
 
 export function WalletDashboard({ onClose }: WalletDashboardProps) {
+    const { hideBalances } = usePreferences();
+    const { formatCurrency } = useCurrency();
     const { activeWallet, wallets, balances, activeChain, lock, setActiveWallet } = useWalletStore();
     const [activeTab, setActiveTab] = useState<TabId>('assets');
     const [copied, setCopied] = useState(false);
@@ -149,7 +153,10 @@ export function WalletDashboard({ onClose }: WalletDashboardProps) {
             {activeTab === 'assets' && (
                 <div className="px-4 py-4">
                     <p className="text-3xl font-bold">
-                        ${totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {hideBalances
+                            ? '*****'
+                            : formatCurrency(totalUsdValue).formatted
+                        }
                     </p>
                 </div>
             )}

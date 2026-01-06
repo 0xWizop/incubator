@@ -116,9 +116,19 @@ export interface TokenBalance {
 }
 
 // User preferences
+export type CurrencyDisplay = 'USD' | 'EUR' | 'GBP' | 'BTC';
+export type SlippageTolerance = 0.5 | 1 | 3 | 'custom';
+
 export interface UserPreferences {
     darkMode: boolean;
     defaultChain: ChainId;
+    // Trading preferences
+    defaultSlippage: number; // percentage, e.g., 0.5, 1, 3
+    customSlippage?: number; // for custom slippage values
+    // Display preferences  
+    currencyDisplay: CurrencyDisplay;
+    hideBalances: boolean;
+    // Notifications
     notifications: {
         tradeAlerts: boolean;
         rewardUpdates: boolean;

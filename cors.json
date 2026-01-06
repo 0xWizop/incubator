@@ -1,0 +1,17 @@
+[
+    {
+        "origin": [
+            "http://localhost:3000",
+            "https://cypherx-multichain.web.app",
+            "https://cypherx-multichain.firebaseapp.com"
+        ],
+        "method": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]

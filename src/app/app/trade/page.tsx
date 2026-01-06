@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useTradingStore, useAppStore } from '@/store';
+import { useTradingStore, useAppStore, useWalletStore } from '@/store';
+import { usePreferences } from '@/hooks/usePreferences';
 import { TokenPair, ChainId, RecentTrade } from '@/types';
 import { getChain } from '@/config/chains';
 import * as dexscreener from '@/lib/services/dexscreener';
@@ -21,7 +22,9 @@ import {
     RefreshCw,
     Info,
     Clock,
-    BarChart3
+    BarChart3,
+    ExternalLink,
+    ArrowLeft
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -52,8 +55,10 @@ function TradePageContent() {
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<any>(null);
     const volumeSeriesRef = useRef<any>(null);
+    const lastContextRef = useRef<{ pair: string; timeframe: string } | null>(null);
 
     const [timeframe, setTimeframe] = useState('1D');
+    const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
     const [loading, setLoading] = useState(true);
     const [tokenData, setTokenData] = useState<TokenPair | null>(null);
     const [coinData, setCoinData] = useState<coingecko.CoinData | null>(null);
@@ -215,19 +220,29 @@ function TradePageContent() {
                 );
 
                 if (ohlcvData.length > 0) {
-                    const chartData = geckoterminal.toChartData(ohlcvData);
-                    const volumeData = geckoterminal.toVolumeData(ohlcvData);
+                    const chartData = geckoterminal.toChartData(ohlcvData).sort((a: any, b: any) => a.time - b.time);
+                    const volumeData = geckoterminal.toVolumeData(ohlcvData).sort((a: any, b: any) => a.time - b.time);
                     candlestickSeries.setData(chartData);
                     volumeSeries.setData(volumeData);
 
-                    const lastCandle = chartData[chartData.length - 1];
-                    if (lastCandle) {
-                        const change = ((lastCandle.close - lastCandle.open) / lastCandle.open) * 100;
-                        setCurrentOHLC({ open: lastCandle.open, high: lastCandle.high, low: lastCandle.low, close: lastCandle.close, change });
+                    if (chartData.length > 0) {
+                        const lastCandle = chartData[chartData.length - 1];
+                        if (lastCandle) {
+                            const change = ((lastCandle.close - lastCandle.open) / lastCandle.open) * 100;
+                            setCurrentOHLC({ open: lastCandle.open, high: lastCandle.high, low: lastCandle.low, close: lastCandle.close, change });
+                        }
+
+                        // Only reset view if pair or timeframe changed
+                        const contextKey = `${tokenData.pairAddress}-${timeframe}`;
+                        const shouldFit = lastContextRef.current?.pair !== tokenData.pairAddress || lastContextRef.current?.timeframe !== timeframe;
+
+                        if (shouldFit) {
+                            chart?.timeScale().fitContent();
+                            lastContextRef.current = { pair: tokenData.pairAddress, timeframe };
+                        }
+                        console.log('Chart data loaded from GeckoTerminal');
+                        return;
                     }
-                    chart?.timeScale().fitContent();
-                    console.log('Chart data loaded from GeckoTerminal');
-                    return;
                 }
             }
 
@@ -236,19 +251,28 @@ function TradePageContent() {
             if (binanceSymbol) {
                 const klineData = await binance.getTokenKlines(tokenData.baseToken.symbol, timeframe, 500);
                 if (klineData.length > 0) {
-                    const chartData = binance.toChartData(klineData);
-                    const volumeData = binance.toVolumeData(klineData);
+                    const chartData = binance.toChartData(klineData).sort((a: any, b: any) => a.time - b.time);
+                    const volumeData = binance.toVolumeData(klineData).sort((a: any, b: any) => a.time - b.time);
                     candlestickSeries.setData(chartData);
                     volumeSeries.setData(volumeData);
 
-                    const lastCandle = chartData[chartData.length - 1];
-                    if (lastCandle) {
-                        const change = ((lastCandle.close - lastCandle.open) / lastCandle.open) * 100;
-                        setCurrentOHLC({ open: lastCandle.open, high: lastCandle.high, low: lastCandle.low, close: lastCandle.close, change });
+                    if (chartData.length > 0) {
+                        const lastCandle = chartData[chartData.length - 1];
+                        if (lastCandle) {
+                            const change = ((lastCandle.close - lastCandle.open) / lastCandle.open) * 100;
+                            setCurrentOHLC({ open: lastCandle.open, high: lastCandle.high, low: lastCandle.low, close: lastCandle.close, change });
+                        }
+
+                        const contextKey = `${tokenData.baseToken.symbol}-${timeframe}`;
+                        const shouldFit = lastContextRef.current?.pair !== tokenData.baseToken.symbol || lastContextRef.current?.timeframe !== timeframe;
+
+                        if (shouldFit) {
+                            chart?.timeScale().fitContent();
+                            lastContextRef.current = { pair: tokenData.baseToken.symbol, timeframe };
+                        }
+                        console.log('Chart data loaded from Binance');
+                        return;
                     }
-                    chart?.timeScale().fitContent();
-                    console.log('Chart data loaded from Binance');
-                    return;
                 }
             }
 
@@ -264,7 +288,7 @@ function TradePageContent() {
 
                 const ohlcData = await coingecko.getOHLC(coinId, days);
                 if (ohlcData.length > 0) {
-                    const chartData = coingecko.toChartData(ohlcData);
+                    const chartData = coingecko.toChartData(ohlcData).sort((a: any, b: any) => a.time - b.time);
                     candlestickSeries.setData(chartData);
 
                     const volumeData = chartData.map((candle: any) => ({
@@ -279,7 +303,14 @@ function TradePageContent() {
                         const change = ((lastCandle.close - lastCandle.open) / lastCandle.open) * 100;
                         setCurrentOHLC({ open: lastCandle.open, high: lastCandle.high, low: lastCandle.low, close: lastCandle.close, change });
                     }
-                    chart?.timeScale().fitContent();
+
+                    const contextKey = `${tokenData.baseToken.symbol}-${timeframe}`;
+                    const shouldFit = lastContextRef.current?.pair !== tokenData.baseToken.symbol || lastContextRef.current?.timeframe !== timeframe;
+
+                    if (shouldFit) {
+                        chart?.timeScale().fitContent();
+                        lastContextRef.current = { pair: tokenData.baseToken.symbol, timeframe };
+                    }
                     console.log('Chart data loaded from CoinGecko');
                     return;
                 }
@@ -358,41 +389,99 @@ function TradePageContent() {
                     <div className="flex items-center gap-3 sm:gap-8 text-[10px] sm:text-sm border-t border-[var(--border)] pt-2 sm:pt-4 overflow-x-auto scrollbar-thin">
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">MCap</span>
-                            <span className="font-mono tabular-nums font-medium">
+                            <span className="tabular-nums">
                                 ${coinData?.marketCap ? formatNumber(coinData.marketCap) : (tokenData?.fdv ? formatNumber(tokenData.fdv) : '-')}
                             </span>
                         </div>
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">Vol</span>
-                            <span className="font-mono tabular-nums font-medium">
+                            <span className="tabular-nums">
                                 ${coinData?.volume24h ? formatNumber(coinData.volume24h) : (tokenData?.volume24h ? formatNumber(tokenData.volume24h) : '-')}
                             </span>
                         </div>
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">Liq</span>
-                            <span className="font-mono tabular-nums font-medium">${tokenData ? formatNumber(tokenData.liquidity) : '-'}</span>
+                            <span className="tabular-nums">${tokenData ? formatNumber(tokenData.liquidity) : '-'}</span>
                         </div>
-                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0 hidden sm:flex">
-                            <span className="text-[var(--foreground-muted)]">ATH</span>
-                            <span className="font-mono tabular-nums font-medium text-[var(--accent-yellow)]">
-                                ${coinData?.ath ? formatNumber(coinData.ath) : '-'}
+                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                            <span className="text-[var(--foreground-muted)]">5m</span>
+                            <span className={clsx(
+                                'tabular-nums',
+                                (tokenData?.priceChange.m5 || 0) >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
+                            )}>
+                                {(tokenData?.priceChange.m5 || 0) >= 0 ? '+' : ''}{(tokenData?.priceChange.m5 || 0).toFixed(2)}%
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                            <span className="text-[var(--foreground-muted)]">1h</span>
+                            <span className={clsx(
+                                'tabular-nums',
+                                (tokenData?.priceChange.h1 || 0) >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
+                            )}>
+                                {(tokenData?.priceChange.h1 || 0) >= 0 ? '+' : ''}{(tokenData?.priceChange.h1 || 0).toFixed(2)}%
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                            <span className="text-[var(--foreground-muted)]">24h</span>
+                            <span className={clsx(
+                                'tabular-nums',
+                                (tokenData?.priceChange.h24 || 0) >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
+                            )}>
+                                {(tokenData?.priceChange.h24 || 0) >= 0 ? '+' : ''}{(tokenData?.priceChange.h24 || 0).toFixed(2)}%
                             </span>
                         </div>
                         <div className="ml-auto flex gap-1 sm:gap-2 flex-shrink-0">
-                            {timeframes.map((tf) => (
+                            {/* Desktop Timeframes */}
+                            <div className="hidden sm:flex gap-2">
+                                {timeframes.map((tf) => (
+                                    <button
+                                        key={tf}
+                                        onClick={() => setTimeframe(tf)}
+                                        className={clsx(
+                                            'px-3 py-1 text-xs font-medium rounded-lg transition-all',
+                                            timeframe === tf
+                                                ? 'bg-[var(--primary)] text-black font-bold'
+                                                : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
+                                        )}
+                                    >
+                                        {tf}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Mobile Timeframe Dropdown */}
+                            {/* Mobile Timeframe Dropdown */}
+                            <div className="relative sm:hidden">
                                 <button
-                                    key={tf}
-                                    onClick={() => setTimeframe(tf)}
-                                    className={clsx(
-                                        'px-1.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg transition-all',
-                                        timeframe === tf
-                                            ? 'bg-[var(--primary)] text-black font-bold'
-                                            : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
-                                    )}
+                                    onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+                                    className="flex items-center gap-1 bg-[var(--background-tertiary)] text-[var(--foreground)] text-[10px] font-medium rounded-lg px-2 py-1.5 border border-[var(--border)] transition-colors active:bg-[var(--background-secondary)]"
                                 >
-                                    {tf}
+                                    <span>{timeframe}</span>
+                                    <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
                                 </button>
-                            ))}
+                                {showTimeframeDropdown && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowTimeframeDropdown(false)} />
+                                        <div className="absolute right-0 top-full mt-1 w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden py-1">
+                                            {timeframes.map((tf) => (
+                                                <button
+                                                    key={tf}
+                                                    onClick={() => {
+                                                        setTimeframe(tf);
+                                                        setShowTimeframeDropdown(false);
+                                                    }}
+                                                    className={clsx(
+                                                        "w-full text-center px-1 py-2 text-[10px] hover:bg-[var(--background-tertiary)] transition-colors",
+                                                        timeframe === tf ? "text-[var(--primary)] font-bold bg-[var(--primary)]/5" : "text-[var(--foreground-muted)]"
+                                                    )}
+                                                >
+                                                    {tf}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -480,7 +569,7 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={clsx(
-                            'flex items-center gap-1.5 text-xs sm:text-xs font-medium py-3 px-3 border-b-2 transition-all whitespace-nowrap flex-shrink-0',
+                            'flex items-center gap-1.5 text-[10px] sm:text-xs font-medium py-2 sm:py-3 px-3 border-b-2 transition-all whitespace-nowrap flex-shrink-0',
                             tab.mobileOnly && 'lg:hidden',
                             activeTab === tab.id
                                 ? 'border-[var(--primary)] text-[var(--primary)] bg-transparent'
@@ -499,8 +588,17 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
                     <RecentTradesFeed chainId={tokenData.chainId} tokenData={tokenData} />
                 )}
                 {activeTab === 'swap' && (
-                    <div className="lg:hidden fixed inset-0 top-14 bottom-16 z-50 bg-[var(--background)] overflow-y-auto">
-                        <div className="min-h-full p-4 pb-8">
+                    <div className="lg:hidden fixed inset-0 top-0 bottom-[64px] z-[40] bg-[var(--background)] flex flex-col">
+                        <div className="flex items-center gap-3 px-4 h-14 border-b border-[var(--border)] bg-[var(--background-secondary)] flex-shrink-0">
+                            <button
+                                onClick={() => setActiveTab('trades')}
+                                className="p-2 -ml-2 hover:bg-[var(--background-tertiary)] rounded-lg transition-colors"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                            <span className="font-bold">Swap</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 pb-20">
                             <SwapPanel token={tokenData} />
                         </div>
                     </div>
@@ -563,121 +661,126 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
         return () => clearInterval(interval);
     }, [tokenData?.pairAddress, tokenData?.chainId]);
 
-    if (isLoading) return (
-        <div className="h-full flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            <span className="text-xs">Loading live trades...</span>
-        </div>
-    );
-
-    if (trades.length === 0) return (
-        <div className="h-full flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-2">
-            <Activity className="w-5 h-5 opacity-50" />
-            <span className="text-xs">No recent trades found</span>
-        </div>
-    );
-
     return (
-        <div className="overflow-y-auto w-full h-full text-[11px]">
+        <div className="overflow-y-auto overflow-x-hidden w-full h-full text-[11px]">
             {/* Header row */}
-            <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] text-[var(--foreground-muted)] font-medium border-b border-[var(--border)] bg-[#0a0a0a] sticky top-0 z-20 items-center">
+            <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] text-[var(--foreground-muted)] font-medium border-b border-[var(--border)] bg-[#0a0a0a] sticky top-0 z-20 items-center min-w-0">
                 <span className="text-left">Time</span>
                 <span className="text-left pl-2">Type</span>
                 <span className="text-center">USD Value</span>
                 <span className="text-center">{tokenData?.quoteToken?.symbol || 'Quote'}</span>
-                <span className="text-right">Amount {tokenData?.baseToken?.symbol ? `(${tokenData.baseToken.symbol})` : ''}</span>
+                <span className="text-right">Amount <span className="hidden sm:inline">{tokenData?.baseToken?.symbol ? `(${tokenData.baseToken.symbol})` : ''}</span></span>
                 <span className="text-right">Maker</span>
             </div>
 
-            {/* Trade rows */}
-            {trades.map((trade, i) => {
-                const isBuy = trade.type === 'buy';
-                /* Use Log scale to dampen huge outliers, then normalize against max */
-                const normalizedSize = Math.log(trade.totalUsd + 1) / Math.log(maxTradeSize + 1);
-                const barWidth = Math.min(normalizedSize * 50, 50); // Capped at 50% width
-                const isNew = (trade as any).isNew;
+            {isLoading ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-2 py-12">
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span className="text-xs">Loading live trades...</span>
+                </div>
+            ) : trades.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-2 py-12">
+                    <Activity className="w-5 h-5 opacity-50" />
+                    <span className="text-xs">No recent trades found</span>
+                </div>
+            ) : (
+                /* Trade rows */
+                trades.map((trade, i) => {
+                    const isBuy = trade.type === 'buy';
+                    /* Use Log scale to dampen huge outliers, then normalize against max */
+                    const normalizedSize = Math.log(trade.totalUsd + 1) / Math.log(maxTradeSize + 1);
+                    const barWidth = Math.min(normalizedSize * 50, 50); // Capped at 50% width
+                    const isNew = (trade as any).isNew;
 
-                return (
-                    <div
-                        key={`${i}-${trade.txHash}`}
-                        className={clsx(
-                            'relative grid grid-cols-6 gap-2 px-4 py-1.5 border-b border-[var(--border)]/20 items-center hover:bg-[var(--background-secondary)]/50 transition-colors',
-                            isNew && 'animate-pulse'
-                        )}
-                    >
-                        {/* Background size bar */}
+                    return (
                         <div
+                            key={`${i}-${trade.txHash}`}
                             className={clsx(
-                                'absolute inset-y-0 left-0 transition-all duration-500',
-                                isBuy
-                                    ? 'bg-gradient-to-r from-[var(--accent-green)]/15 to-transparent'
-                                    : 'bg-gradient-to-r from-[var(--accent-red)]/15 to-transparent'
+                                'relative grid grid-cols-6 gap-2 px-4 py-1.5 border-b border-[var(--border)]/20 items-center hover:bg-[var(--background-secondary)]/50 transition-colors',
+                                isNew && 'animate-pulse'
                             )}
-                            style={{
-                                width: `${barWidth}%`,
-                                opacity: 0.6 + (normalizedSize * 0.4)
-                            }}
-                        />
-
-                        {/* Time */}
-                        <span className="relative z-10 text-[var(--foreground-muted)] font-mono tabular-nums text-left">
-                            {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                        </span>
-
-                        {/* Type */}
-                        <span className={clsx(
-                            'relative z-10 font-bold uppercase text-[10px] text-left pl-2',
-                            isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
-                        )}>
-                            {trade.type}
-                        </span>
-
-                        {/* USD Value */}
-                        <span className={clsx(
-                            'relative z-10 text-center font-semibold font-mono tabular-nums',
-                            isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
-                        )}>
-                            ${trade.totalUsd >= 1000
-                                ? (trade.totalUsd / 1000).toFixed(2) + 'K'
-                                : trade.totalUsd.toFixed(2)}
-                        </span>
-
-                        {/* Quote Value (NEW) */}
-                        <span className="relative z-10 text-center text-[var(--foreground-muted)] font-mono tabular-nums">
-                            {trade.amountQuote >= 1000
-                                ? (trade.amountQuote / 1000).toFixed(1) + 'K'
-                                : trade.amountQuote.toFixed(trade.amountQuote < 1 ? 4 : 2)}
-                        </span>
-
-                        {/* Token amount */}
-                        <span className="relative z-10 text-right text-[var(--foreground)] font-mono tabular-nums whitespace-nowrap">
-                            {formatNumber(trade.amountBase)}
-                        </span>
-
-                        {/* Maker address */}
-                        <Link
-                            href={`/app/explorer/detail/?type=address&id=${trade.maker}&chain=${tokenData?.chainId || 'ethereum'}`}
-                            className="relative z-10 text-right text-[var(--foreground-muted)] font-mono tabular-nums text-[10px] hover:text-[var(--primary)] transition-colors"
                         >
-                            {trade.maker.slice(0, 6)}...{trade.maker.slice(-4)}
-                        </Link>
-                    </div>
-                );
-            })}
+                            {/* Background size bar */}
+                            <div
+                                className={clsx(
+                                    'absolute inset-y-0 left-0 transition-all duration-500',
+                                    isBuy
+                                        ? 'bg-gradient-to-r from-[var(--accent-green)]/15 to-transparent'
+                                        : 'bg-gradient-to-r from-[var(--accent-red)]/15 to-transparent'
+                                )}
+                                style={{
+                                    width: `${barWidth}%`,
+                                    opacity: 0.6 + (normalizedSize * 0.4)
+                                }}
+                            />
+
+                            {/* Time */}
+                            <span className="relative z-10 text-[var(--foreground-muted)] font-mono tabular-nums text-left">
+                                {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </span>
+
+                            {/* Type */}
+                            <span className={clsx(
+                                'relative z-10 font-bold uppercase text-[10px] text-left pl-2',
+                                isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
+                            )}>
+                                {trade.type}
+                            </span>
+
+                            {/* USD Value */}
+                            <span className={clsx(
+                                'relative z-10 text-center font-semibold font-mono tabular-nums',
+                                isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
+                            )}>
+                                ${trade.totalUsd >= 1000
+                                    ? (trade.totalUsd / 1000).toFixed(2) + 'K'
+                                    : trade.totalUsd.toFixed(2)}
+                            </span>
+
+                            {/* Quote Value (NEW) */}
+                            <span className="relative z-10 text-center text-[var(--foreground-muted)] font-mono tabular-nums">
+                                {trade.amountQuote >= 1000
+                                    ? (trade.amountQuote / 1000).toFixed(1) + 'K'
+                                    : trade.amountQuote.toFixed(trade.amountQuote < 1 ? 4 : 2)}
+                            </span>
+
+                            {/* Token amount */}
+                            <span className="relative z-10 text-right text-[var(--foreground)] font-mono tabular-nums whitespace-nowrap">
+                                {formatNumber(trade.amountBase)}
+                            </span>
+
+                            {/* Maker address */}
+                            <Link
+                                href={`/app/explorer/detail/?type=address&id=${trade.maker}&chain=${tokenData?.chainId || 'ethereum'}`}
+                                className="relative z-10 text-right text-[var(--foreground-muted)] font-mono tabular-nums text-[10px] hover:text-[var(--primary)] transition-colors"
+                            >
+                                {trade.maker.slice(0, 6)}...{trade.maker.slice(-4)}
+                            </Link>
+                        </div>
+                    );
+                })
+            )}
         </div>
     );
 });
 
 const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | null }) {
-    // Use our new wallet store
-    const { useWalletStore } = require('@/store/walletStore');
+    // Use wallet store directly
     const { activeWallet, isUnlocked, balances, activeChain, openModal } = useWalletStore();
+    const { defaultSlippage } = usePreferences();
 
-    const isConnected = isUnlocked && activeWallet;
+    const isConnected = isUnlocked && !!activeWallet;
     const currentBalance = activeWallet ? balances[`${activeWallet.address}-${activeChain}`] || '0' : '0';
 
     const [payAmount, setPayAmount] = useState('');
-    const [slippage, setSlippage] = useState(0.5);
+    const [slippage, setSlippage] = useState(typeof defaultSlippage === 'number' ? defaultSlippage : 0.5);
+
+    // Update slippage when default changes
+    useEffect(() => {
+        if (typeof defaultSlippage === 'number') {
+            setSlippage(defaultSlippage);
+        }
+    }, [defaultSlippage]);
 
     // Calculate receive amount (mock for now - would integrate with DEX API)
     const receiveAmount = payAmount && token?.priceUsd
@@ -697,19 +800,26 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
 
     return (
         <div className="flex flex-col h-full relative z-10">
-            <div className="mb-8">
-                <h3 className="font-bold text-2xl mb-1 flex items-center gap-2">
-                    Swap
-                    <span className="text-xs px-2 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
-                        V2
-                    </span>
+            <div className="mb-4 sm:mb-8">
+                <h3 className="font-bold text-lg sm:text-2xl mb-1 flex items-center gap-2">
+                    Swap v2
                 </h3>
-                <p className="text-sm text-[var(--foreground-muted)]">Trade tokens instantly</p>
+                <p className="text-xs text-[var(--foreground-muted)]">
+                    via{' '}
+                    <a
+                        href="https://lightspeed-9288f.web.app/docs"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--primary)] hover:underline"
+                    >
+                        Lightspeed
+                    </a>
+                </p>
             </div>
 
             <div className="space-y-4">
                 {/* Pay Input */}
-                <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
+                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You pay</label>
                         <span className="text-xs text-[var(--foreground-muted)]">
@@ -724,7 +834,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             placeholder="0.00"
                             value={payAmount}
                             onChange={(e) => setPayAmount(e.target.value)}
-                            className="bg-transparent text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
+                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
                         />
                         <button
                             className="flex items-center gap-2 bg-[var(--background)] hover:bg-[var(--background-secondary)] px-3 py-1.5 rounded-xl border border-[var(--border)] transition-all"
@@ -753,7 +863,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                 </div>
 
                 {/* Receive Input */}
-                <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
+                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You receive</label>
                         <span className="text-xs text-[var(--foreground-muted)]">Balance: ---</span>
@@ -763,7 +873,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             type="text"
                             placeholder="0.00"
                             value={receiveAmount}
-                            className="bg-transparent text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
+                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
                             readOnly
                         />
                         <button className="flex items-center gap-2 bg-[var(--background)] hover:bg-[var(--background-secondary)] px-3 py-1.5 rounded-xl border border-[var(--border)] transition-all">
@@ -782,7 +892,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
             </div>
 
             {/* Price Info */}
-            <div className="mt-6 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3">
+            <div className="mt-6 mb-4 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3">
                 <div className="flex justify-between text-sm">
                     <span className="text-[var(--foreground-muted)]">Rate</span>
                     <span className="font-mono text-xs">1 {token?.quoteToken?.symbol || 'Quote'} ≈ {token?.priceUsd && token?.quoteToken?.symbol ? (1 / (token.priceUsd / (token.quoteToken.symbol === 'SOL' ? 190 : token.quoteToken.symbol === 'ETH' ? 3500 : 1))).toFixed(2) : '---'} {token?.baseToken.symbol}</span>
@@ -808,7 +918,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                 onClick={handleSwap}
                 disabled={isConnected && (!payAmount || parseFloat(payAmount) <= 0)}
                 className={clsx(
-                    "mt-auto w-full py-4 text-lg font-bold rounded-xl transition-all",
+                    "mt-auto w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl transition-all",
                     isConnected && payAmount && parseFloat(payAmount) > 0
                         ? "bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5 active:translate-y-0"
                         : isConnected

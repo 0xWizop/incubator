@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpDown, ChevronDown, Settings, AlertTriangle } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, Settings, AlertTriangle, ExternalLink } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { CHAINS } from '@/lib/wallet';
@@ -34,13 +34,27 @@ export function SwapTab() {
     };
 
     const handleSwap = () => {
-        alert('Swap functionality coming soon! This will integrate with DEX aggregators.');
+        alert('Lightspeed integration coming soon! This will enable fast cross-chain swaps.');
     };
 
     return (
         <div className="space-y-4">
-            {/* Settings Toggle */}
-            <div className="flex justify-end">
+            {/* Header with Docs Link */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-base">Swap v2</h3>
+                    <p className="text-xs text-[var(--foreground-muted)]">
+                        via{' '}
+                        <a
+                            href="https://lightspeed-9288f.web.app/docs"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--primary)] hover:underline"
+                        >
+                            Lightspeed
+                        </a>
+                    </p>
+                </div>
                 <button
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(

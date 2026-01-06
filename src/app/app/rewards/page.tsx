@@ -17,15 +17,8 @@ import * as firebase from '@/lib/firebase';
 import { Rewards, Referral, User } from '@/types';
 
 import { useWalletStore } from '@/store/walletStore';
-
-function useWallet() {
-    const { activeWallet, isUnlocked, openModal } = useWalletStore();
-    return {
-        address: activeWallet?.address || null,
-        isConnected: isUnlocked && !!activeWallet,
-        connect: () => openModal(),
-    };
-}
+import { useWallet } from '@/hooks/useWallet';
+import { ConnectPrompt } from '@/components/ui/ConnectPrompt';
 
 import { Suspense } from 'react';
 
@@ -91,7 +84,7 @@ function RewardsContent() {
         setIsClaiming(false);
     }
 
-    const referralLink = referral ? `https://cypherx.trade/ref/${referral.code}` : '...';
+    const referralLink = referral ? `https://incubatorprotocol.com/ref/${referral.code}` : '...';
 
     const [createCode, setCreateCode] = useState('');
     const [redeemCode, setRedeemCode] = useState('');
@@ -136,16 +129,7 @@ function RewardsContent() {
     const totalEarned = rewards ? (rewards.tradingRewards + rewards.referralRewards) : 0;
     const claimable = rewards ? (totalEarned - rewards.claimedRewards) : 0;
 
-    // Connect Wallet Prompt component for sections
-    const ConnectPrompt = ({ message }: { message?: string }) => (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Wallet className="w-8 h-8 text-[var(--foreground-muted)] mb-3" />
-            <p className="text-[var(--foreground-muted)] mb-4">{message || 'Connect wallet to view'}</p>
-            <button onClick={connect} className="btn btn-primary px-6">
-                Connect Wallet
-            </button>
-        </div>
-    );
+
 
     return (
         <div className="p-2 sm:p-6 max-w-7xl mx-auto pb-20 lg:pb-6">
@@ -213,50 +197,50 @@ function RewardsContent() {
 
             {/* Stats Cards - 2x2 on mobile, 4 across on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-                <div className="card card-glow p-3 sm:p-4">
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
-                        <span className="text-[0.65rem] sm:text-sm font-bold text-[var(--accent-green)] uppercase tracking-wide">Claimable</span>
-                        <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-green)]" />
+                <div className="card card-glow p-2 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-[0.6rem] sm:text-sm font-bold text-[var(--accent-green)] uppercase tracking-wide">Claimable</span>
+                        <Coins className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-green)]" />
                     </div>
-                    <p className="text-lg sm:text-2xl font-semibold text-[var(--accent-green)]">
+                    <p className="text-sm sm:text-2xl font-semibold text-[var(--accent-green)] font-mono h-6 sm:h-8 flex items-center">
                         ${claimable.toFixed(2)}
                     </p>
                     <button
                         onClick={handleClaim}
                         disabled={claimable <= 0 || isClaiming}
-                        className="btn w-full mt-2 sm:mt-4 text-xs sm:text-sm py-1.5 sm:py-2 bg-[var(--accent-green)] text-black font-bold hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                        className="btn w-full mt-auto text-[10px] sm:text-sm py-1 sm:py-2 bg-[var(--accent-green)] text-black font-bold hover:-translate-y-0.5 transition-all disabled:opacity-50"
                     >
-                        {isClaiming ? 'Claiming...' : 'Claim'}
+                        {isClaiming ? '...' : 'Claim'}
                     </button>
                 </div>
 
-                <div className="card card-glow p-3 sm:p-4">
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
-                        <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Trading</span>
-                        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
+                <div className="card card-glow p-2 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Trading</span>
+                        <TrendingUp className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--primary)]" />
                     </div>
-                    <p className="text-lg sm:text-2xl font-semibold">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
-                    <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] mt-1">Lifetime</p>
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">Lifetime</p>
                 </div>
 
-                <div className="card card-glow p-3 sm:p-4">
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
-                        <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Referral</span>
-                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
+                <div className="card card-glow p-2 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Referral</span>
+                        <Users className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
                     </div>
-                    <p className="text-lg sm:text-2xl font-semibold">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
-                    <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] mt-1">
-                        {referral?.referredUsers.length || 0} referrals
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">
+                        {referral?.referredUsers.length || 0} refs
                     </p>
                 </div>
 
-                <div className="card card-glow p-3 sm:p-4">
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
-                        <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Ref Vol</span>
-                        <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
+                <div className="card card-glow p-2 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Ref Vol</span>
+                        <Trophy className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
                     </div>
-                    <p className="text-lg sm:text-2xl font-semibold">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
-                    <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] mt-1">Total</p>
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">Total</p>
                 </div>
             </div>
 

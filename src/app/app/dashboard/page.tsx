@@ -20,16 +20,8 @@ import { User, Trade, ChainId } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 
 import { useWalletStore } from '@/store/walletStore';
-
-// Use real wallet store
-function useWallet() {
-    const { activeWallet, isUnlocked, openModal } = useWalletStore();
-    return {
-        address: activeWallet?.address || null,
-        isConnected: isUnlocked && !!activeWallet,
-        connect: () => openModal(),
-    };
-}
+import { useWallet } from '@/hooks/useWallet';
+import { ConnectPrompt } from '@/components/ui/ConnectPrompt';
 
 import { Suspense } from 'react';
 
@@ -83,22 +75,10 @@ function DashboardContent() {
     // Mock PnL since we don't track exit price yet fully
     const totalPnL = 0;
 
-    // Connect Wallet Prompt component for sections
-    const ConnectPrompt = ({ message }: { message?: string }) => (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Wallet className="w-8 h-8 text-[var(--foreground-muted)] mb-3" />
-            <p className="text-[var(--foreground-muted)] mb-4">{message || 'Connect wallet to view your data'}</p>
-            <button
-                onClick={connect}
-                className="px-6 py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
-            >
-                Connect Wallet
-            </button>
-        </div>
-    );
+
 
     return (
-        <div className="px-4 py-3 sm:p-6 max-w-7xl mx-auto pb-24 lg:pb-6 overflow-x-hidden">
+        <div className="px-3 py-3 sm:p-6 max-w-7xl mx-auto pb-24 lg:pb-6 overflow-x-hidden w-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
                 <div>
@@ -174,26 +154,26 @@ function DashboardContent() {
 
             <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
                 {/* Recent Trades Table */}
-                <div className="lg:col-span-2 card p-3 sm:p-6">
-                    <div className="flex items-center justify-between mb-3 sm:mb-6">
+                <div className="lg:col-span-2 bg-transparent sm:card p-0 sm:p-6 overflow-hidden">
+                    <div className="flex items-center justify-between mb-2 sm:mb-6">
                         <h2 className="font-semibold text-sm sm:text-base">Recent Swaps</h2>
                     </div>
-                    <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
-                        <table className="table">
+                    <div className="w-full">
+                        <table className="w-full text-xs sm:text-sm">
                             <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Pair</th>
-                                    <th className="text-right">Amount In</th>
-                                    <th className="text-right">Amount Out</th>
-                                    <th className="text-right">Tx Hash</th>
+                                <tr className="text-[var(--foreground-muted)] text-[10px] sm:text-xs uppercase">
+                                    <th className="text-left py-2 font-medium">Time</th>
+                                    <th className="text-left py-2 font-medium">Pair</th>
+                                    <th className="text-right py-2 font-medium">Amount In</th>
+                                    <th className="text-right py-2 font-medium">Amount Out</th>
+                                    <th className="text-right py-2 font-medium hidden sm:table-cell">Tx Hash</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {!isConnected ? (
                                     <tr>
                                         <td colSpan={5}>
-                                            <ConnectPrompt message="Connect wallet to see your trading history" />
+                                            <ConnectPrompt message="Connect wallet to see your trading history" onConnect={connect} />
                                         </td>
                                     </tr>
                                 ) : trades.length === 0 ? (
@@ -204,20 +184,20 @@ function DashboardContent() {
                                     </tr>
                                 ) : (
                                     trades.map((trade) => (
-                                        <tr key={trade.id}>
-                                            <td className="text-[var(--foreground-muted)]">
+                                        <tr key={trade.id} className="border-b border-[var(--border)]/30">
+                                            <td className="py-2 text-[var(--foreground-muted)] text-[10px] sm:text-xs">
                                                 {new Date(trade.timestamp).toLocaleDateString()}
                                             </td>
-                                            <td className="font-medium">
-                                                {trade.tokenIn} → {trade.tokenOut}
+                                            <td className="py-2 font-medium text-[10px] sm:text-xs">
+                                                {trade.tokenIn.slice(0, 4)} → {trade.tokenOut.slice(0, 4)}
                                             </td>
-                                            <td className="text-right font-bold">
-                                                {parseFloat(trade.amountIn).toFixed(4)}
+                                            <td className="py-2 text-right font-mono text-[10px] sm:text-xs">
+                                                {parseFloat(trade.amountIn).toFixed(2)}
                                             </td>
-                                            <td className="text-right font-bold">
-                                                {parseFloat(trade.amountOut).toFixed(4)}
+                                            <td className="py-2 text-right font-mono text-[10px] sm:text-xs">
+                                                {parseFloat(trade.amountOut).toFixed(2)}
                                             </td>
-                                            <td className="text-right">
+                                            <td className="py-2 text-right hidden sm:table-cell">
                                                 <a href="#" className="text-[var(--primary)] hover:underline text-xs">
                                                     {trade.txHash.slice(0, 6)}...
                                                 </a>

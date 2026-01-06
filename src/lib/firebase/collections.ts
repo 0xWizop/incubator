@@ -16,6 +16,12 @@ import {
 import { db } from './config';
 import { User, Trade, Referral, Rewards, ChainId, UserPreferences } from '@/types';
 
+// Helper to normalize IDs (lowercase addresses, keep UIDs as is)
+function normalizeId(id: string): string {
+    if (!id) return '';
+    return id.startsWith('0x') ? id.toLowerCase() : id;
+}
+
 // Collection references
 export const usersCollection = collection(db, 'users');
 export const tradesCollection = collection(db, 'trades');
@@ -26,6 +32,13 @@ export const rewardsCollection = collection(db, 'rewards');
 export const defaultPreferences: UserPreferences = {
     darkMode: true,
     defaultChain: 'solana',
+    // Trading defaults
+    defaultSlippage: 1, // 1% default
+    customSlippage: undefined,
+    // Display defaults
+    currencyDisplay: 'USD',
+    hideBalances: false,
+    // Notifications
     notifications: {
         tradeAlerts: false,
         rewardUpdates: true,
@@ -47,7 +60,7 @@ function generateReferralCode(): string {
 
 export async function getUser(address: string): Promise<User | null> {
     try {
-        const docRef = doc(usersCollection, address.toLowerCase());
+        const docRef = doc(usersCollection, normalizeId(address));
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) return null;
@@ -80,16 +93,16 @@ export async function createUser(
     const now = serverTimestamp();
 
     const userData = {
-        address: address.toLowerCase(),
+        address: normalizeId(address),
         chains: [],
         createdAt: now,
         referralCode,
-        referredBy: referredBy?.toLowerCase() || null,
+        referredBy: referredBy ? normalizeId(referredBy) : null,
         totalVolume: 0,
         lastActive: now,
     };
 
-    await setDoc(doc(usersCollection, address.toLowerCase()), userData);
+    await setDoc(doc(usersCollection, normalizeId(address)), userData);
 
     // If referred, add to referrer's list
     if (referredBy) {
@@ -118,7 +131,7 @@ export async function createUser(
 
 export async function updateUserActivity(address: string): Promise<void> {
     try {
-        await updateDoc(doc(usersCollection, address.toLowerCase()), {
+        await updateDoc(doc(usersCollection, normalizeId(address)), {
             lastActive: serverTimestamp(),
         });
     } catch (error) {
@@ -132,7 +145,7 @@ export async function updateUserPreferences(
     preferences: Partial<UserPreferences>
 ): Promise<boolean> {
     try {
-        const userDoc = await getDoc(doc(usersCollection, userId.toLowerCase()));
+        const userDoc = await getDoc(doc(usersCollection, normalizeId(userId)));
 
         if (!userDoc.exists()) {
             console.error('User not found:', userId);
@@ -149,7 +162,7 @@ export async function updateUserPreferences(
             },
         };
 
-        await updateDoc(doc(usersCollection, userId.toLowerCase()), {
+        await updateDoc(doc(usersCollection, normalizeId(userId)), {
             preferences: updatedPrefs,
             lastActive: serverTimestamp(),
         });
@@ -162,12 +175,36 @@ export async function updateUserPreferences(
 }
 
 // Update user profile (display name, etc.)
+// Add a wallet address to user's chains
+export async function addWalletToUser(userId: string, walletAddress: string): Promise<boolean> {
+    try {
+        const userRef = doc(usersCollection, normalizeId(userId));
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) return false;
+
+        const currentChains = userDoc.data().chains || [];
+        const normalizedWallet = normalizeId(walletAddress);
+
+        if (!currentChains.includes(normalizedWallet)) {
+            await updateDoc(userRef, {
+                chains: [...currentChains, normalizedWallet],
+                lastActive: serverTimestamp(),
+            });
+        }
+        return true;
+    } catch (error) {
+        console.error('Error adding wallet to user:', error);
+        return false;
+    }
+}
+
 export async function updateUserProfile(
     userId: string,
     updates: { displayName?: string; email?: string; photoURL?: string }
 ): Promise<boolean> {
     try {
-        await updateDoc(doc(usersCollection, userId.toLowerCase()), {
+        await updateDoc(doc(usersCollection, normalizeId(userId)), {
             ...updates,
             lastActive: serverTimestamp(),
         });
@@ -290,13 +327,13 @@ export async function redeemReferralCode(address: string, code: string): Promise
         if (refDoc.data().ownerId === address.toLowerCase()) return false;
 
         // Update user
-        await updateDoc(doc(usersCollection, address.toLowerCase()), {
+        await updateDoc(doc(usersCollection, normalizeId(address)), {
             referredBy: code
         });
 
         // Add to referrer's list
         await updateDoc(doc(referralsCollection, code), {
-            referredUsers: [...(refDoc.data().referredUsers || []), address.toLowerCase()]
+            referredUsers: [...(refDoc.data().referredUsers || []), normalizeId(address)]
         });
 
         return true;
@@ -387,7 +424,8 @@ export async function getReferralStats(address: string): Promise<Referral | null
 
 export async function getRewards(address: string): Promise<Rewards | null> {
     try {
-        const docSnap = await getDoc(doc(rewardsCollection, address.toLowerCase()));
+        const docRef = doc(rewardsCollection, normalizeId(address));
+        const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) return null;
 
         const data = docSnap.data();
@@ -412,7 +450,9 @@ export async function claimRewards(address: string): Promise<number> {
         const claimable = rewards.tradingRewards + rewards.referralRewards - rewards.claimedRewards;
         if (claimable <= 0) return 0;
 
-        await updateDoc(doc(rewardsCollection, address.toLowerCase()), {
+        if (claimable <= 0) return 0;
+
+        await updateDoc(doc(rewardsCollection, normalizeId(address)), {
             claimedRewards: increment(claimable),
             lastUpdated: serverTimestamp(),
         });

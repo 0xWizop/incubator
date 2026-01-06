@@ -105,9 +105,14 @@ export function clearStoredWalletData(): void {
 
 // Session management - store decrypted key in memory only
 const sessionPrivateKeys: Map<string, string> = new Map();
+const SESSION_FLAG_KEY = 'cypherx_session_active';
 
 export function setSessionKey(address: string, privateKey: string): void {
     sessionPrivateKeys.set(address.toLowerCase(), privateKey);
+    // Also set a flag in sessionStorage so we know there's an active session after refresh
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem(SESSION_FLAG_KEY, 'true');
+    }
 }
 
 export function getSessionKey(address: string): string | null {
@@ -116,8 +121,22 @@ export function getSessionKey(address: string): string | null {
 
 export function clearSession(): void {
     sessionPrivateKeys.clear();
+    if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(SESSION_FLAG_KEY);
+    }
 }
 
 export function hasActiveSession(): boolean {
-    return sessionPrivateKeys.size > 0;
+    // Check both in-memory keys AND sessionStorage flag
+    // If sessionStorage says we had a session, we need to prompt re-unlock once
+    // but the stored wallets will auto-load
+    if (sessionPrivateKeys.size > 0) {
+        return true;
+    }
+    // If we have the session flag but no keys in memory, session expired (page refresh)
+    // For a smoother UX, we'll keep them "unlocked" as long as the tab is open
+    if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_FLAG_KEY) === 'true') {
+        return true;
+    }
+    return false;
 }

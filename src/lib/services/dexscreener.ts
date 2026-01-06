@@ -1,4 +1,4 @@
-import { ChainId, Token, TokenPair } from '@/types';
+import { ChainId, TokenPair } from '@/types';
 
 const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex';
 
@@ -32,7 +32,7 @@ const REVERSE_CHAIN_MAPPING: Record<string, ChainId> = {
     'solana': 'solana',
 };
 
-// Base token addresses for each chain to query - we get pairs involving these
+// Base token addresses for each chain to query
 const BASE_TOKENS: Record<string, string[]> = {
     ethereum: [
         '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
@@ -54,229 +54,72 @@ const BASE_TOKENS: Record<string, string[]> = {
     ],
 };
 
-// Tokens to EXCLUDE from screener results (stables, wrapped natives, etc.)
+// Popular search terms per chain to get more diversity
+const SEARCH_TERMS: Record<string, string[]> = {
+    ethereum: ['pepe', 'shib', 'floki', 'wojak', 'mog', 'grok', 'turbo', 'neiro', 'andy', 'ponke'],
+    base: ['brett', 'toshi', 'degen', 'bald', 'normie', 'mochi', 'doginme', 'higher', 'ski', 'miggles'],
+    arbitrum: ['magic', 'pendle', 'jones', 'grail', 'vela', 'dopex', 'radiant', 'plutus', 'umami', 'camelot'],
+    solana: ['bonk', 'wif', 'popcat', 'mew', 'wen', 'jup', 'pyth', 'ray', 'orca', 'samo', 'fartcoin', 'goat', 'ai16z'],
+};
+
+// Target token count (even number)
+const TARGET_TOKEN_COUNT = 200;
+
+// Tokens to EXCLUDE from screener results
 const EXCLUDED_SYMBOLS = new Set([
     'WETH', 'WBTC', 'USDC', 'USDT', 'USDC.E', 'USDbC', 'DAI', 'FRAX', 'LUSD', 'TUSD', 'BUSD',
     'WSOL', 'SOL', 'ETH', 'STETH', 'WSTETH', 'RETH', 'CBETH',
     'ARB', 'OP', 'MATIC', 'WMATIC',
 ]);
 
-export async function getTrendingTokens(chainIds: ChainId[] = []): Promise<TokenPair[]> {
+// Client-side cache
+interface CacheEntry {
+    data: TokenPair[];
+    timestamp: number;
+}
+
+const memoryCache: Map<string, CacheEntry> = new Map();
+const CACHE_TTL = 1 * 60 * 1000; // 1 minute (reduced for testing)
+
+// Rate limiting
+const FETCH_DELAY = 150;
+let lastFetchTime = 0;
+
+async function rateLimitedFetch(url: string): Promise<any> {
+    // Ensure minimum delay between requests
+    const now = Date.now();
+    const timeSinceLast = now - lastFetchTime;
+    if (timeSinceLast < FETCH_DELAY) {
+        await new Promise(r => setTimeout(r, FETCH_DELAY - timeSinceLast));
+    }
+    lastFetchTime = Date.now();
+
     try {
-        const chainsToFetch = chainIds.length > 0 ? chainIds : (Object.keys(CHAIN_MAPPING) as ChainId[]);
-        let allPairs: TokenPair[] = [];
-
-        // Fetch pairs for each chain using multiple base token addresses
-        const chainPromises = chainsToFetch.map(async (chainId) => {
-            const dexChainId = CHAIN_MAPPING[chainId];
-            if (!dexChainId) return [];
-
-            const tokenAddresses = BASE_TOKENS[dexChainId] || [];
-            let chainPairs: any[] = [];
-
-            // Fetch pairs for each base token in this chain
-            for (const tokenAddress of tokenAddresses) {
-                try {
-                    const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
-                    const res = await fetch(url);
-                    if (!res.ok) continue;
-                    const data = await res.json();
-
-                    // Filter to only this chain and with reasonable liquidity
-                    const pairs = (data.pairs || []).filter((p: any) =>
-                        p.chainId === dexChainId &&
-                        (p.liquidity?.usd || 0) >= 5000 && // $5k liquidity minimum
-                        p.baseToken?.symbol && // Has valid base token
-                        ((p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0)) >= 25 // Pre-filter very low txn tokens
-                    );
-                    chainPairs = [...chainPairs, ...pairs];
-                } catch (e) {
-                    console.error(`Error fetching ${tokenAddress} on ${chainId}:`, e);
-                }
-            }
-
-            // Also do a search query for the chain to catch more tokens
-            try {
-                const searchUrl = `https://api.dexscreener.com/latest/dex/search/?q=${dexChainId}`;
-                const searchRes = await fetch(searchUrl);
-                if (searchRes.ok) {
-                    const searchData = await searchRes.json();
-                    const searchPairs = (searchData.pairs || []).filter((p: any) =>
-                        p.chainId === dexChainId &&
-                        (p.liquidity?.usd || 0) >= 5000 &&
-                        ((p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0)) >= 25
-                    );
-                    chainPairs = [...chainPairs, ...searchPairs];
-                }
-            } catch (e) {
-                console.error(`Search error for ${chainId}:`, e);
-            }
-
-            // Also try fetching boosted/trending tokens
-            try {
-                const boostUrl = `https://api.dexscreener.com/token-boosts/top/v1`;
-                const boostRes = await fetch(boostUrl);
-                if (boostRes.ok) {
-                    const boostData = await boostRes.json();
-                    // Get token addresses from boosted tokens for this chain
-                    const boostedTokens = (boostData || []).filter((t: any) => t.chainId === dexChainId);
-                    for (const token of boostedTokens.slice(0, 10)) {
-                        try {
-                            const tokenUrl = `https://api.dexscreener.com/latest/dex/tokens/${token.tokenAddress}`;
-                            const tokenRes = await fetch(tokenUrl);
-                            if (tokenRes.ok) {
-                                const tokenData = await tokenRes.json();
-                                const tokenPairs = (tokenData.pairs || []).filter((p: any) =>
-                                    p.chainId === dexChainId &&
-                                    (p.liquidity?.usd || 0) >= 5000 &&
-                                    ((p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0)) >= 25
-                                );
-                                chainPairs = [...chainPairs, ...tokenPairs];
-                            }
-                        } catch (e) { /* ignore */ }
-                    }
-                }
-            } catch (e) {
-                console.error(`Boost error for ${chainId}:`, e);
-            }
-
-            return chainPairs;
-        });
-
-        const results = await Promise.all(chainPromises);
-
-        // Process each chain's results
-        results.forEach((pairs) => {
-            allPairs = [...allPairs, ...pairs.map(transformPair)];
-        });
-
-        // Deduplicate by pair address
-        const seen = new Set<string>();
-        allPairs = allPairs.filter(p => {
-            const key = `${p.chainId}-${p.pairAddress}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-
-        // Filter out stablecoins and wrapped native tokens - we want on-chain meme coins
-        allPairs = allPairs.filter(p => {
-            const symbol = p.baseToken?.symbol?.toUpperCase() || '';
-            return !EXCLUDED_SYMBOLS.has(symbol);
-        });
-
-        // Filter out tokens with low transactions (less than 50 txns in 24h for quality)
-        allPairs = allPairs.filter(p => {
-            const totalTxns = (p.txns24h?.buys || 0) + (p.txns24h?.sells || 0);
-            return totalTxns >= 50;
-        });
-
-        // Sort by 24h volume (highest first) - this gives us the most active pairs
-        allPairs.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
-
-        // Take different amounts per chain - Arbitrum is less active
-        const CHAIN_LIMITS: Record<string, number> = {
-            solana: 100,
-            ethereum: 100,
-            base: 100,
-            arbitrum: 50, // Less active chain
-        };
-        const chainCounts: Record<string, number> = {};
-        const finalPairs: TokenPair[] = [];
-
-        for (const pair of allPairs) {
-            const limit = CHAIN_LIMITS[pair.chainId] || 100;
-            const count = chainCounts[pair.chainId] || 0;
-            if (count < limit) {
-                finalPairs.push(pair);
-                chainCounts[pair.chainId] = count + 1;
-            }
+        const res = await fetch(url);
+        if (res.status === 429) {
+            // Rate limited - wait and retry once
+            await new Promise(r => setTimeout(r, 1000));
+            const retry = await fetch(url);
+            if (!retry.ok) return null;
+            return await retry.json();
         }
-
-        // Re-sort combined list by volume
-        return finalPairs.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
-    } catch (error) {
-        console.error('Error fetching trending tokens:', error);
-        return [];
-    }
-}
-
-export async function getTopPairs(chainIds: ChainId[], limit = 400): Promise<TokenPair[]> {
-    const pairs = await getTrendingTokens(chainIds);
-    return pairs.slice(0, limit);
-}
-
-export async function searchPairs(query: string): Promise<TokenPair[]> {
-    try {
-        const url = `${DEXSCREENER_API}/search/?q=${encodeURIComponent(query)}`;
-        const response = await fetch(url);
-        if (!response.ok) return [];
-
-        const data = await response.json();
-        const pairs = data.pairs || [];
-
-        return pairs.map(transformPair).filter((p: TokenPair) => {
-            // Filter out unsupported chains if strict, or map them as 'ethereum' default? 
-            // Ideally we only show supported chains.
-            return Object.keys(REVERSE_CHAIN_MAPPING).includes(p.chainId);
-        });
-    } catch (error) {
-        console.error('Error searching pairs:', error);
-        return [];
-    }
-}
-
-export async function getPairByAddress(chainId: ChainId, pairAddress: string): Promise<TokenPair | null> {
-    try {
-        const dexChainId = CHAIN_MAPPING[chainId];
-        // Note: DexScreener pairs endpoint is /pairs/chainId/pairAddresses
-        const url = `${DEXSCREENER_API}/pairs/${dexChainId}/${pairAddress}`;
-        const response = await fetch(url);
-
-        if (!response.ok) return null;
-
-        const data = await response.json();
-        const pairs = data.pairs || [];
-
-        if (pairs.length === 0) return null;
-
-        return transformPair(pairs[0]);
-    } catch (error) {
-        console.error('Error fetching pair:', error);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        console.error('Fetch error:', e);
         return null;
     }
 }
 
-export async function getPairsByTokenAddress(chainId: ChainId, tokenAddress: string): Promise<TokenPair[]> {
-    try {
-        const dexChainId = CHAIN_MAPPING[chainId];
-        const response = await fetch(`${DEXSCREENER_API}/tokens/${tokenAddress}`);
-
-        if (!response.ok) return [];
-
-        const data = await response.json();
-        let pairs: any[] = data.pairs || [];
-
-        if (dexChainId) {
-            pairs = pairs.filter(p => p.chainId === dexChainId);
-        }
-
-        return pairs.map(transformPair);
-    } catch (error) {
-        console.error('Error fetching pairs for token:', error);
-        return [];
-    }
-}
-
 function transformPair(pair: any): TokenPair {
-    const chainId = REVERSE_CHAIN_MAPPING[pair.chainId] || 'ethereum'; // Fallback to ethereum or handle unknown
+    const chainId = REVERSE_CHAIN_MAPPING[pair.chainId] || 'ethereum';
 
     return {
         baseToken: {
             address: pair.baseToken.address,
             symbol: pair.baseToken.symbol,
             name: pair.baseToken.name,
-            decimals: 18, // Default, often missing in simple search result
+            decimals: 18,
             chainId: chainId,
             price: parseFloat(pair.priceUsd),
             priceChange24h: pair.priceChange?.h24,
@@ -314,4 +157,191 @@ function transformPair(pair: any): TokenPair {
         url: pair.url,
         logo: pair.info?.imageUrl,
     };
+}
+
+function filterPair(pair: any, dexChainId: string): boolean {
+    return (
+        pair.chainId === dexChainId &&
+        (pair.liquidity?.usd || 0) >= 1000 && // Lowered to $1k
+        pair.baseToken?.symbol &&
+        ((pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0)) >= 5 // Lowered to 5
+    );
+}
+
+async function fetchChainData(chainId: ChainId): Promise<TokenPair[]> {
+    const dexChainId = CHAIN_MAPPING[chainId];
+    if (!dexChainId) return [];
+
+    let allPairs: any[] = [];
+
+    // 1. Fetch pairs for each base token
+    const tokenAddresses = BASE_TOKENS[dexChainId] || [];
+    for (const tokenAddress of tokenAddresses) {
+        const url = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
+        const data = await rateLimitedFetch(url);
+        if (data?.pairs) {
+            const filtered = data.pairs.filter((p: any) => filterPair(p, dexChainId));
+            allPairs.push(...filtered);
+        }
+    }
+
+    // 2. Search by popular terms for this chain
+    const searchTerms = SEARCH_TERMS[dexChainId] || [];
+    for (const term of searchTerms) {
+        const url = `https://api.dexscreener.com/latest/dex/search/?q=${term}`;
+        const data = await rateLimitedFetch(url);
+        if (data?.pairs) {
+            const filtered = data.pairs.filter((p: any) => filterPair(p, dexChainId));
+            allPairs.push(...filtered);
+        }
+    }
+
+    // 3. Get boosted/trending tokens
+    try {
+        const boostUrl = `https://api.dexscreener.com/token-boosts/top/v1`;
+        const boostData = await rateLimitedFetch(boostUrl);
+        if (boostData) {
+            const chainBoosted = (boostData || []).filter((t: any) => t.chainId === dexChainId);
+            for (const token of chainBoosted.slice(0, 5)) {
+                const tokenUrl = `https://api.dexscreener.com/latest/dex/tokens/${token.tokenAddress}`;
+                const tokenData = await rateLimitedFetch(tokenUrl);
+                if (tokenData?.pairs) {
+                    const filtered = tokenData.pairs.filter((p: any) => filterPair(p, dexChainId));
+                    allPairs.push(...filtered);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Boost fetch error:', e);
+    }
+
+    return allPairs.map(transformPair);
+}
+
+export async function getTrendingTokens(chainIds: ChainId[] = []): Promise<TokenPair[]> {
+    try {
+        const chainsToFetch = chainIds.length > 0 ? chainIds : (Object.keys(CHAIN_MAPPING) as ChainId[]);
+        const cacheKey = `screener-${chainsToFetch.sort().join(',')}`;
+
+        // Check memory cache
+        const cached = memoryCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            console.log(`[Screener] Returning ${cached.data.length} cached tokens`);
+            return cached.data;
+        }
+
+        console.log(`[Screener] Fetching fresh data for chains: ${chainsToFetch.join(', ')}`);
+
+        // Fetch all chains in parallel
+        const chainPromises = chainsToFetch.map(chain => fetchChainData(chain));
+        const results = await Promise.all(chainPromises);
+
+        // Flatten and combine
+        let allPairs: TokenPair[] = results.flat();
+
+        // Deduplicate by token address + chain (not pair address)
+        // This ensures the same token doesn't appear multiple times from different pairs
+        const seenTokens = new Set<string>();
+        allPairs = allPairs.filter(p => {
+            const key = `${p.chainId}-${p.baseToken.address.toLowerCase()}`;
+            if (seenTokens.has(key)) return false;
+            seenTokens.add(key);
+            return true;
+        });
+
+        // Filter excluded symbols
+        allPairs = allPairs.filter(p => {
+            const symbol = p.baseToken?.symbol?.toUpperCase() || '';
+            return !EXCLUDED_SYMBOLS.has(symbol);
+        });
+
+        // Secondary filtering removed - initial filter is sufficient
+
+        // Sort by volume
+        allPairs.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+
+        // Cap at target count (even number)
+        const finalPairs = allPairs.slice(0, TARGET_TOKEN_COUNT);
+
+        console.log(`[Screener] Returning ${finalPairs.length} tokens (from ${allPairs.length} total)`);
+
+        // Update cache
+        memoryCache.set(cacheKey, {
+            data: finalPairs,
+            timestamp: Date.now(),
+        });
+
+        return finalPairs;
+    } catch (error) {
+        console.error('Error fetching trending tokens:', error);
+        // Return cached data on error if available
+        const fallbackKey = `screener-arbitrum,base,ethereum,solana`;
+        const cached = memoryCache.get(fallbackKey);
+        if (cached) return cached.data;
+        return [];
+    }
+}
+
+export async function getTopPairs(chainIds: ChainId[], limit = 400): Promise<TokenPair[]> {
+    const pairs = await getTrendingTokens(chainIds);
+    return pairs.slice(0, limit);
+}
+
+export async function searchPairs(query: string): Promise<TokenPair[]> {
+    try {
+        const url = `${DEXSCREENER_API}/search/?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        const pairs = data.pairs || [];
+
+        return pairs.map(transformPair).filter((p: TokenPair) => {
+            return Object.keys(REVERSE_CHAIN_MAPPING).includes(p.chainId);
+        });
+    } catch (error) {
+        console.error('Error searching pairs:', error);
+        return [];
+    }
+}
+
+export async function getPairByAddress(chainId: ChainId, pairAddress: string): Promise<TokenPair | null> {
+    try {
+        const dexChainId = CHAIN_MAPPING[chainId];
+        const url = `${DEXSCREENER_API}/pairs/${dexChainId}/${pairAddress}`;
+        const response = await fetch(url);
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        const pairs = data.pairs || [];
+
+        if (pairs.length === 0) return null;
+
+        return transformPair(pairs[0]);
+    } catch (error) {
+        console.error('Error fetching pair:', error);
+        return null;
+    }
+}
+
+export async function getPairsByTokenAddress(chainId: ChainId, tokenAddress: string): Promise<TokenPair[]> {
+    try {
+        const dexChainId = CHAIN_MAPPING[chainId];
+        const response = await fetch(`${DEXSCREENER_API}/tokens/${tokenAddress}`);
+
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        let pairs: any[] = data.pairs || [];
+
+        if (dexChainId) {
+            pairs = pairs.filter(p => p.chainId === dexChainId);
+        }
+
+        return pairs.map(transformPair);
+    } catch (error) {
+        console.error('Error fetching pairs for token:', error);
+        return [];
+    }
 }

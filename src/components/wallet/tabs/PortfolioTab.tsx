@@ -11,6 +11,8 @@ import {
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { CHAINS } from '@/lib/wallet';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface TokenHolding {
     symbol: string;
@@ -23,6 +25,8 @@ interface TokenHolding {
 
 export function PortfolioTab() {
     const { activeWallet, balances, activeChain } = useWalletStore();
+    const { hideBalances } = usePreferences();
+    const { formatCurrency } = useCurrency();
     const [holdings, setHoldings] = useState<TokenHolding[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -130,10 +134,16 @@ export function PortfolioTab() {
                                 {/* Value & Balance */}
                                 <div className="text-right">
                                     <p className="font-semibold text-sm">
-                                        ${token.valueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {hideBalances
+                                            ? '*****'
+                                            : formatCurrency(token.valueUsd).formatted
+                                        }
                                     </p>
                                     <p className="text-xs text-[var(--foreground-muted)] font-mono">
-                                        {parseFloat(token.balance).toLocaleString()} {token.symbol}
+                                        {hideBalances
+                                            ? '*****'
+                                            : parseFloat(token.balance).toLocaleString()
+                                        } {token.symbol}
                                     </p>
                                 </div>
                             </div>

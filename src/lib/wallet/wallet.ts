@@ -95,14 +95,97 @@ export async function createSolanaWallet(password: string, name: string = 'Solan
     });
     setStoredWalletData(storedData);
 
-    // Set session key
-    setSessionKey(keypair.publicKey.toBase58(), privateKeyBase64);
-
     return {
         address: keypair.publicKey.toBase58(),
         name,
         type: 'solana',
     };
+}
+
+// Import an EVM wallet from private key
+export async function importEvmWallet(privateKey: string, password: string, name: string = 'Imported Wallet'): Promise<WalletAccount> {
+    // Validate private key
+    if (!privateKey.startsWith('0x')) {
+        privateKey = `0x${privateKey}`;
+    }
+
+    try {
+        const account = privateKeyToAccount(privateKey as `0x${string}`);
+
+        // Encrypt and store
+        const encryptedKey = await encryptData(privateKey.replace('0x', ''), password);
+
+        const storedData = getStoredWalletData() || { wallets: [] };
+
+        // Check if already exists
+        if (storedData.wallets.some(w => w.address.toLowerCase() === account.address.toLowerCase())) {
+            throw new Error('Wallet already imported');
+        }
+
+        storedData.wallets.push({
+            address: account.address,
+            encryptedPrivateKey: encryptedKey,
+            name,
+            type: 'evm',
+        });
+        setStoredWalletData(storedData);
+
+        // Set session key
+        setSessionKey(account.address, privateKey.replace('0x', ''));
+
+        return {
+            address: account.address,
+            name,
+            type: 'evm',
+        };
+    } catch (error) {
+        throw new Error('Invalid private key');
+    }
+}
+
+// Import a Solana wallet from private key (base58)
+export async function importSolanaWallet(privateKeyBase58: string, password: string, name: string = 'Imported Solana'): Promise<WalletAccount> {
+    try {
+        const { Keypair } = await import('@solana/web3.js');
+        const secretKey = Buffer.from(privateKeyBase58, 'base64'); // Note: Usually base58, but inputs might vary. Let's assume standard bs58 encoding if using a library, but here we might need bs58 decode.
+
+        // Wait, solana web3.js Keypair.fromSecretKey expects Uint8Array.
+        // User input is likely base58 string.
+        const bs58 = (await import('bs58')).default;
+        const decoded = bs58.decode(privateKeyBase58);
+        const keypair = Keypair.fromSecretKey(decoded);
+
+        // Encrypt and store (store as base64 for consistency with createSolanaWallet)
+        const privateKeyBase64 = Buffer.from(keypair.secretKey).toString('base64');
+        const encryptedKey = await encryptData(privateKeyBase64, password);
+
+        const storedData = getStoredWalletData() || { wallets: [] };
+
+        // Check if already exists
+        if (storedData.wallets.some(w => w.address === keypair.publicKey.toBase58())) {
+            throw new Error('Wallet already imported');
+        }
+
+        storedData.wallets.push({
+            address: keypair.publicKey.toBase58(),
+            encryptedPrivateKey: encryptedKey,
+            name,
+            type: 'solana',
+        });
+        setStoredWalletData(storedData);
+
+        // Set session key
+        setSessionKey(keypair.publicKey.toBase58(), privateKeyBase64);
+
+        return {
+            address: keypair.publicKey.toBase58(),
+            name,
+            type: 'solana',
+        };
+    } catch (error) {
+        console.error(error);
+        throw new Error('Invalid private key');
+    }
 }
 
 // Unlock a wallet with password

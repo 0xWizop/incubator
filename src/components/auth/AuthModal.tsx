@@ -65,17 +65,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-md mx-4 bg-[var(--background-secondary)] rounded-2xl border border-[var(--border)] shadow-2xl overflow-hidden">
+            <div className="relative w-full max-w-md mx-4 mb-16 lg:mb-0 max-h-[80vh] overflow-y-auto bg-[var(--background-secondary)] rounded-2xl border border-[var(--border)] shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--border)]">
                     <div>
-                        <h2 className="text-xl font-bold">
+                        <h2 className="text-lg sm:text-xl font-bold">
                             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
                         </h2>
-                        <p className="text-sm text-[var(--foreground-muted)] mt-1">
+                        <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mt-0.5">
                             {mode === 'login'
                                 ? 'Sign in to access your account'
-                                : 'Join CypherX to start trading'}
+                                : 'Join Incubator Protocol to start trading'}
                         </p>
                     </div>
                     <button
@@ -87,7 +87,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
 
                 {/* Body */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     {/* Error Message */}
                     {error && (
                         <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-[var(--accent-red)]">
@@ -100,7 +100,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     <button
                         onClick={handleGoogleSignIn}
                         disabled={loading}
-                        className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--background-tertiary)] transition-colors font-medium"
+                        className="w-full flex items-center justify-center gap-2 sm:gap-3 py-2.5 sm:py-3 px-4 rounded-xl border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--background-tertiary)] transition-colors font-medium text-sm sm:text-base"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -112,14 +112,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </button>
 
                     {/* Divider */}
-                    <div className="flex items-center gap-4 my-6">
+                    <div className="flex items-center gap-4 my-4 sm:my-6">
                         <div className="flex-1 h-px bg-[var(--border)]" />
                         <span className="text-xs text-[var(--foreground-muted)]">or</span>
                         <div className="flex-1 h-px bg-[var(--border)]" />
                     </div>
 
                     {/* Email/Password Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                         {mode === 'signup' && (
                             <div>
                                 <label className="block text-sm font-medium mb-2">Display Name</label>
@@ -184,7 +184,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-[var(--border)] text-center">
+                <div className="p-4 sm:p-6 border-t border-[var(--border)] text-center">
                     <p className="text-sm text-[var(--foreground-muted)]">
                         {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
                         <button

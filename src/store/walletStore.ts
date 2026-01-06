@@ -8,6 +8,7 @@ import {
     getStoredWallets,
     hasWallets,
     getBalance,
+    renameWallet,
     ChainType,
 } from '@/lib/wallet';
 import { clearSession, hasActiveSession } from '@/lib/wallet/storage';
@@ -35,6 +36,8 @@ interface WalletState {
     // Actions
     initialize: () => void;
     createWallet: (password: string, type: 'evm' | 'solana', name?: string) => Promise<boolean>;
+    importWallet: (password: string, privateKey: string, type: 'evm' | 'solana', name?: string) => Promise<boolean>;
+    renameWallet: (address: string, newName: string) => void;
     unlock: (password: string) => Promise<boolean>;
     lock: () => void;
     setActiveWallet: (address: string) => void;
@@ -110,6 +113,63 @@ export const useWalletStore = create<WalletState>()((set, get) => ({
                 error: 'Failed to create wallet. Please try again.',
             });
             return false;
+        }
+    },
+
+    // Import a wallet
+    importWallet: async (password, privateKey, type, name) => {
+        set({ isLoading: true, error: null });
+
+        try {
+            // Dynamic import to avoid SSR issues
+            const { importEvmWallet, importSolanaWallet } = await import('@/lib/wallet');
+
+            let wallet: WalletAccount;
+
+            if (type === 'evm') {
+                const walletCount = get().wallets.filter(w => w.type === 'evm').length;
+                wallet = await importEvmWallet(privateKey, password, name || `Imported Wallet ${walletCount + 1}`);
+            } else {
+                const walletCount = get().wallets.filter(w => w.type === 'solana').length;
+                wallet = await importSolanaWallet(privateKey, password, name || `Imported Solana ${walletCount + 1}`);
+            }
+
+            const updatedWallets = [...get().wallets, wallet];
+
+            set({
+                wallets: updatedWallets,
+                activeWallet: wallet,
+                isUnlocked: true,
+                isLoading: false,
+                isModalOpen: false,
+            });
+
+            get().refreshBalances();
+            return true;
+        } catch (error: any) {
+            console.error('Failed to import wallet:', error);
+            set({
+                isLoading: false,
+                error: error.message || 'Failed to import wallet. Check your private key.',
+            });
+            return false;
+        }
+    },
+
+    // Rename wallet
+    renameWallet: (address, newName) => {
+        renameWallet(address, newName);
+
+        const updatedWallets = get().wallets.map(w =>
+            w.address.toLowerCase() === address.toLowerCase()
+                ? { ...w, name: newName }
+                : w
+        );
+
+        set({ wallets: updatedWallets });
+
+        if (get().activeWallet?.address.toLowerCase() === address.toLowerCase()) {
+            set({ activeWallet: { ...get().activeWallet!, name: newName } });
         }
     },
 
