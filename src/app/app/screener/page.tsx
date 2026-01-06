@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAppStore } from '@/store';
+import { useAppStore, useWatchlistStore } from '@/store';
+import { useAuth } from '@/context/AuthContext';
 import { TokenPair, ChainId } from '@/types';
-import { searchPairs, getTrendingTokens } from '@/lib/services/dexscreener';
+import { getTrendingTokens } from '@/lib/services/dexscreener';
 import {
-    Search,
     TrendingUp,
     TrendingDown,
     ArrowUpRight,
@@ -16,6 +16,10 @@ import {
     ChevronUp,
     ChevronDown,
     Filter,
+    Star,
+    Plus,
+    Trash2,
+    List,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatNumber, formatPrice } from '@/lib/utils/format';
@@ -50,17 +54,27 @@ function ScreenerSkeleton() {
 
 function ScreenerContent() {
     const { selectedChains } = useAppStore();
+    const { firebaseUser } = useAuth();
+    const { watchlists, toggleFavorite, isFavorited, initialize, isInitialized, createList, deleteList, activeWatchlistId, setActiveWatchlist } = useWatchlistStore();
     const [tokens, setTokens] = useState<TokenPair[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [tab, setTab] = useState<'trending' | 'gainers' | 'losers' | 'volume'>('trending');
+    const [tab, setTab] = useState<'trending' | 'gainers' | 'losers' | 'volume' | 'watchlist'>('trending');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<SortField>('volume');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
     const [chainFilter, setChainFilter] = useState<ChainFilter>('all');
     const [totalCount, setTotalCount] = useState(0);
     const [isCached, setIsCached] = useState(false);
+    const [newListName, setNewListName] = useState('');
+    const [showCreateList, setShowCreateList] = useState(false);
     const itemsPerPage = 50;
+
+    // Initialize watchlist store
+    useEffect(() => {
+        if (firebaseUser?.uid && !isInitialized) {
+            initialize(firebaseUser.uid);
+        }
+    }, [firebaseUser?.uid, isInitialized, initialize]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -111,31 +125,18 @@ function ScreenerContent() {
         fetchTokens();
     }, [fetchTokens]);
 
-    async function handleSearch() {
-        if (!searchQuery.trim()) {
-            fetchTokens();
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const pairs = await searchPairs(searchQuery);
-            const filtered = selectedChains.length > 0
-                ? pairs.filter(p => selectedChains.includes(p.chainId))
-                : pairs;
-            setTokens(filtered);
-            setCurrentPage(1);
-        } catch (error) {
-            console.error('Error searching:', error);
-        } finally {
-            setLoading(false);
-        }
-    }
 
     // Apply chain filter first
-    const filteredTokens = chainFilter === 'all'
+    let filteredTokens = chainFilter === 'all'
         ? tokens
         : tokens.filter(t => t.chainId === chainFilter);
+
+    // If on watchlist tab, show only tokens from the active watchlist
+    if (tab === 'watchlist') {
+        const activeList = watchlists.find(w => w.id === activeWatchlistId) || watchlists.find(w => w.id === 'favorites');
+        const listPairs = activeList?.tokens.map(t => t.pairAddress) || [];
+        filteredTokens = filteredTokens.filter(t => listPairs.includes(t.pairAddress));
+    }
 
     // Sort tokens based on current sort field and direction
     const sortedTokens = [...filteredTokens].sort((a, b) => {
@@ -161,46 +162,27 @@ function ScreenerContent() {
         <div className="p-0 sm:p-6">
             {/* Header */}
             <div className="mb-4 sm:mb-6 px-3 sm:px-0 pt-3 sm:pt-0">
-                <h1 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2 flex items-center gap-2">
-                    <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-yellow)]" />
-                    Token Screener
-                    {totalCount > 0 && (
-                        <span className="text-xs sm:text-sm font-normal text-[var(--foreground-muted)] ml-2">
-                            ({totalCount} tokens{isCached && ' • cached'})
-                        </span>
-                    )}
-                </h1>
-                <p className="hidden sm:block text-xs sm:text-base text-[var(--foreground-muted)]">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+                        <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-yellow)]" />
+                        Token Screener
+                        {totalCount > 0 && (
+                            <span className="text-xs sm:text-sm font-normal text-[var(--foreground-muted)] ml-2">
+                                ({totalCount} tokens{isCached && ' • cached'})
+                            </span>
+                        )}
+                    </h1>
+                    <button
+                        onClick={fetchTokens}
+                        className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                        disabled={loading}
+                    >
+                        <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
+                    </button>
+                </div>
+                <p className="hidden sm:block text-xs sm:text-base text-[var(--foreground-muted)] mt-1">
                     Discover trending tokens across all chains
                 </p>
-            </div>
-
-            {/* Search and Refresh */}
-            <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6 px-3 sm:px-0">
-                <div className="relative flex-1">
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]">
-                        <Search className="w-4 h-4" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search token..."
-                        className="w-full bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-base sm:text-sm py-2 pl-3 pr-9 outline-none focus:border-[var(--primary)] transition-colors"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    />
-                </div>
-                <button onClick={handleSearch} className="hidden lg:flex btn btn-secondary text-sm py-2">
-                    <Search className="w-4 h-4" />
-                    <span>Search</span>
-                </button>
-                <button
-                    onClick={fetchTokens}
-                    className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
-                    disabled={loading}
-                >
-                    <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
-                </button>
             </div>
 
             {/* Tabs */}
@@ -229,7 +211,115 @@ function ScreenerContent() {
                     icon={Flame}
                     label="Volume"
                 />
+                {/* Watchlist tab - uses same styling as other tabs */}
+                <button
+                    onClick={() => setTab('watchlist')}
+                    className={clsx(
+                        'flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all flex-shrink-0',
+                        tab === 'watchlist'
+                            ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                            : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
+                    )}
+                >
+                    <Star className={clsx('w-3 h-3 sm:w-4 sm:h-4', tab === 'watchlist' && 'fill-current')} />
+                    Watchlist
+                    {watchlists.find(w => w.id === 'favorites')?.tokens.length ? (
+                        <span className="px-1.5 py-0.5 bg-[var(--primary)] text-black rounded-full text-[10px] font-bold">
+                            {watchlists.find(w => w.id === 'favorites')?.tokens.length}
+                        </span>
+                    ) : null}
+                </button>
             </div>
+
+            {/* Watchlist Management Panel - shown when on watchlist tab */}
+            {tab === 'watchlist' && firebaseUser && (
+                <div className="mb-4 px-3 sm:px-0">
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg p-3 sm:p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <List className="w-4 h-4 text-[var(--primary)]" />
+                                <span className="text-sm font-medium">Your Watchlists</span>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateList(!showCreateList)}
+                                className="flex items-center gap-1 px-2 py-1 bg-[var(--primary)] text-black rounded-lg text-xs font-medium hover:shadow-[0_0_10px_var(--primary-glow)] transition-all"
+                            >
+                                <Plus className="w-3 h-3" />
+                                New List
+                            </button>
+                        </div>
+
+                        {/* Create new list input */}
+                        {showCreateList && (
+                            <div className="flex gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    value={newListName}
+                                    onChange={(e) => setNewListName(e.target.value)}
+                                    placeholder="Enter list name..."
+                                    className="flex-1 px-3 py-2 bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-sm focus:border-[var(--primary)] outline-none transition-colors"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && newListName.trim() && firebaseUser?.uid) {
+                                            createList(firebaseUser.uid, newListName.trim());
+                                            setNewListName('');
+                                            setShowCreateList(false);
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (newListName.trim() && firebaseUser?.uid) {
+                                            createList(firebaseUser.uid, newListName.trim());
+                                            setNewListName('');
+                                            setShowCreateList(false);
+                                        }
+                                    }}
+                                    disabled={!newListName.trim()}
+                                    className="px-3 py-2 bg-[var(--primary)] text-black rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Create
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Watchlist selector */}
+                        <div className="flex flex-wrap gap-2">
+                            {watchlists.map((list) => (
+                                <div
+                                    key={list.id}
+                                    className={clsx(
+                                        'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border',
+                                        activeWatchlistId === list.id
+                                            ? 'bg-[var(--primary)] text-black border-[var(--primary)]'
+                                            : 'bg-[var(--background-tertiary)] border-[var(--border)] hover:border-[var(--primary)]/50'
+                                    )}
+                                    onClick={() => setActiveWatchlist(list.id)}
+                                >
+                                    <Star className={clsx('w-3 h-3', activeWatchlistId === list.id && 'fill-current')} />
+                                    <span>{list.name}</span>
+                                    <span className="px-1.5 py-0.5 bg-black/20 rounded text-[10px]">
+                                        {list.tokens.length}
+                                    </span>
+                                    {list.id !== 'favorites' && activeWatchlistId === list.id && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (firebaseUser?.uid) {
+                                                    deleteList(firebaseUser.uid, list.id);
+                                                }
+                                            }}
+                                            className="p-0.5 hover:text-[var(--accent-red)] transition-colors"
+                                            title="Delete list"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Chain Filter */}
             <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-4 px-3 sm:px-0 overflow-x-auto scrollbar-thin">
@@ -334,6 +424,19 @@ function ScreenerContent() {
                                         key={`${token.chainId}-${token.pairAddress}`}
                                         token={token}
                                         index={(currentPage - 1) * itemsPerPage + index + 1}
+                                        isFavorited={isFavorited(token.pairAddress)}
+                                        onToggleFavorite={() => {
+                                            if (firebaseUser?.uid) {
+                                                toggleFavorite(firebaseUser.uid, {
+                                                    address: token.baseToken.address,
+                                                    pairAddress: token.pairAddress,
+                                                    chainId: token.chainId,
+                                                    symbol: token.baseToken.symbol,
+                                                    name: token.baseToken.name,
+                                                    logo: token.baseToken.logo,
+                                                });
+                                            }
+                                        }}
                                     />
                                 ))
                             )}
@@ -402,7 +505,7 @@ function TabButton({
     );
 }
 
-function TokenRow({ token, index }: { token: TokenPair; index: number }) {
+function TokenRow({ token, index, isFavorited, onToggleFavorite }: { token: TokenPair; index: number; isFavorited?: boolean; onToggleFavorite?: () => void }) {
     const priceChange = token.priceChange.h24;
     const isPositive = priceChange >= 0;
 
@@ -410,13 +513,30 @@ function TokenRow({ token, index }: { token: TokenPair; index: number }) {
 
     return (
         <tr
-            onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
             className="hover:bg-[var(--background-tertiary)] transition-colors border-none group cursor-pointer"
         >
             <td className="text-[var(--foreground-muted)] font-medium pl-3 sm:pl-4 text-xs">{index}</td>
             <td className="pl-2">
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-[var(--background-tertiary)] flex-shrink-0">
+                    {/* Star button for quick favorite */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite?.();
+                        }}
+                        className={clsx(
+                            'p-1 rounded transition-all flex-shrink-0',
+                            isFavorited
+                                ? 'text-[var(--primary)]'
+                                : 'text-[var(--foreground-muted)] hover:text-[var(--primary)] opacity-50 hover:opacity-100'
+                        )}
+                    >
+                        <Star className={clsx('w-3 h-3 sm:w-4 sm:h-4', isFavorited && 'fill-current')} />
+                    </button>
+                    <div
+                        className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-[var(--background-tertiary)] flex-shrink-0"
+                        onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+                    >
                         {token.logo || token.baseToken.logo ? (
                             <img
                                 src={token.logo || token.baseToken.logo}
@@ -429,7 +549,7 @@ function TokenRow({ token, index }: { token: TokenPair; index: number }) {
                             </div>
                         )}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0" onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}>
                         <div className="flex items-center gap-1">
                             <p className="font-bold text-xs sm:text-sm truncate">{token.baseToken.symbol}</p>
                             <img
@@ -449,24 +569,42 @@ function TokenRow({ token, index }: { token: TokenPair; index: number }) {
                     </div>
                 </div>
             </td>
-            <td className="text-left font-mono text-xs sm:text-sm">
+            <td
+                className="text-left font-mono text-xs sm:text-sm"
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 ${formatPrice(token.priceUsd)}
             </td>
-            <td className={clsx('text-left font-mono text-xs sm:text-sm', isPositive ? 'price-up' : 'price-down')}>
+            <td
+                className={clsx('text-left font-mono text-xs sm:text-sm', isPositive ? 'price-up' : 'price-down')}
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
             </td>
-            <td className="text-left font-mono text-xs sm:text-sm hidden sm:table-cell">
+            <td
+                className="text-left font-mono text-xs sm:text-sm hidden sm:table-cell"
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 ${formatNumber(token.volume24h)}
             </td>
-            <td className="text-left font-mono text-xs sm:text-sm hidden md:table-cell">
+            <td
+                className="text-left font-mono text-xs sm:text-sm hidden md:table-cell"
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 ${formatNumber(token.liquidity)}
             </td>
-            <td className="text-left text-xs hidden lg:table-cell">
+            <td
+                className="text-left text-xs hidden lg:table-cell"
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 <span className="price-up">{token.txns24h.buys}</span>
                 <span className="text-[var(--foreground-muted)]">/</span>
                 <span className="price-down">{token.txns24h.sells}</span>
             </td>
-            <td className="pr-2 sm:pr-4">
+            <td
+                className="pr-2 sm:pr-4"
+                onClick={() => router.push(`/app/trade?chain=${token.chainId}&pair=${token.pairAddress}`)}
+            >
                 <div
                     className="btn btn-ghost btn-sm p-1 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                 >
@@ -476,4 +614,3 @@ function TokenRow({ token, index }: { token: TokenPair; index: number }) {
         </tr>
     );
 }
-

@@ -5,6 +5,7 @@ import {
     getDocs,
     setDoc,
     updateDoc,
+    deleteDoc,
     query,
     where,
     orderBy,
@@ -14,7 +15,7 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Trade, Referral, Rewards, ChainId, UserPreferences } from '@/types';
+import { User, Trade, Referral, Rewards, ChainId, UserPreferences, Watchlist, WatchlistToken, PriceAlert } from '@/types';
 
 // Helper to normalize IDs (lowercase addresses, keep UIDs as is)
 function normalizeId(id: string): string {
@@ -27,6 +28,8 @@ export const usersCollection = collection(db, 'users');
 export const tradesCollection = collection(db, 'trades');
 export const referralsCollection = collection(db, 'referrals');
 export const rewardsCollection = collection(db, 'rewards');
+export const watchlistsCollection = collection(db, 'watchlists');
+export const alertsCollection = collection(db, 'alerts');
 
 // Default user preferences
 export const defaultPreferences: UserPreferences = {
@@ -594,5 +597,263 @@ export async function getEnhancedLeaderboard(limitCount = 20): Promise<Leaderboa
     } catch (error) {
         console.error('Error getting enhanced leaderboard:', error);
         return [];
+    }
+}
+
+// === WATCHLIST FUNCTIONS ===
+
+const DEFAULT_FAVORITES_ID = 'favorites';
+
+export async function getWatchlists(userId: string): Promise<Watchlist[]> {
+    try {
+        const docRef = doc(watchlistsCollection, normalizeId(userId));
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            // Initialize with empty favorites list
+            const initialData = {
+                lists: [{
+                    id: DEFAULT_FAVORITES_ID,
+                    name: 'Favorites',
+                    tokens: [],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                }]
+            };
+            await setDoc(docRef, initialData);
+            return [{
+                id: DEFAULT_FAVORITES_ID,
+                name: 'Favorites',
+                tokens: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }];
+        }
+
+        const data = docSnap.data();
+        return (data.lists || []).map((list: any) => ({
+            id: list.id,
+            name: list.name,
+            tokens: (list.tokens || []).map((t: any) => ({
+                ...t,
+                addedAt: t.addedAt?.toDate?.() || new Date(),
+            })),
+            createdAt: list.createdAt?.toDate?.() || new Date(),
+            updatedAt: list.updatedAt?.toDate?.() || new Date(),
+        }));
+    } catch (error) {
+        console.error('Error getting watchlists:', error);
+        return [];
+    }
+}
+
+export async function createWatchlist(userId: string, name: string): Promise<Watchlist | null> {
+    try {
+        const docRef = doc(watchlistsCollection, normalizeId(userId));
+        const docSnap = await getDoc(docRef);
+
+        const newList: Watchlist = {
+            id: `list-${Date.now()}`,
+            name,
+            tokens: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        if (!docSnap.exists()) {
+            await setDoc(docRef, {
+                lists: [
+                    { id: DEFAULT_FAVORITES_ID, name: 'Favorites', tokens: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
+                    { ...newList, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                ]
+            });
+        } else {
+            const currentLists = docSnap.data().lists || [];
+            await updateDoc(docRef, {
+                lists: [...currentLists, { ...newList, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }]
+            });
+        }
+
+        return newList;
+    } catch (error) {
+        console.error('Error creating watchlist:', error);
+        return null;
+    }
+}
+
+export async function deleteWatchlist(userId: string, listId: string): Promise<boolean> {
+    try {
+        if (listId === DEFAULT_FAVORITES_ID) return false; // Cannot delete favorites
+
+        const docRef = doc(watchlistsCollection, normalizeId(userId));
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) return false;
+
+        const currentLists = docSnap.data().lists || [];
+        const updatedLists = currentLists.filter((l: any) => l.id !== listId);
+
+        await updateDoc(docRef, { lists: updatedLists });
+        return true;
+    } catch (error) {
+        console.error('Error deleting watchlist:', error);
+        return false;
+    }
+}
+
+export async function addToWatchlist(
+    userId: string,
+    listId: string,
+    token: Omit<WatchlistToken, 'addedAt'>
+): Promise<boolean> {
+    try {
+        const docRef = doc(watchlistsCollection, normalizeId(userId));
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            // Initialize with favorites containing this token
+            await setDoc(docRef, {
+                lists: [{
+                    id: DEFAULT_FAVORITES_ID,
+                    name: 'Favorites',
+                    tokens: [{ ...token, addedAt: serverTimestamp() }],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                }]
+            });
+            return true;
+        }
+
+        const currentLists = docSnap.data().lists || [];
+        const listIndex = currentLists.findIndex((l: any) => l.id === listId);
+
+        if (listIndex === -1) return false;
+
+        // Check if token already exists
+        const existingTokens = currentLists[listIndex].tokens || [];
+        if (existingTokens.some((t: any) => t.pairAddress === token.pairAddress)) {
+            return true; // Already exists
+        }
+
+        currentLists[listIndex].tokens = [...existingTokens, { ...token, addedAt: serverTimestamp() }];
+        currentLists[listIndex].updatedAt = serverTimestamp();
+
+        await updateDoc(docRef, { lists: currentLists });
+        return true;
+    } catch (error) {
+        console.error('Error adding to watchlist:', error);
+        return false;
+    }
+}
+
+export async function removeFromWatchlist(
+    userId: string,
+    listId: string,
+    pairAddress: string
+): Promise<boolean> {
+    try {
+        const docRef = doc(watchlistsCollection, normalizeId(userId));
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) return false;
+
+        const currentLists = docSnap.data().lists || [];
+        const listIndex = currentLists.findIndex((l: any) => l.id === listId);
+
+        if (listIndex === -1) return false;
+
+        currentLists[listIndex].tokens = (currentLists[listIndex].tokens || [])
+            .filter((t: any) => t.pairAddress !== pairAddress);
+        currentLists[listIndex].updatedAt = serverTimestamp();
+
+        await updateDoc(docRef, { lists: currentLists });
+        return true;
+    } catch (error) {
+        console.error('Error removing from watchlist:', error);
+        return false;
+    }
+}
+
+export async function isFavorited(userId: string, pairAddress: string): Promise<boolean> {
+    try {
+        const watchlists = await getWatchlists(userId);
+        const favorites = watchlists.find(w => w.id === DEFAULT_FAVORITES_ID);
+        return favorites?.tokens.some(t => t.pairAddress === pairAddress) || false;
+    } catch (error) {
+        return false;
+    }
+}
+
+// === ALERT FUNCTIONS ===
+
+export async function getAlerts(userId: string): Promise<PriceAlert[]> {
+    try {
+        const q = query(
+            alertsCollection,
+            where('userId', '==', normalizeId(userId)),
+            orderBy('createdAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        })) as PriceAlert[];
+    } catch (error) {
+        console.error('Error getting alerts:', error);
+        return [];
+    }
+}
+
+export async function createAlert(
+    userId: string,
+    alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>
+): Promise<PriceAlert | null> {
+    try {
+        const alertId = `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        const alertData = {
+            ...alert,
+            id: alertId,
+            userId: normalizeId(userId),
+            triggered: false,
+            createdAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(alertsCollection, alertId), alertData);
+
+        return {
+            ...alert,
+            id: alertId,
+            userId: normalizeId(userId),
+            triggered: false,
+            createdAt: new Date(),
+        };
+    } catch (error) {
+        console.error('Error creating alert:', error);
+        return null;
+    }
+}
+
+export async function deleteAlert(alertId: string): Promise<boolean> {
+    try {
+        await deleteDoc(doc(alertsCollection, alertId));
+        return true;
+    } catch (error) {
+        console.error('Error deleting alert:', error);
+        return false;
+    }
+}
+
+export async function markAlertTriggered(alertId: string): Promise<boolean> {
+    try {
+        await updateDoc(doc(alertsCollection, alertId), {
+            triggered: true,
+        });
+        return true;
+    } catch (error) {
+        console.error('Error marking alert triggered:', error);
+        return false;
     }
 }

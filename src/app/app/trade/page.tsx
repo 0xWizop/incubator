@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useTradingStore, useAppStore, useWalletStore } from '@/store';
+import { useTradingStore, useAppStore, useWalletStore, useWatchlistStore } from '@/store';
+import { useAuth } from '@/context/AuthContext';
 import { usePreferences } from '@/hooks/usePreferences';
 import { TokenPair, ChainId, RecentTrade } from '@/types';
 import { getChain } from '@/config/chains';
@@ -24,10 +25,68 @@ import {
     Clock,
     BarChart3,
     ExternalLink,
-    ArrowLeft
+    ArrowLeft,
+    Star,
+    Bell,
+    Wrench,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
+import { AlertModal } from '@/components/watchlist';
+
+// Helper to calculate optimal priceFormat based on price data range
+function calculatePriceFormat(chartData: { open: number; high: number; low: number; close: number }[]): { type: 'price'; precision: number; minMove: number } {
+    if (!chartData || chartData.length === 0) {
+        return { type: 'price', precision: 8, minMove: 0.00000001 };
+    }
+
+    // Find the minimum non-zero price to determine precision needed
+    const allPrices = chartData.flatMap(d => [d.open, d.high, d.low, d.close]).filter(p => p > 0);
+    const minPrice = Math.min(...allPrices);
+
+    // Calculate precision based on magnitude of smallest price
+    // For very small numbers (< 0.000001), we need more decimal places
+    let precision: number;
+    let minMove: number;
+
+    if (minPrice >= 1000) {
+        precision = 2;
+        minMove = 0.01;
+    } else if (minPrice >= 1) {
+        precision = 4;
+        minMove = 0.0001;
+    } else if (minPrice >= 0.01) {
+        precision = 6;
+        minMove = 0.000001;
+    } else if (minPrice >= 0.0001) {
+        precision = 8;
+        minMove = 0.00000001;
+    } else if (minPrice >= 0.000001) {
+        precision = 10;
+        minMove = 0.0000000001;
+    } else {
+        // For extremely small prices (meme coins), use maximum precision
+        precision = 12;
+        minMove = 0.000000000001;
+    }
+
+    return { type: 'price', precision, minMove };
+}
+
+// Helper to transform price data to market cap data
+function transformToMarketCap(
+    chartData: { time: any; open: number; high: number; low: number; close: number }[],
+    supply: number
+): { time: any; open: number; high: number; low: number; close: number }[] {
+    if (!supply || supply <= 0) return chartData;
+    return chartData.map(d => ({
+        time: d.time,
+        open: d.open * supply,
+        high: d.high * supply,
+        low: d.low * supply,
+        close: d.close * supply,
+    }));
+}
 
 // Wrapper component to handle Suspense boundary for useSearchParams
 export default function TradePage() {
@@ -51,6 +110,8 @@ function TradePageSkeleton() {
 
 function TradePageContent() {
     const searchParams = useSearchParams();
+    const { firebaseUser } = useAuth();
+    const { toggleFavorite, isFavorited, initialize, isInitialized } = useWatchlistStore();
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<any>(null);
@@ -64,6 +125,15 @@ function TradePageContent() {
     const [coinData, setCoinData] = useState<coingecko.CoinData | null>(null);
     const [currentOHLC, setCurrentOHLC] = useState<{ open: number; high: number; low: number; close: number; change: number } | null>(null);
     const [chartUnavailable, setChartUnavailable] = useState(false);
+    const [yAxisMode, setYAxisMode] = useState<'price' | 'mcap'>('price');
+    const [showAlertModal, setShowAlertModal] = useState(false);
+
+    // Initialize watchlist store
+    useEffect(() => {
+        if (firebaseUser?.uid && !isInitialized) {
+            initialize(firebaseUser.uid);
+        }
+    }, [firebaseUser?.uid, isInitialized, initialize]);
 
     // URL params for deep linking
     const chainParam = searchParams.get('chain') as ChainId;
@@ -132,6 +202,8 @@ function TradePageContent() {
                     top: 0.1,
                     bottom: 0.25,
                 },
+                autoScale: true,
+                borderVisible: true,
             },
             timeScale: {
                 borderColor: 'rgba(255, 255, 255, 0.05)',
@@ -146,6 +218,11 @@ function TradePageContent() {
             borderDownColor: '#ff4444',
             wickUpColor: '#00e676',
             wickDownColor: '#ff4444',
+            priceFormat: {
+                type: 'price',
+                precision: 8,
+                minMove: 0.00000001,
+            },
         });
 
         const volumeSeries = chart.addHistogramSeries({
@@ -220,10 +297,24 @@ function TradePageContent() {
                 );
 
                 if (ohlcvData.length > 0) {
-                    const chartData = geckoterminal.toChartData(ohlcvData).sort((a: any, b: any) => a.time - b.time);
+                    let chartData = geckoterminal.toChartData(ohlcvData).sort((a: any, b: any) => a.time - b.time);
                     const volumeData = geckoterminal.toVolumeData(ohlcvData).sort((a: any, b: any) => a.time - b.time);
+
+                    // Transform to market cap if in mcap mode
+                    if (yAxisMode === 'mcap' && tokenData.fdv && chartData.length > 0) {
+                        // Calculate supply from FDV and current price
+                        const currentPrice = chartData[chartData.length - 1]?.close || tokenData.priceUsd || 1;
+                        const estimatedSupply = tokenData.fdv / currentPrice;
+                        chartData = transformToMarketCap(chartData, estimatedSupply);
+                    }
+
                     candlestickSeries.setData(chartData);
                     volumeSeries.setData(volumeData);
+
+                    // Dynamically update price format based on actual data
+                    candlestickSeries.applyOptions({
+                        priceFormat: calculatePriceFormat(chartData),
+                    });
 
                     if (chartData.length > 0) {
                         const lastCandle = chartData[chartData.length - 1];
@@ -251,10 +342,23 @@ function TradePageContent() {
             if (binanceSymbol) {
                 const klineData = await binance.getTokenKlines(tokenData.baseToken.symbol, timeframe, 500);
                 if (klineData.length > 0) {
-                    const chartData = binance.toChartData(klineData).sort((a: any, b: any) => a.time - b.time);
+                    let chartData = binance.toChartData(klineData).sort((a: any, b: any) => a.time - b.time);
                     const volumeData = binance.toVolumeData(klineData).sort((a: any, b: any) => a.time - b.time);
+
+                    // Transform to market cap if in mcap mode
+                    if (yAxisMode === 'mcap' && tokenData.fdv && chartData.length > 0) {
+                        const currentPrice = chartData[chartData.length - 1]?.close || tokenData.priceUsd || 1;
+                        const estimatedSupply = tokenData.fdv / currentPrice;
+                        chartData = transformToMarketCap(chartData, estimatedSupply);
+                    }
+
                     candlestickSeries.setData(chartData);
                     volumeSeries.setData(volumeData);
+
+                    // Dynamically update price format based on actual data
+                    candlestickSeries.applyOptions({
+                        priceFormat: calculatePriceFormat(chartData),
+                    });
 
                     if (chartData.length > 0) {
                         const lastCandle = chartData[chartData.length - 1];
@@ -288,8 +392,25 @@ function TradePageContent() {
 
                 const ohlcData = await coingecko.getOHLC(coinId, days);
                 if (ohlcData.length > 0) {
-                    const chartData = coingecko.toChartData(ohlcData).sort((a: any, b: any) => a.time - b.time);
+                    let chartData = coingecko.toChartData(ohlcData).sort((a: any, b: any) => a.time - b.time);
+
+                    // Transform to market cap if in mcap mode
+                    if (yAxisMode === 'mcap' && chartData.length > 0) {
+                        // Use CoinGecko marketCap data if available, otherwise estimate
+                        const supply = marketData?.marketCap && marketData.price
+                            ? marketData.marketCap / marketData.price
+                            : (tokenData.fdv && tokenData.priceUsd ? tokenData.fdv / tokenData.priceUsd : 0);
+                        if (supply > 0) {
+                            chartData = transformToMarketCap(chartData, supply);
+                        }
+                    }
+
                     candlestickSeries.setData(chartData);
+
+                    // Dynamically update price format based on actual data
+                    candlestickSeries.applyOptions({
+                        priceFormat: calculatePriceFormat(chartData),
+                    });
 
                     const volumeData = chartData.map((candle: any) => ({
                         time: candle.time,
@@ -322,12 +443,12 @@ function TradePageContent() {
         };
 
         fetchChartData();
-    }, [tokenData, timeframe]);
+    }, [tokenData, timeframe, yAxisMode]);
 
     const timeframes = ['1M', '5M', '15M', '1H', '4H', '1D'];
 
     return (
-        <div className="min-h-full lg:h-full flex flex-col lg:flex-row bg-[var(--background)]">
+        <div className="h-[100dvh] lg:h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden">
             {/* Main content - Chart & Data */}
             <div className="flex-1 flex flex-col min-w-0 lg:border-r border-[var(--border)]">
                 {/* Header */}
@@ -365,6 +486,36 @@ function TradePageContent() {
                                         </div>
                                         <p className="text-[10px] sm:text-sm text-[var(--foreground-muted)] truncate hidden sm:block">{tokenData.baseToken.name}</p>
                                     </div>
+                                    {/* Action buttons - no backdrop, positioned with token info */}
+                                    <button
+                                        onClick={() => {
+                                            if (!firebaseUser) return;
+                                            toggleFavorite(firebaseUser.uid, {
+                                                address: tokenData.baseToken.address,
+                                                pairAddress: tokenData.pairAddress,
+                                                chainId: tokenData.chainId,
+                                                symbol: tokenData.baseToken.symbol,
+                                                name: tokenData.baseToken.name,
+                                                logo: tokenData.baseToken.logo,
+                                            });
+                                        }}
+                                        className={clsx(
+                                            'p-1.5 rounded-lg transition-all',
+                                            isFavorited(tokenData.pairAddress)
+                                                ? 'text-[var(--primary)]'
+                                                : 'text-[var(--foreground-muted)] hover:text-[var(--primary)]'
+                                        )}
+                                        title={isFavorited(tokenData.pairAddress) ? 'Remove from favorites' : 'Add to favorites'}
+                                    >
+                                        <Star className={clsx('w-5 h-5', isFavorited(tokenData.pairAddress) && 'fill-current')} />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAlertModal(true)}
+                                        className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-all"
+                                        title="Set price alert"
+                                    >
+                                        <Bell className="w-5 h-5" />
+                                    </button>
                                 </>
                             )}
                         </div>
@@ -386,7 +537,7 @@ function TradePageContent() {
                     </div>
 
                     {/* Stats Bar - Horizontally scrollable on mobile */}
-                    <div className="flex items-center gap-3 sm:gap-8 text-[10px] sm:text-sm border-t border-[var(--border)] pt-2 sm:pt-4 overflow-x-auto scrollbar-thin">
+                    <div className="flex items-center gap-3 sm:gap-8 text-[10px] sm:text-sm border-t border-[var(--border)] pt-2 sm:pt-4 overflow-visible">
                         <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">MCap</span>
                             <span className="tabular-nums">
@@ -403,7 +554,7 @@ function TradePageContent() {
                             <span className="text-[var(--foreground-muted)]">Liq</span>
                             <span className="tabular-nums">${tokenData ? formatNumber(tokenData.liquidity) : '-'}</span>
                         </div>
-                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                        <div className="hidden sm:flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">5m</span>
                             <span className={clsx(
                                 'tabular-nums',
@@ -412,7 +563,7 @@ function TradePageContent() {
                                 {(tokenData?.priceChange.m5 || 0) >= 0 ? '+' : ''}{(tokenData?.priceChange.m5 || 0).toFixed(2)}%
                             </span>
                         </div>
-                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                        <div className="hidden sm:flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">1h</span>
                             <span className={clsx(
                                 'tabular-nums',
@@ -421,7 +572,7 @@ function TradePageContent() {
                                 {(tokenData?.priceChange.h1 || 0) >= 0 ? '+' : ''}{(tokenData?.priceChange.h1 || 0).toFixed(2)}%
                             </span>
                         </div>
-                        <div className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                        <div className="hidden sm:flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <span className="text-[var(--foreground-muted)]">24h</span>
                             <span className={clsx(
                                 'tabular-nums',
@@ -447,40 +598,61 @@ function TradePageContent() {
                                         {tf}
                                     </button>
                                 ))}
+                                {/* Price/MCap Toggle */}
+                                <span className="text-[var(--foreground-muted)] mx-1">|</span>
+                                <button
+                                    onClick={() => setYAxisMode(yAxisMode === 'price' ? 'mcap' : 'price')}
+                                    className="text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
+                                >
+                                    <span className={yAxisMode === 'price' ? 'text-[var(--primary)]' : ''}>Price</span>
+                                    <span className="text-[var(--foreground-muted)]">/</span>
+                                    <span className={yAxisMode === 'mcap' ? 'text-[var(--primary)]' : ''}>MCap</span>
+                                </button>
                             </div>
 
-                            {/* Mobile Timeframe Dropdown */}
-                            {/* Mobile Timeframe Dropdown */}
-                            <div className="relative sm:hidden">
+                            {/* Mobile Timeframe + Price/MCap Dropdowns */}
+                            <div className="flex gap-2 sm:hidden">
+                                {/* Timeframe Dropdown */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
+                                        className="flex items-center gap-1 bg-[var(--background-tertiary)] text-[var(--foreground)] text-[10px] font-medium rounded-lg px-2 py-1.5 border border-[var(--border)] transition-colors active:bg-[var(--background-secondary)]"
+                                    >
+                                        <span>{timeframe}</span>
+                                        <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
+                                    </button>
+                                    {showTimeframeDropdown && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setShowTimeframeDropdown(false)} />
+                                            <div className="absolute right-0 top-full mt-1 w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden py-1">
+                                                {timeframes.map((tf) => (
+                                                    <button
+                                                        key={tf}
+                                                        onClick={() => {
+                                                            setTimeframe(tf);
+                                                            setShowTimeframeDropdown(false);
+                                                        }}
+                                                        className={clsx(
+                                                            "w-full text-center px-1 py-2 text-[10px] hover:bg-[var(--background-tertiary)] transition-colors",
+                                                            timeframe === tf ? "text-[var(--primary)] font-bold bg-[var(--primary)]/5" : "text-[var(--foreground-muted)]"
+                                                        )}
+                                                    >
+                                                        {tf}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                {/* Price/MCap Toggle */}
                                 <button
-                                    onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-                                    className="flex items-center gap-1 bg-[var(--background-tertiary)] text-[var(--foreground)] text-[10px] font-medium rounded-lg px-2 py-1.5 border border-[var(--border)] transition-colors active:bg-[var(--background-secondary)]"
+                                    onClick={() => setYAxisMode(yAxisMode === 'price' ? 'mcap' : 'price')}
+                                    className="flex items-center gap-1 bg-[var(--background-tertiary)] text-[10px] font-medium rounded-lg px-2 py-1.5 border border-[var(--border)] transition-colors active:bg-[var(--background-secondary)]"
                                 >
-                                    <span>{timeframe}</span>
-                                    <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
+                                    <span className={yAxisMode === 'price' ? 'text-[var(--primary)]' : 'text-[var(--foreground-muted)]'}>$</span>
+                                    <span className="text-[var(--foreground-muted)]">/</span>
+                                    <span className={yAxisMode === 'mcap' ? 'text-[var(--primary)]' : 'text-[var(--foreground-muted)]'}>MC</span>
                                 </button>
-                                {showTimeframeDropdown && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setShowTimeframeDropdown(false)} />
-                                        <div className="absolute right-0 top-full mt-1 w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden py-1">
-                                            {timeframes.map((tf) => (
-                                                <button
-                                                    key={tf}
-                                                    onClick={() => {
-                                                        setTimeframe(tf);
-                                                        setShowTimeframeDropdown(false);
-                                                    }}
-                                                    className={clsx(
-                                                        "w-full text-center px-1 py-2 text-[10px] hover:bg-[var(--background-tertiary)] transition-colors",
-                                                        timeframe === tf ? "text-[var(--primary)] font-bold bg-[var(--primary)]/5" : "text-[var(--foreground-muted)]"
-                                                    )}
-                                                >
-                                                    {tf}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -489,22 +661,20 @@ function TradePageContent() {
                 {/* Chart Area - Fixed height on mobile, flexible on desktop */}
                 <div className="relative bg-[var(--background)] h-[280px] lg:h-[400px] lg:flex-1 lg:min-h-[400px] border-b border-[var(--border)] flex-shrink-0">
                     {/* TradingView-style Chart Info Overlay */}
-                    <div className="absolute top-2 left-3 z-10 flex items-center gap-3 text-xs pointer-events-none">
-                        <div className="flex items-center gap-2">
+                    <div className="absolute top-2 left-2 sm:left-3 z-10 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-[10px] sm:text-xs pointer-events-none">
+                        <div className="flex items-center gap-1 sm:gap-2">
                             {tokenData?.baseToken?.logo && (
-                                <img src={tokenData.baseToken.logo} alt="" className="w-5 h-5 rounded-full" />
+                                <img src={tokenData.baseToken.logo} alt="" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full" />
                             )}
-                            <span className="font-semibold text-sm text-[var(--foreground)]">
+                            <span className="font-semibold text-xs sm:text-sm text-[var(--foreground)]">
                                 {tokenData?.baseToken?.symbol || 'BTC'}/{tokenData?.quoteToken?.symbol || 'USD'}
                             </span>
-                            <span className="text-[var(--foreground-muted)] hidden sm:inline">
-                                {tokenData?.dexId && tokenData.dexId !== 'coingecko' ? `on ${tokenData.dexId}` : ''}
+                            <span className="text-[var(--foreground-muted)]">
+                                {tokenData?.dexId && tokenData.dexId !== 'coingecko' ? `${tokenData.dexId}` : ''}
                             </span>
-                            <span className="text-[var(--foreground-muted)] hidden sm:inline">•</span>
-                            <span className="text-[var(--foreground-muted)] hidden sm:inline">{timeframe}</span>
                         </div>
                         {currentOHLC && (
-                            <div className="flex items-center gap-2 font-mono hidden sm:flex">
+                            <div className="flex items-center gap-1 sm:gap-2 font-mono text-[9px] sm:text-xs">
                                 <span className="text-[var(--foreground-muted)]">O</span>
                                 <span className="text-[var(--foreground)]">{formatPrice(currentOHLC.open)}</span>
                                 <span className="text-[var(--foreground-muted)]">H</span>
@@ -521,12 +691,12 @@ function TradePageContent() {
                     </div>
 
                     {/* Chart Unavailable Overlay */}
-                    {chartUnavailable && (
+                    {chartUnavailable && !currentOHLC && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--background)]/90 z-20">
                             <BarChart3 className="w-12 h-12 text-[var(--foreground-muted)] mb-4" />
                             <p className="text-lg font-semibold text-[var(--foreground)] mb-2">Chart Data Not Available</p>
                             <p className="text-sm text-[var(--foreground-muted)] text-center max-w-[300px]">
-                                OHLC chart data is not available for this token. Price data from DexScreener is shown above.
+                                OHLC chart data is not available for this token from our data sources.
                             </p>
                         </div>
                     )}
@@ -546,7 +716,24 @@ function TradePageContent() {
 
                 <SwapPanel token={tokenData} />
             </aside>
-        </div>
+
+            {/* Alert Modal */}
+            {tokenData && (
+                <AlertModal
+                    isOpen={showAlertModal}
+                    onClose={() => setShowAlertModal(false)}
+                    tokenData={{
+                        address: tokenData.baseToken.address,
+                        pairAddress: tokenData.pairAddress,
+                        chainId: tokenData.chainId,
+                        symbol: tokenData.baseToken.symbol,
+                        name: tokenData.baseToken.name,
+                        logo: tokenData.baseToken.logo,
+                        currentPrice: tokenData.priceUsd,
+                    }}
+                />
+            )}
+        </div >
     );
 }
 
@@ -604,17 +791,17 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
                     </div>
                 )}
                 {activeTab === 'orders' && (
-                    <div className="h-full flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-3 p-4 min-h-[200px]">
+                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-hidden">
                         <ArrowUpDown className="w-8 h-8 opacity-50" />
                         <p className="text-sm font-medium">No Open Orders</p>
-                        <p className="text-xs text-center max-w-[200px]">Your limit orders will appear here once placed.</p>
+                        <p className="text-xs text-center">Your limit orders will appear here once placed.</p>
                     </div>
                 )}
                 {activeTab === 'positions' && (
-                    <div className="h-full flex flex-col items-center justify-center text-[var(--foreground-muted)] gap-3 p-4 min-h-[200px]">
+                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-hidden">
                         <BarChart3 className="w-8 h-8 opacity-50" />
                         <p className="text-sm font-medium">No Open Positions</p>
-                        <p className="text-xs text-center max-w-[200px]">Connect wallet and trade to see your positions here.</p>
+                        <p className="text-xs text-center">Connect wallet and trade to see your positions here.</p>
                     </div>
                 )}
             </div>
@@ -622,10 +809,13 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
     );
 });
 
-// Helper for formatting price in chart overlay
+// Helper for formatting price in chart overlay (handles both small prices and large market caps)
 function formatPrice(price: number) {
-    if (price < 1) return price.toFixed(6);
-    return price.toFixed(2);
+    if (price >= 1e9) return '$' + (price / 1e9).toFixed(2) + 'B';
+    if (price >= 1e6) return '$' + (price / 1e6).toFixed(2) + 'M';
+    if (price >= 1e3) return '$' + (price / 1e3).toFixed(2) + 'K';
+    if (price < 1) return '$' + price.toFixed(6);
+    return '$' + price.toFixed(2);
 }
 
 const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenData }: { chainId: ChainId; tokenData?: TokenPair | null }) {
@@ -662,7 +852,10 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
     }, [tokenData?.pairAddress, tokenData?.chainId]);
 
     return (
-        <div className="overflow-y-auto overflow-x-hidden w-full h-full text-[11px]">
+        <div
+            className="overflow-y-auto overflow-x-hidden w-full h-full text-[11px] overscroll-contain"
+            style={{ WebkitOverflowScrolling: 'touch', willChange: 'scroll-position' }}
+        >
             {/* Header row */}
             <div className="grid grid-cols-6 gap-2 px-4 py-2 text-[10px] text-[var(--foreground-muted)] font-medium border-b border-[var(--border)] bg-[#0a0a0a] sticky top-0 z-20 items-center min-w-0">
                 <span className="text-left">Time</span>
@@ -819,7 +1012,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
 
             <div className="space-y-4">
                 {/* Pay Input */}
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
+                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group transition-colors shadow-lg opacity-80">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You pay</label>
                         <span className="text-xs text-[var(--foreground-muted)]">
@@ -833,12 +1026,12 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             type="number"
                             placeholder="0.00"
                             value={payAmount}
-                            onChange={(e) => setPayAmount(e.target.value)}
-                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
+                            disabled
+                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
                         />
                         <button
-                            className="flex items-center gap-2 bg-[var(--background)] hover:bg-[var(--background-secondary)] px-3 py-1.5 rounded-xl border border-[var(--border)] transition-all"
-                            onClick={() => currentBalance && setPayAmount(currentBalance)}
+                            disabled
+                            className="flex items-center gap-2 bg-[var(--background)] px-3 py-1.5 rounded-xl border border-[var(--border)] cursor-not-allowed opacity-70"
                         >
                             <img src={nativeToken.logo} alt={nativeToken.symbol} className="w-6 h-6 rounded-full" />
                             <span className="font-bold text-sm">{nativeToken.symbol}</span>
@@ -857,13 +1050,13 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
 
                 {/* Switch Button */}
                 <div className="flex justify-center -my-4 relative z-10">
-                    <button className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-all shadow-md hover:scale-110 active:scale-95">
+                    <button disabled className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)] shadow-md cursor-not-allowed opacity-70">
                         <ArrowUpDown className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Receive Input */}
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group focus-within:border-[var(--primary)] transition-colors shadow-lg">
+                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] transition-colors shadow-lg opacity-80">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You receive</label>
                         <span className="text-xs text-[var(--foreground-muted)]">Balance: ---</span>
@@ -873,10 +1066,11 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             type="text"
                             placeholder="0.00"
                             value={receiveAmount}
-                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30"
+                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
                             readOnly
+                            disabled
                         />
-                        <button className="flex items-center gap-2 bg-[var(--background)] hover:bg-[var(--background-secondary)] px-3 py-1.5 rounded-xl border border-[var(--border)] transition-all">
+                        <button disabled className="flex items-center gap-2 bg-[var(--background)] px-3 py-1.5 rounded-xl border border-[var(--border)] cursor-not-allowed opacity-70">
                             {token?.baseToken.logo ? (
                                 <img src={token.baseToken.logo} className="w-6 h-6 rounded-full" />
                             ) : (
@@ -892,7 +1086,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
             </div>
 
             {/* Price Info */}
-            <div className="mt-6 mb-4 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3">
+            <div className="mt-6 mb-4 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3 opacity-60">
                 <div className="flex justify-between text-sm">
                     <span className="text-[var(--foreground-muted)]">Rate</span>
                     <span className="font-mono text-xs">1 {token?.quoteToken?.symbol || 'Quote'} ≈ {token?.priceUsd && token?.quoteToken?.symbol ? (1 / (token.priceUsd / (token.quoteToken.symbol === 'SOL' ? 190 : token.quoteToken.symbol === 'ETH' ? 3500 : 1))).toFixed(2) : '---'} {token?.baseToken.symbol}</span>
@@ -914,21 +1108,20 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                 </div>
             </div>
 
+            {/* Maintenance Message (Small popup/banner) */}
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                <Wrench className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-200/80 leading-relaxed">
+                    <span className="font-bold text-amber-500 block mb-0.5">Under Maintenance</span>
+                    Swaps are currently disabled for upgrades.
+                </div>
+            </div>
+
             <button
-                onClick={handleSwap}
-                disabled={isConnected && (!payAmount || parseFloat(payAmount) <= 0)}
-                className={clsx(
-                    "mt-auto w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl transition-all",
-                    isConnected && payAmount && parseFloat(payAmount) > 0
-                        ? "bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5 active:translate-y-0"
-                        : isConnected
-                            ? "bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed"
-                            : "bg-[var(--primary)] text-black shadow-[0_4px_20px_var(--primary-glow)] hover:shadow-[0_6px_30px_var(--primary-glow)] hover:-translate-y-0.5"
-                )}
+                disabled
+                className="mt-auto w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed border border-[var(--border)]"
             >
-                {isConnected
-                    ? (payAmount && parseFloat(payAmount) > 0 ? 'Swap' : 'Enter Amount')
-                    : 'Connect Wallet'}
+                Maintenance Mode
             </button>
         </div>
     );

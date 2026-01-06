@@ -197,50 +197,50 @@ function RewardsContent() {
 
             {/* Stats Cards - 2x2 on mobile, 4 across on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-                <div className="card card-glow p-2 sm:p-4 flex flex-col">
-                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm font-bold text-[var(--accent-green)] uppercase tracking-wide">Claimable</span>
                         <Coins className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-green)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold text-[var(--accent-green)] font-mono h-6 sm:h-8 flex items-center">
+                    <p className="text-sm sm:text-2xl font-semibold text-[var(--accent-green)] font-mono h-5 sm:h-8 flex items-center">
                         ${claimable.toFixed(2)}
                     </p>
                     <button
                         onClick={handleClaim}
                         disabled={claimable <= 0 || isClaiming}
-                        className="btn w-full mt-auto text-[10px] sm:text-sm py-1 sm:py-2 bg-[var(--accent-green)] text-black font-bold hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                        className="btn w-full mt-1 sm:mt-auto text-[10px] sm:text-sm py-0.5 sm:py-2 bg-[var(--accent-green)] text-black font-bold hover:-translate-y-0.5 transition-all disabled:opacity-50"
                     >
                         {isClaiming ? '...' : 'Claim'}
                     </button>
                 </div>
 
-                <div className="card card-glow p-2 sm:p-4 flex flex-col">
-                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Trading</span>
                         <TrendingUp className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--primary)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
-                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">Lifetime</p>
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">Lifetime</p>
                 </div>
 
-                <div className="card card-glow p-2 sm:p-4 flex flex-col">
-                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Referral</span>
                         <Users className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
-                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">
                         {referral?.referredUsers.length || 0} refs
                     </p>
                 </div>
 
-                <div className="card card-glow p-2 sm:p-4 flex flex-col">
-                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Ref Vol</span>
                         <Trophy className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-6 sm:h-8 flex items-center">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
-                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-auto">Total</p>
+                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
+                    <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">Total</p>
                 </div>
             </div>
 
@@ -365,7 +365,7 @@ function RewardsContent() {
             </div>
 
             {/* Tabs - Compact on mobile */}
-            <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6">
+            <div className="flex gap-1 sm:gap-2 mb-6 sm:mb-8 pb-4 border-b border-[var(--border)]">
                 {[
                     { id: 'overview', label: 'Overview', icon: Gift },
                     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -394,17 +394,17 @@ function RewardsContent() {
                             <div>
                                 <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">1</div>
                                 <h4 className="font-bold text-xs sm:text-base mb-1 sm:mb-2">Trade</h4>
-                                <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Calculate rewards based on your trading volume tier.</p>
+                                <p className="text-[9px] sm:text-sm text-[var(--foreground-muted)] leading-tight">Earn rewards from trading volume</p>
                             </div>
                             <div>
                                 <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">2</div>
                                 <h4 className="font-bold text-xs sm:text-base mb-1 sm:mb-2">Refer</h4>
-                                <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Share your link and earn a percentage of their fees.</p>
+                                <p className="text-[9px] sm:text-sm text-[var(--foreground-muted)] leading-tight">Share your link to earn referral fees</p>
                             </div>
                             <div>
                                 <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-sm sm:text-xl font-bold mx-auto mb-2 sm:mb-4">3</div>
                                 <h4 className="font-bold text-xs sm:text-base mb-1 sm:mb-2">Claim</h4>
-                                <p className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)] hidden sm:block">Rewards are distributed to your claimable balance weekly.</p>
+                                <p className="text-[9px] sm:text-sm text-[var(--foreground-muted)] leading-tight">Claim rewards weekly</p>
                             </div>
                         </div>
                     </div>

@@ -19,11 +19,13 @@ import {
     LogOut,
     Settings,
     Mail,
+    Star,
 } from 'lucide-react';
-import { useAppStore } from '@/store';
+import { useAppStore, useWatchlistStore } from '@/store';
 import { WalletButton } from '@/components/wallet';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth';
+import { WatchlistPanel } from '@/components/watchlist';
 
 const navigation = [
     { name: 'Trade', href: '/app/trade/', icon: LineChart },
@@ -98,7 +100,7 @@ export function Sidebar() {
                                 <a
                                     key={item.name}
                                     href={item.href}
-                                    target="_blank"
+                                    target={item.name === 'dApps' ? "_self" : "_blank"}
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2.5 px-3 py-3 rounded-lg text-[13px] transition-all duration-200 min-h-[44px] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]"
                                 >
@@ -209,15 +211,25 @@ export function Sidebar() {
 export function Header() {
     const { toggleSidebar, searchQuery, setSearchQuery } = useAppStore();
     const { firebaseUser, loading: authLoading, signOut } = useAuth();
+    const { watchlists, isPanelOpen, openPanel, closePanel, initialize, isInitialized } = useWatchlistStore();
 
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showMobileSearch, setShowMobileSearch] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
+    const watchlistRef = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Initialize watchlist store when user is authenticated
+    useEffect(() => {
+        if (firebaseUser?.uid && !isInitialized) {
+            initialize(firebaseUser.uid);
+        }
+    }, [firebaseUser?.uid, isInitialized, initialize]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -285,7 +297,14 @@ export function Header() {
             <header className="h-12 lg:h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-3 lg:px-6">
                 {/* Left side */}
                 <div className="flex items-center gap-4">
-
+                    {/* Mobile search icon */}
+                    <button
+                        onClick={() => setShowMobileSearch(true)}
+                        className="md:hidden p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                        aria-label="Search"
+                    >
+                        <Search className="w-5 h-5 text-[var(--foreground-muted)]" />
+                    </button>
 
                     {/* Search bar with dropdown */}
                     <div className="hidden md:flex items-center flex-1 max-w-2xl" ref={searchRef}>
@@ -350,6 +369,28 @@ export function Header() {
 
                 {/* Right side */}
                 <div className="flex items-center gap-3">
+                    {/* Watchlist star button */}
+                    <div className="relative" ref={watchlistRef}>
+                        <button
+                            onClick={() => isPanelOpen ? closePanel() : openPanel()}
+                            className={clsx(
+                                'p-2 rounded-lg transition-all text-[var(--primary)]',
+                                isPanelOpen
+                                    ? 'bg-[var(--primary)]/20 shadow-[0_0_15px_var(--primary-glow)]'
+                                    : 'hover:bg-[var(--background-tertiary)]'
+                            )}
+                            title="Watchlist"
+                        >
+                            <Star className={clsx('w-5 h-5', isPanelOpen && 'fill-current')} />
+                            {watchlists.find(w => w.id === 'favorites')?.tokens.length ? (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--primary)] text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {watchlists.find(w => w.id === 'favorites')?.tokens.length}
+                                </span>
+                            ) : null}
+                        </button>
+                        <WatchlistPanel isOpen={isPanelOpen} onClose={closePanel} />
+                    </div>
+
                     {/* Wallet button */}
                     <WalletButton />
 
@@ -416,6 +457,99 @@ export function Header() {
 
             {/* Auth Modal */}
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+            {/* Mobile Full-Page Search Overlay */}
+            {showMobileSearch && (
+                <div className="fixed inset-0 z-[100] bg-[var(--background)] flex flex-col md:hidden">
+                    {/* Header with search input and close button */}
+                    <div className="flex items-center gap-3 p-3 border-b border-[var(--border)]">
+                        <button
+                            onClick={() => {
+                                setShowMobileSearch(false);
+                                setSearchQuery('');
+                                setSearchResults([]);
+                            }}
+                            className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                            aria-label="Close search"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <div className="flex-1 relative">
+                            <input
+                                type="text"
+                                placeholder="Search tokens..."
+                                className="w-full px-4 py-3 bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-base focus:outline-none focus:border-[var(--border-hover)]"
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                autoFocus
+                            />
+                            {isSearching && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Search results */}
+                    <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        {searchResults.length > 0 ? (
+                            <div className="divide-y divide-[var(--border)]">
+                                {searchResults.map((pair, i) => (
+                                    <button
+                                        key={`mobile-${pair.chainId}-${pair.pairAddress}-${i}`}
+                                        onClick={() => {
+                                            setShowMobileSearch(false);
+                                            setSearchQuery('');
+                                            setSearchResults([]);
+                                            window.location.href = `/app/trade?chain=${pair.chainId}&pair=${pair.pairAddress}`;
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left"
+                                    >
+                                        {/* Token Logo */}
+                                        <div className="w-10 h-10 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {pair.baseToken?.logo || pair.logo ? (
+                                                <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-sm font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                            )}
+                                        </div>
+
+                                        {/* Token Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium">{pair.baseToken?.symbol}</span>
+                                                <span className="text-sm text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)]">
+                                                <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                    {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Chain Logo */}
+                                        <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                                            <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : searchQuery.length >= 2 && !isSearching ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-[var(--foreground-muted)]">
+                                <Search className="w-12 h-12 mb-3 opacity-30" />
+                                <p>No results found</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-8 text-[var(--foreground-muted)]">
+                                <Search className="w-12 h-12 mb-3 opacity-30" />
+                                <p>Search by token name, symbol, or address</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </>
     );
 }

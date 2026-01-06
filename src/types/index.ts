@@ -225,3 +225,39 @@ export interface PaginatedResponse<T> {
     pageSize: number;
     hasMore: boolean;
 }
+
+// Watchlist types
+export interface WatchlistToken {
+    address: string;
+    pairAddress: string;
+    chainId: ChainId;
+    symbol: string;
+    name: string;
+    logo?: string;
+    addedAt: Date;
+}
+
+export interface Watchlist {
+    id: string;
+    name: string;
+    tokens: WatchlistToken[];
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Price alert types
+export interface PriceAlert {
+    id: string;
+    userId: string;
+    tokenAddress: string;
+    pairAddress: string;
+    chainId: ChainId;
+    symbol: string;
+    name: string;
+    logo?: string;
+    condition: 'above' | 'below';
+    targetPrice: number;
+    priceAtCreation: number;
+    triggered: boolean;
+    createdAt: Date;
+}

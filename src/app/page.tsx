@@ -170,24 +170,24 @@ export default function HomePage() {
       {/* STATS SECTION */}
       <section className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-[#F7931A]/30 transition-all group">
-              <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/10">
+            <div className="flex-1 text-center px-6">
+              <p className="text-4xl md:text-5xl font-bold text-white bg-clip-text text-transparent">
                 ${volumeStat.count}M+
               </p>
-              <p className="mt-1 text-gray-500 uppercase tracking-wider text-xs">Trading Volume</p>
+              <p className="mt-2 text-gray-500 uppercase tracking-widest text-xs font-semibold">Trading Volume</p>
             </div>
-            <div className="text-center p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-[#F7931A]/30 transition-all group">
-              <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">
+            <div className="flex-1 text-center px-6">
+              <p className="text-4xl md:text-5xl font-bold text-white bg-clip-text text-transparent">
                 {(usersStat.count / 1000).toFixed(1)}K+
               </p>
-              <p className="mt-1 text-gray-500 uppercase tracking-wider text-xs">Active Traders</p>
+              <p className="mt-2 text-gray-500 uppercase tracking-widest text-xs font-semibold">Active Traders</p>
             </div>
-            <div className="text-center p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-[#F7931A]/30 transition-all group">
-              <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">
+            <div className="flex-1 text-center px-6">
+              <p className="text-4xl md:text-5xl font-bold text-white bg-clip-text text-transparent">
                 {(tradesStat.count / 1000000).toFixed(1)}M+
               </p>
-              <p className="mt-1 text-gray-500 uppercase tracking-wider text-xs">Total Trades</p>
+              <p className="mt-2 text-gray-500 uppercase tracking-widest text-xs font-semibold">Total Trades</p>
             </div>
           </div>
         </div>
@@ -197,13 +197,16 @@ export default function HomePage() {
       <section className="relative z-10 py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-2xl md:text-4xl font-bold">
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight mb-4">
               <span className="text-white">Built for </span>
               <span className="bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">Professionals</span>
             </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg">
+              Everything you need to trade efficiently across multiple chains in one unified interface.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { icon: BarChart3, title: 'Advanced Charts', desc: 'TradingView-powered with real-time data', color: '#F7931A' },
               { icon: Zap, title: 'Instant Swaps', desc: 'Optimized DEX aggregation', color: '#F7931A' },
@@ -214,13 +217,13 @@ export default function HomePage() {
             ].map((feature, i) => (
               <div
                 key={feature.title}
-                className="group p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 hover:border-[#F7931A]/50 hover:bg-white/5 transition-all cursor-pointer"
+                className="group p-6 rounded-2xl bg-[#0A0A0A] border border-white/5 hover:border-[#F7931A] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_rgba(247,147,26,0.1)]"
               >
-                <div className="w-12 h-12 rounded-xl bg-[#F7931A]/10 flex items-center justify-center mb-4 group-hover:bg-[#F7931A]/20 group-hover:scale-110 transition-all">
-                  <feature.icon className="w-6 h-6 text-[#F7931A]" />
+                <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:border-[#F7931A]/30 transition-all duration-300 shadow-inner">
+                  <feature.icon className="w-6 h-6 text-gray-400 group-hover:text-[#F7931A] transition-colors" />
                 </div>
-                <h3 className="text-lg font-bold text-white group-hover:text-[#F7931A] transition-colors">{feature.title}</h3>
-                <p className="mt-1 text-sm text-gray-500">{feature.desc}</p>
+                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-[#F7931A] transition-colors">{feature.title}</h3>
+                <p className="text-gray-500 leading-relaxed font-medium text-sm">{feature.desc}</p>
               </div>
             ))}
           </div>

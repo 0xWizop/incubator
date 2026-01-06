@@ -70,6 +70,9 @@ export const useAppStore = create<AppState>()(
 // Re-export wallet store from dedicated module
 export { useWalletStore } from './walletStore';
 
+// Re-export watchlist store
+export { useWatchlistStore } from './watchlistStore';
+
 // Trading state
 interface TradingState {
     // Swap form

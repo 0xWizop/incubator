@@ -19,7 +19,7 @@ export default function AppLayout({
                 <Header />
 
                 {/* Page content - add padding bottom on mobile for bottom nav */}
-                <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--background)] pb-16 lg:pb-0">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-[var(--background)] pb-16 lg:pb-0">
                     {children}
                 </main>
             </div>
