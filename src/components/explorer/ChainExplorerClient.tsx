@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChainId, Block, Transaction } from '@/types';
 import * as alchemyService from '@/lib/services/alchemy';
 import * as solanaService from '@/lib/services/solana';
@@ -13,6 +14,8 @@ import {
     ArrowRight,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
+    Check,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { TimeAgo } from '@/components/ui/TimeAgo';
@@ -32,6 +35,7 @@ interface ChainExplorerClientProps {
 }
 
 export default function ChainExplorerClient({ chain }: ChainExplorerClientProps) {
+    const router = useRouter();
     const chainId = VALID_CHAINS.includes(chain) ? (chain as ChainId) : null;
     const chainConfig = chainId ? CHAIN_CONFIG[chainId] : null;
 
@@ -40,7 +44,28 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [latestBlockNumber, setLatestBlockNumber] = useState<number>(0);
+    const [isChainSelectorOpen, setIsChainSelectorOpen] = useState(false);
+    const selectorRef = useRef<HTMLDivElement>(null);
     const blocksPerPage = 20;
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
+                setIsChainSelectorOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleChainSelect = (selectedChain: string) => {
+        setIsChainSelectorOpen(false);
+        if (selectedChain !== chainId) {
+            router.push(`/app/explorer/${selectedChain}`);
+        }
+    };
 
     const fetchData = useCallback(async (page: number = 1) => {
         if (!chainId) return;
@@ -117,25 +142,80 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                     >
                         <ArrowLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
                     </Link>
-                    <div className="flex items-center gap-3">
-                        <div
-                            className="w-12 h-12 rounded-xl flex items-center justify-center"
-                            style={{ backgroundColor: `${chainConfig.color}20` }}
+
+                    {/* Chain Selector Dropdown */}
+                    <div className="relative" ref={selectorRef}>
+                        <button
+                            onClick={() => setIsChainSelectorOpen(!isChainSelectorOpen)}
+                            className="flex items-center gap-3 p-2 pr-3 rounded-xl hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
                         >
-                            <img
-                                src={chainConfig.logo}
-                                alt={chainConfig.name}
-                                className="w-8 h-8 rounded-full"
-                            />
-                        </div>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold">{chainConfig.name} Explorer</h1>
-                            <p className="text-sm text-[var(--foreground-muted)]">
-                                Latest Block: <span className="font-mono text-[var(--primary)]">
-                                    {latestBlockNumber.toLocaleString()}
-                                </span>
-                            </p>
-                        </div>
+                            <div
+                                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                                style={{ backgroundColor: `${chainConfig.color}20` }}
+                            >
+                                <img
+                                    src={chainConfig.logo}
+                                    alt={chainConfig.name}
+                                    className="w-8 h-8 rounded-full"
+                                />
+                            </div>
+                            <div className="text-left">
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-xl sm:text-2xl font-bold">{chainConfig.name} Explorer</h1>
+                                    <ChevronDown className={clsx(
+                                        'w-5 h-5 text-[var(--foreground-muted)] transition-transform',
+                                        isChainSelectorOpen && 'rotate-180'
+                                    )} />
+                                </div>
+                                <p className="text-sm text-[var(--foreground-muted)]">
+                                    Latest Block: <span className="font-mono text-[var(--primary)]">
+                                        {latestBlockNumber.toLocaleString()}
+                                    </span>
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isChainSelectorOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden">
+                                <div className="p-2">
+                                    <p className="text-xs text-[var(--foreground-muted)] px-3 py-2 uppercase tracking-wider">
+                                        Switch Chain
+                                    </p>
+                                    {VALID_CHAINS.map((c) => {
+                                        const config = CHAIN_CONFIG[c];
+                                        const isActive = c === chainId;
+                                        return (
+                                            <button
+                                                key={c}
+                                                onClick={() => handleChainSelect(c)}
+                                                className={clsx(
+                                                    'w-full flex items-center gap-3 p-3 rounded-lg transition-colors',
+                                                    isActive
+                                                        ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                                                        : 'hover:bg-[var(--background-tertiary)]'
+                                                )}
+                                            >
+                                                <div
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                                    style={{ backgroundColor: `${config.color}20` }}
+                                                >
+                                                    <img
+                                                        src={config.logo}
+                                                        alt={config.name}
+                                                        className="w-5 h-5 rounded-full"
+                                                    />
+                                                </div>
+                                                <span className="flex-1 text-left font-medium">{config.name}</span>
+                                                {isActive && (
+                                                    <Check className="w-4 h-4 text-[var(--primary)]" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <button
