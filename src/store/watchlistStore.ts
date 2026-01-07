@@ -14,6 +14,16 @@ import {
 } from '@/lib/firebase/collections';
 
 const DEFAULT_FAVORITES_ID = 'favorites';
+const STORAGE_KEY = 'incubator_watchlist';
+
+const saveToStorage = (watchlists: Watchlist[]) => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlists));
+    } catch (e) {
+        console.error('Failed to save watchlist locally:', e);
+    }
+};
 
 interface WatchlistState {
     // State
@@ -26,20 +36,20 @@ interface WatchlistState {
     activeTab: 'favorites' | 'watchlists' | 'alerts';
 
     // Actions
-    initialize: (userId: string) => Promise<void>;
+    initialize: (userId?: string) => Promise<void>;
     reset: () => void;
 
     // Watchlist actions
-    toggleFavorite: (userId: string, token: Omit<WatchlistToken, 'addedAt'>) => Promise<void>;
+    toggleFavorite: (userId: string | undefined, token: Omit<WatchlistToken, 'addedAt'>) => Promise<void>;
     isFavorited: (pairAddress: string) => boolean;
-    addToken: (userId: string, listId: string, token: Omit<WatchlistToken, 'addedAt'>) => Promise<void>;
-    removeToken: (userId: string, listId: string, pairAddress: string) => Promise<void>;
-    createList: (userId: string, name: string) => Promise<void>;
-    deleteList: (userId: string, listId: string) => Promise<void>;
+    addToken: (userId: string | undefined, listId: string, token: Omit<WatchlistToken, 'addedAt'>) => Promise<void>;
+    removeToken: (userId: string | undefined, listId: string, pairAddress: string) => Promise<void>;
+    createList: (userId: string | undefined, name: string) => Promise<void>;
+    deleteList: (userId: string | undefined, listId: string) => Promise<void>;
     setActiveWatchlist: (listId: string) => void;
 
     // Alert actions
-    addAlert: (userId: string, alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>) => Promise<void>;
+    addAlert: (userId: string | undefined, alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>) => Promise<void>;
     removeAlert: (alertId: string) => Promise<void>;
 
     // Panel controls
@@ -58,23 +68,58 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     isPanelOpen: false,
     activeTab: 'favorites',
 
-    // Initialize from Firebase
-    initialize: async (userId: string) => {
-        if (get().isInitialized) return;
+    // Initialize from Firebase or LocalStorage
+    initialize: async (userId?: string) => {
+        // Always allow re-initialization if switching from guest to user or vice versa, 
+        // but simple check:
+        // if (get().isInitialized && userId) return; 
 
         set({ isLoading: true });
         try {
-            const [watchlists, alerts] = await Promise.all([
-                getWatchlists(userId),
-                getAlerts(userId),
-            ]);
+            if (userId) {
+                const [watchlists, alerts] = await Promise.all([
+                    getWatchlists(userId),
+                    getAlerts(userId),
+                ]);
 
-            set({
-                watchlists,
-                alerts,
-                isInitialized: true,
-                isLoading: false,
-            });
+                set({
+                    watchlists,
+                    alerts,
+                    isInitialized: true,
+                    isLoading: false,
+                });
+            } else {
+                // Load from local storage
+                if (typeof window !== 'undefined') {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    let watchlists: Watchlist[] = [];
+                    if (stored) {
+                        try {
+                            watchlists = JSON.parse(stored);
+                        } catch (e) {
+                            console.error('Failed to parse local watchlist:', e);
+                        }
+                    }
+
+                    // Ensure default favorites list exists
+                    if (!watchlists.find(w => w.id === DEFAULT_FAVORITES_ID)) {
+                        watchlists.push({
+                            id: DEFAULT_FAVORITES_ID,
+                            name: 'Favorites',
+                            tokens: [],
+                            createdAt: new Date(), // Mock FieldValue
+                            updatedAt: new Date(),
+                        } as any);
+                    }
+
+                    set({
+                        watchlists,
+                        alerts: [], // Alerts only work with auth for now
+                        isInitialized: true,
+                        isLoading: false,
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error initializing watchlist store:', error);
             set({ isLoading: false });
@@ -95,31 +140,40 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     },
 
     // Toggle favorite status
-    toggleFavorite: async (userId: string, token: Omit<WatchlistToken, 'addedAt'>) => {
+    // Toggle favorite status
+    toggleFavorite: async (userId: string | undefined, token: Omit<WatchlistToken, 'addedAt'>) => {
         const { watchlists } = get();
         const favorites = watchlists.find(w => w.id === DEFAULT_FAVORITES_ID);
         const isCurrentlyFavorited = favorites?.tokens.some(t => t.pairAddress === token.pairAddress);
 
         // Optimistic update
         if (isCurrentlyFavorited) {
-            set({
-                watchlists: watchlists.map(w =>
-                    w.id === DEFAULT_FAVORITES_ID
-                        ? { ...w, tokens: w.tokens.filter(t => t.pairAddress !== token.pairAddress) }
-                        : w
-                ),
-            });
-            await removeFromWatchlist(userId, DEFAULT_FAVORITES_ID, token.pairAddress);
+            const newWatchlists = watchlists.map(w =>
+                w.id === DEFAULT_FAVORITES_ID
+                    ? { ...w, tokens: w.tokens.filter(t => t.pairAddress !== token.pairAddress) }
+                    : w
+            );
+            set({ watchlists: newWatchlists });
+
+            if (userId) {
+                await removeFromWatchlist(userId, DEFAULT_FAVORITES_ID, token.pairAddress);
+            } else {
+                saveToStorage(newWatchlists);
+            }
         } else {
             const newToken = { ...token, addedAt: new Date() };
-            set({
-                watchlists: watchlists.map(w =>
-                    w.id === DEFAULT_FAVORITES_ID
-                        ? { ...w, tokens: [...w.tokens, newToken] }
-                        : w
-                ),
-            });
-            await addToWatchlist(userId, DEFAULT_FAVORITES_ID, token);
+            const newWatchlists = watchlists.map(w =>
+                w.id === DEFAULT_FAVORITES_ID
+                    ? { ...w, tokens: [...w.tokens, newToken] }
+                    : w
+            );
+            set({ watchlists: newWatchlists });
+
+            if (userId) {
+                await addToWatchlist(userId, DEFAULT_FAVORITES_ID, token);
+            } else {
+                saveToStorage(newWatchlists);
+            }
         }
     },
 
@@ -131,40 +185,49 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     },
 
     // Add token to a specific watchlist
-    addToken: async (userId: string, listId: string, token: Omit<WatchlistToken, 'addedAt'>) => {
+    // Add token to a specific watchlist
+    addToken: async (userId: string | undefined, listId: string, token: Omit<WatchlistToken, 'addedAt'>) => {
         const { watchlists } = get();
         const newToken = { ...token, addedAt: new Date() };
 
         // Optimistic update
-        set({
-            watchlists: watchlists.map(w =>
-                w.id === listId
-                    ? { ...w, tokens: [...w.tokens, newToken] }
-                    : w
-            ),
-        });
+        const newWatchlists = watchlists.map(w =>
+            w.id === listId
+                ? { ...w, tokens: [...w.tokens, newToken] }
+                : w
+        );
+        set({ watchlists: newWatchlists });
 
-        await addToWatchlist(userId, listId, token);
+        if (userId) {
+            await addToWatchlist(userId, listId, token);
+        } else {
+            saveToStorage(newWatchlists);
+        }
     },
 
     // Remove token from watchlist
-    removeToken: async (userId: string, listId: string, pairAddress: string) => {
+    // Remove token from watchlist
+    removeToken: async (userId: string | undefined, listId: string, pairAddress: string) => {
         const { watchlists } = get();
 
         // Optimistic update
-        set({
-            watchlists: watchlists.map(w =>
-                w.id === listId
-                    ? { ...w, tokens: w.tokens.filter(t => t.pairAddress !== pairAddress) }
-                    : w
-            ),
-        });
+        const newWatchlists = watchlists.map(w =>
+            w.id === listId
+                ? { ...w, tokens: w.tokens.filter(t => t.pairAddress !== pairAddress) }
+                : w
+        );
+        set({ watchlists: newWatchlists });
 
-        await removeFromWatchlist(userId, listId, pairAddress);
+        if (userId) {
+            await removeFromWatchlist(userId, listId, pairAddress);
+        } else {
+            saveToStorage(newWatchlists);
+        }
     },
 
     // Create new watchlist
-    createList: async (userId: string, name: string) => {
+    createList: async (userId: string | undefined, name: string) => {
+        if (!userId) return; // Only support authenticated users for now
         const result = await createWatchlistDb(userId, name);
         if (result) {
             set({ watchlists: [...get().watchlists, result] });
@@ -172,7 +235,7 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     },
 
     // Delete watchlist
-    deleteList: async (userId: string, listId: string) => {
+    deleteList: async (userId: string | undefined, listId: string) => {
         if (listId === DEFAULT_FAVORITES_ID) return;
 
         const { watchlists, activeWatchlistId } = get();
@@ -183,7 +246,11 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
             activeWatchlistId: activeWatchlistId === listId ? DEFAULT_FAVORITES_ID : activeWatchlistId,
         });
 
-        await deleteWatchlistDb(userId, listId);
+        if (userId) {
+            await deleteWatchlistDb(userId, listId);
+        } else {
+            saveToStorage(get().watchlists);
+        }
     },
 
     // Set active watchlist
@@ -192,7 +259,8 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     },
 
     // Add price alert
-    addAlert: async (userId: string, alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>) => {
+    addAlert: async (userId: string | undefined, alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>) => {
+        if (!userId) return; // Alerts require auth
         const result = await createAlertDb(userId, alert);
         if (result) {
             set({ alerts: [result, ...get().alerts] });

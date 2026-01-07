@@ -10,9 +10,10 @@ if (!API_KEY || API_KEY === 'demo') {
 // Network RPC Endpoints
 // Network RPC Endpoints - Use public RPCs if env vars are missing or blocked
 const NETWORK_URLS: Record<string, string> = {
-    // Alchemy key provided seems restricted to Base. Use public RPCs for others.
+    // Use public CORS-friendly RPCs for browser requests
+    // Alchemy requires domain whitelisting which may not be configured
     ethereum: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
-    base: process.env.BASE_RPC_URL || (API_KEY && API_KEY !== 'demo' ? `https://base-mainnet.g.alchemy.com/v2/${API_KEY}` : 'https://mainnet.base.org'),
+    base: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
     arbitrum: process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc',
     solana: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
 };

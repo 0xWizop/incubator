@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
@@ -100,7 +101,7 @@ export function Sidebar() {
                                 <a
                                     key={item.name}
                                     href={item.href}
-                                    target={item.name === 'dApps' ? "_self" : "_blank"}
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2.5 px-3 py-3 rounded-lg text-[13px] transition-all duration-200 min-h-[44px] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]"
                                 >
@@ -225,11 +226,12 @@ export function Header() {
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
     // Initialize watchlist store when user is authenticated
+    // Initialize watchlist store
     useEffect(() => {
-        if (firebaseUser?.uid && !isInitialized) {
-            initialize(firebaseUser.uid);
+        if (!authLoading && !isInitialized) {
+            initialize(firebaseUser?.uid);
         }
-    }, [firebaseUser?.uid, isInitialized, initialize]);
+    }, [authLoading, firebaseUser?.uid, isInitialized, initialize]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -312,7 +314,7 @@ export function Header() {
                             <input
                                 type="text"
                                 placeholder="Search any token by name, symbol, or address..."
-                                className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm"
+                                className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm focus:!outline-none focus:!border-transparent focus:!ring-0 focus:!shadow-none placeholder:text-[var(--foreground-muted)]"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
@@ -381,7 +383,7 @@ export function Header() {
                             )}
                             title="Watchlist"
                         >
-                            <Star className={clsx('w-5 h-5', isPanelOpen && 'fill-current')} />
+                            <Star className="w-5 h-5" fill={isPanelOpen ? 'currentColor' : 'none'} />
                             {watchlists.find(w => w.id === 'favorites')?.tokens.length ? (
                                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--primary)] text-black text-[10px] font-bold rounded-full flex items-center justify-center">
                                     {watchlists.find(w => w.id === 'favorites')?.tokens.length}
@@ -556,6 +558,12 @@ export function Header() {
 
 export function BottomTabNav() {
     const pathname = usePathname();
+    const router = useRouter();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Only show main navigation items in bottom nav (not Docs, not external, not desktopOnly)
     const mobileNavItems = navigation.filter(item =>
@@ -564,34 +572,49 @@ export function BottomTabNav() {
         !item.desktopOnly
     ).slice(0, 5);
 
-    return (
-        <nav className="fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-[var(--background-secondary)] border-t border-[var(--border)] safe-area-bottom">
+    const navContent = (
+        <nav
+            className="fixed bottom-0 left-0 right-0 z-[9999] lg:hidden bg-[var(--background-secondary)] border-t border-[var(--border)]"
+            style={{
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                touchAction: 'manipulation',
+                isolation: 'isolate'
+            }}
+        >
             <div className="flex items-stretch justify-around h-16">
                 {mobileNavItems.map((item) => {
                     const isActive = pathname === item.href ||
                         (item.href !== '/app' && pathname.startsWith(item.href));
 
                     return (
-                        <Link
+                        <button
                             key={item.name}
-                            href={item.href}
-                            prefetch={true}
+                            type="button"
+                            onClick={() => router.push(item.href)}
                             className={clsx(
-                                'flex flex-col items-center justify-center flex-1 min-w-[64px] py-2 transition-colors',
+                                'flex flex-col items-center justify-center flex-1 min-w-[64px] py-2 transition-colors active:opacity-70 cursor-pointer',
                                 isActive
                                     ? 'text-[var(--primary)]'
                                     : 'text-[var(--foreground-muted)]'
                             )}
+                            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                         >
                             <item.icon className={clsx(
-                                'w-5 h-5 mb-1',
+                                'w-5 h-5 mb-1 pointer-events-none',
                                 isActive && 'scale-110'
                             )} />
-                            <span className="text-[10px] font-medium">{item.name}</span>
-                        </Link>
+                            <span className="text-[10px] font-medium pointer-events-none">{item.name}</span>
+                        </button>
                     );
                 })}
             </div>
         </nav>
     );
+
+    // Use portal to render outside parent stacking contexts
+    if (!mounted || typeof document === 'undefined') {
+        return null;
+    }
+
+    return ReactDOM.createPortal(navContent, document.body);
 }

@@ -15,8 +15,25 @@ export function formatNumber(num: number): string {
 /**
  * Format a price with appropriate decimal places
  */
+const SUBSCRIPT_DIGITS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+
+function toSubscript(num: number): string {
+    return num.toString().split('').map(d => SUBSCRIPT_DIGITS[parseInt(d)]).join('');
+}
+
 export function formatPrice(num: number): string {
-    if (num < 0.00001) return num.toExponential(2);
+    if (!num) return '0';
+    if (num < 0.0001) {
+        const str = num.toFixed(20);
+        // Find leading zeros after decimal: 0.0000123 -> matching "0000" and "123"
+        const match = str.match(/^0\.(0+)(\d+)/);
+        if (match) {
+            const zeros = match[1].length;
+            const significant = match[2].slice(0, 4); // 4 significant digits
+            return `0.0${toSubscript(zeros)}${significant}`;
+        }
+        return num.toExponential(4);
+    }
     if (num < 0.01) return num.toFixed(6);
     if (num < 1) return num.toFixed(4);
     if (num < 1000) return num.toFixed(2);

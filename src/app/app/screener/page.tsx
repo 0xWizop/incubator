@@ -221,7 +221,7 @@ function ScreenerContent() {
                             : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
                     )}
                 >
-                    <Star className={clsx('w-3 h-3 sm:w-4 sm:h-4', tab === 'watchlist' && 'fill-current')} />
+                    <Star className="w-3 h-3 sm:w-4 sm:h-4" fill={tab === 'watchlist' ? 'currentColor' : 'none'} />
                     Watchlist
                     {watchlists.find(w => w.id === 'favorites')?.tokens.length ? (
                         <span className="px-1.5 py-0.5 bg-[var(--primary)] text-black rounded-full text-[10px] font-bold">
@@ -295,7 +295,7 @@ function ScreenerContent() {
                                     )}
                                     onClick={() => setActiveWatchlist(list.id)}
                                 >
-                                    <Star className={clsx('w-3 h-3', activeWatchlistId === list.id && 'fill-current')} />
+                                    <Star className="w-3 h-3" fill={activeWatchlistId === list.id ? 'currentColor' : 'none'} />
                                     <span>{list.name}</span>
                                     <span className="px-1.5 py-0.5 bg-black/20 rounded text-[10px]">
                                         {list.tokens.length}
@@ -426,16 +426,14 @@ function ScreenerContent() {
                                         index={(currentPage - 1) * itemsPerPage + index + 1}
                                         isFavorited={isFavorited(token.pairAddress)}
                                         onToggleFavorite={() => {
-                                            if (firebaseUser?.uid) {
-                                                toggleFavorite(firebaseUser.uid, {
-                                                    address: token.baseToken.address,
-                                                    pairAddress: token.pairAddress,
-                                                    chainId: token.chainId,
-                                                    symbol: token.baseToken.symbol,
-                                                    name: token.baseToken.name,
-                                                    logo: token.baseToken.logo,
-                                                });
-                                            }
+                                            toggleFavorite(firebaseUser?.uid, {
+                                                address: token.baseToken.address,
+                                                pairAddress: token.pairAddress,
+                                                chainId: token.chainId,
+                                                symbol: token.baseToken.symbol,
+                                                name: token.baseToken.name,
+                                                logo: token.baseToken.logo,
+                                            });
                                         }}
                                     />
                                 ))
@@ -531,7 +529,7 @@ function TokenRow({ token, index, isFavorited, onToggleFavorite }: { token: Toke
                                 : 'text-[var(--foreground-muted)] hover:text-[var(--primary)] opacity-50 hover:opacity-100'
                         )}
                     >
-                        <Star className={clsx('w-3 h-3 sm:w-4 sm:h-4', isFavorited && 'fill-current')} />
+                        <Star className="w-3 h-3 sm:w-4 sm:h-4" fill={isFavorited ? 'currentColor' : 'none'} />
                     </button>
                     <div
                         className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-[var(--background-tertiary)] flex-shrink-0"

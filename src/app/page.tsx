@@ -70,10 +70,10 @@ export default function HomePage() {
         <div className="absolute bottom-[25%] left-[25%] w-5 h-5 bg-orange-500 rounded-full blur-sm animate-float opacity-50" style={{ animationDuration: '7s', animationDelay: '1s' }} />
         <div className="absolute top-[60%] right-[10%] w-2 h-2 bg-[#F7931A] rounded-full blur-sm animate-float opacity-70" style={{ animationDuration: '5s', animationDelay: '3s' }} />
 
-        {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
+        {/* Grid pattern - more prominent on mobile */}
+        <div className="absolute inset-0 opacity-[0.08] md:opacity-[0.05]" style={{
           backgroundImage: `linear-gradient(#F7931A 1px, transparent 1px), linear-gradient(90deg, #F7931A 1px, transparent 1px)`,
-          backgroundSize: '100px 100px'
+          backgroundSize: '60px 60px'
         }} />
       </div>
 
@@ -101,8 +101,8 @@ export default function HomePage() {
 
       {/* HERO - FULL SCREEN */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20">
-        {/* Orbiting chains - behind content */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[400px] sm:h-[400px] md:w-[700px] md:h-[700px]">
+        {/* Orbiting chains - behind content, synced with hero content */}
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] sm:w-[400px] sm:h-[400px] md:w-[700px] md:h-[700px] transition-all duration-1000 ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
           {chains.map((chain, i) => (
             <div
               key={chain.name}
@@ -124,7 +124,7 @@ export default function HomePage() {
         {/* Main hero content */}
         <div className="relative z-10 text-center max-w-5xl mx-auto">
           {/* Eyebrow */}
-          <div className={`inline-flex items-center gap-3 px-5 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-8 transition-all duration-1000 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`inline-flex items-center gap-3 px-5 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-8 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
@@ -133,7 +133,7 @@ export default function HomePage() {
           </div>
 
           {/* HEADLINE */}
-          <h1 className={`transition-all duration-1000 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <h1 className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
               <span className="bg-gradient-to-r from-white via-gray-200 to-white bg-clip-text text-transparent">TRADE</span>
             </span>
@@ -143,12 +143,12 @@ export default function HomePage() {
           </h1>
 
           {/* Subheadline */}
-          <p className={`mt-8 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed transition-all duration-1000 delay-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <p className={`mt-8 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             The unified multichain terminal for serious traders. Charts, swaps, and analytics across Solana, Ethereum, Base & Arbitrum.
           </p>
 
           {/* CTA */}
-          <div className={`mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full px-4 transition-all duration-1000 delay-900 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className={`mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full px-4 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <Link href="/app" className="group relative inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3.5 sm:px-8 sm:py-4 rounded-full bg-[#F7931A] text-black font-bold text-base sm:text-lg overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_60px_rgba(247,147,26,0.4)]">
               <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               Start Trading
@@ -161,7 +161,7 @@ export default function HomePage() {
         </div>
 
         {/* Scroll indicator */}
-        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 transition-all duration-1000 delay-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 transition-all duration-1000 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
           <span className="text-xs uppercase tracking-widest">Scroll</span>
           <ChevronDown className="w-5 h-5 animate-bounce" />
         </div>

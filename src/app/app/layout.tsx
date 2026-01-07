@@ -1,13 +1,30 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Sidebar, Header, BottomTabNav } from '@/components/layout';
+import { useAuth } from '@/context/AuthContext';
+import { useWatchlistStore } from '@/store';
 
 export default function AppLayout({
     children,
 }: {
     children: ReactNode;
 }) {
+    const { firebaseUser } = useAuth();
+    const { initialize, isInitialized } = useWatchlistStore();
+
+    // Initialize watchlist store globally when user is authenticated
+    useEffect(() => {
+        // Only initialize if not already done or if user changes
+        if (firebaseUser?.uid) {
+            // Always re-initialize for authenticated users to ensure data is fresh
+            initialize(firebaseUser.uid);
+        } else if (!isInitialized) {
+            // Initialize with localStorage for guests
+            initialize();
+        }
+    }, [firebaseUser?.uid]);
+
     return (
         <div className="flex h-screen overflow-hidden">
             {/* Sidebar */}

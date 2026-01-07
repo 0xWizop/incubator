@@ -32,20 +32,38 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
+import { formatPrice as formatWithSubscript } from '@/lib/utils/format';
 import { AlertModal } from '@/components/watchlist';
 
 // Helper to calculate optimal priceFormat based on price data range
-function calculatePriceFormat(chartData: { open: number; high: number; low: number; close: number }[]): { type: 'price'; precision: number; minMove: number } {
+function calculatePriceFormat(chartData: { open: number; high: number; low: number; close: number }[], isMcapMode: boolean = false): { type: 'custom'; formatter?: (price: number) => string } | { type: 'price'; precision: number; minMove: number } {
     if (!chartData || chartData.length === 0) {
         return { type: 'price', precision: 8, minMove: 0.00000001 };
     }
 
-    // Find the minimum non-zero price to determine precision needed
+    // Find the minimum and maximum prices to determine formatting needed
     const allPrices = chartData.flatMap(d => [d.open, d.high, d.low, d.close]).filter(p => p > 0);
     const minPrice = Math.min(...allPrices);
+    const maxPrice = Math.max(...allPrices);
 
-    // Calculate precision based on magnitude of smallest price
-    // For very small numbers (< 0.000001), we need more decimal places
+    // Use custom formatter for large values (mcap mode or high prices) or very small values (subscript)
+    if (isMcapMode || maxPrice >= 1000000 || minPrice < 0.0001) {
+        return {
+            type: 'custom',
+            formatter: (price: number) => {
+                if (price >= 1e12) return '$' + (price / 1e12).toFixed(2) + 'T';
+                if (price >= 1e9) return '$' + (price / 1e9).toFixed(2) + 'B';
+                if (price >= 1e6) return '$' + (price / 1e6).toFixed(2) + 'M';
+                if (price >= 1e3) return '$' + (price / 1e3).toFixed(2) + 'K';
+                if (price >= 1) return '$' + price.toFixed(2);
+                if (price < 0.0001) return '$' + formatWithSubscript(price); // Uses subscript
+                if (price >= 0.01) return '$' + price.toFixed(4);
+                return '$' + price.toFixed(6);
+            },
+        };
+    }
+
+    // Calculate precision based on magnitude of smallest price for regular prices
     let precision: number;
     let minMove: number;
 
@@ -146,14 +164,42 @@ function TradePageContent() {
         return () => clearInterval(priceInterval);
     }, [chainParam, pairParam]);
 
+    // Save last viewed token to localStorage when tokenData changes
+    useEffect(() => {
+        if (tokenData?.pairAddress && tokenData?.chainId) {
+            localStorage.setItem('lastViewedToken', JSON.stringify({
+                chain: tokenData.chainId,
+                pair: tokenData.pairAddress,
+            }));
+        }
+    }, [tokenData?.pairAddress, tokenData?.chainId]);
+
     async function loadPairData() {
         setLoading(true);
         try {
             if (chainParam && pairParam) {
+                // Load from URL params
                 const pair = await dexscreener.getPairByAddress(chainParam, pairParam);
                 if (pair) setTokenData(pair);
             } else {
-                // Default to Fartcoin on Solana - fetch from DexScreener
+                // Try to restore last viewed token from localStorage
+                const lastViewedRaw = localStorage.getItem('lastViewedToken');
+                if (lastViewedRaw) {
+                    try {
+                        const lastViewed = JSON.parse(lastViewedRaw);
+                        if (lastViewed.chain && lastViewed.pair) {
+                            const restoredPair = await dexscreener.getPairByAddress(lastViewed.chain, lastViewed.pair);
+                            if (restoredPair) {
+                                setTokenData(restoredPair);
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to restore last viewed token:', e);
+                    }
+                }
+
+                // Default to Fartcoin on Solana if no saved token
                 try {
                     const fartcoinPair = await dexscreener.getPairByAddress('solana', 'Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw');
                     if (fartcoinPair) {
@@ -180,8 +226,8 @@ function TradePageContent() {
                 textColor: '#666666',
             },
             grid: {
-                vertLines: { color: 'rgba(255, 255, 255, 0.02)' },
-                horzLines: { color: 'rgba(255, 255, 255, 0.02)' },
+                vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
             },
             crosshair: {
                 mode: 1,
@@ -208,6 +254,8 @@ function TradePageContent() {
             timeScale: {
                 borderColor: 'rgba(255, 255, 255, 0.05)',
                 timeVisible: true,
+                barSpacing: 12,
+                rightOffset: 5,
             },
         });
 
@@ -313,7 +361,7 @@ function TradePageContent() {
 
                     // Dynamically update price format based on actual data
                     candlestickSeries.applyOptions({
-                        priceFormat: calculatePriceFormat(chartData),
+                        priceFormat: calculatePriceFormat(chartData, yAxisMode === 'mcap'),
                     });
 
                     if (chartData.length > 0) {
@@ -328,7 +376,7 @@ function TradePageContent() {
                         const shouldFit = lastContextRef.current?.pair !== tokenData.pairAddress || lastContextRef.current?.timeframe !== timeframe;
 
                         if (shouldFit) {
-                            chart?.timeScale().fitContent();
+                            chart?.timeScale().scrollToPosition(0, false);
                             lastContextRef.current = { pair: tokenData.pairAddress, timeframe };
                         }
                         console.log('Chart data loaded from GeckoTerminal');
@@ -357,7 +405,7 @@ function TradePageContent() {
 
                     // Dynamically update price format based on actual data
                     candlestickSeries.applyOptions({
-                        priceFormat: calculatePriceFormat(chartData),
+                        priceFormat: calculatePriceFormat(chartData, yAxisMode === 'mcap'),
                     });
 
                     if (chartData.length > 0) {
@@ -371,7 +419,7 @@ function TradePageContent() {
                         const shouldFit = lastContextRef.current?.pair !== tokenData.baseToken.symbol || lastContextRef.current?.timeframe !== timeframe;
 
                         if (shouldFit) {
-                            chart?.timeScale().fitContent();
+                            chart?.timeScale().scrollToPosition(0, false);
                             lastContextRef.current = { pair: tokenData.baseToken.symbol, timeframe };
                         }
                         console.log('Chart data loaded from Binance');
@@ -409,7 +457,7 @@ function TradePageContent() {
 
                     // Dynamically update price format based on actual data
                     candlestickSeries.applyOptions({
-                        priceFormat: calculatePriceFormat(chartData),
+                        priceFormat: calculatePriceFormat(chartData, yAxisMode === 'mcap'),
                     });
 
                     const volumeData = chartData.map((candle: any) => ({
@@ -429,7 +477,7 @@ function TradePageContent() {
                     const shouldFit = lastContextRef.current?.pair !== tokenData.baseToken.symbol || lastContextRef.current?.timeframe !== timeframe;
 
                     if (shouldFit) {
-                        chart?.timeScale().fitContent();
+                        chart?.timeScale().scrollToPosition(0, false);
                         lastContextRef.current = { pair: tokenData.baseToken.symbol, timeframe };
                     }
                     console.log('Chart data loaded from CoinGecko');
@@ -448,7 +496,7 @@ function TradePageContent() {
     const timeframes = ['1M', '5M', '15M', '1H', '4H', '1D'];
 
     return (
-        <div className="h-[100dvh] lg:h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden">
+        <div className="min-h-[calc(100dvh-4rem)] lg:min-h-0 lg:h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden pb-16 lg:pb-0">
             {/* Main content - Chart & Data */}
             <div className="flex-1 flex flex-col min-w-0 lg:border-r border-[var(--border)]">
                 {/* Header */}
@@ -489,8 +537,7 @@ function TradePageContent() {
                                     {/* Action buttons - no backdrop, positioned with token info */}
                                     <button
                                         onClick={() => {
-                                            if (!firebaseUser) return;
-                                            toggleFavorite(firebaseUser.uid, {
+                                            toggleFavorite(firebaseUser?.uid, {
                                                 address: tokenData.baseToken.address,
                                                 pairAddress: tokenData.pairAddress,
                                                 chainId: tokenData.chainId,
@@ -507,7 +554,7 @@ function TradePageContent() {
                                         )}
                                         title={isFavorited(tokenData.pairAddress) ? 'Remove from favorites' : 'Add to favorites'}
                                     >
-                                        <Star className={clsx('w-5 h-5', isFavorited(tokenData.pairAddress) && 'fill-current')} />
+                                        <Star className="w-5 h-5" fill={isFavorited(tokenData.pairAddress) ? 'currentColor' : 'none'} />
                                     </button>
                                     <button
                                         onClick={() => setShowAlertModal(true)}
@@ -522,8 +569,8 @@ function TradePageContent() {
 
                         <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                             <div className="text-right">
-                                <p className="font-mono text-base sm:text-2xl font-bold tracking-tight">
-                                    ${tokenData?.priceUsd?.toFixed(tokenData?.priceUsd < 0.01 ? 6 : 4) || '0.00'}
+                                <p className="font-mono text-base sm:text-2xl font-medium tracking-tight">
+                                    ${tokenData?.priceUsd ? formatWithSubscript(tokenData.priceUsd) : '0.00'}
                                 </p>
                                 <span className={clsx(
                                     'text-[10px] sm:text-sm font-medium flex items-center justify-end gap-0.5',
@@ -810,10 +857,12 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
 });
 
 // Helper for formatting price in chart overlay (handles both small prices and large market caps)
+// Helper for formatting price in chart overlay (handles both small prices and large market caps)
 function formatPrice(price: number) {
     if (price >= 1e9) return '$' + (price / 1e9).toFixed(2) + 'B';
     if (price >= 1e6) return '$' + (price / 1e6).toFixed(2) + 'M';
     if (price >= 1e3) return '$' + (price / 1e3).toFixed(2) + 'K';
+    if (price < 0.0001) return '$' + formatWithSubscript(price);
     if (price < 1) return '$' + price.toFixed(6);
     return '$' + price.toFixed(2);
 }
