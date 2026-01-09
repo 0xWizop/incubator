@@ -104,7 +104,7 @@ export function WalletDashboard({ onClose }: WalletDashboardProps) {
                                         className={clsx(
                                             "w-full flex items-center gap-3 p-2.5 rounded-lg transition-colors",
                                             wallet.address === activeWallet?.address
-                                                ? "bg-[var(--primary)]/10 border border-[var(--primary)]/30"
+                                                ? "bg-[var(--background-secondary)] border border-[var(--border-hover)]"
                                                 : "hover:bg-[var(--background-secondary)]"
                                         )}
                                     >

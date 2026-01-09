@@ -4,6 +4,7 @@ import { ReactNode, useEffect } from 'react';
 import { Sidebar, Header, BottomTabNav } from '@/components/layout';
 import { useAuth } from '@/context/AuthContext';
 import { useWatchlistStore } from '@/store';
+import { useAlertMonitor } from '@/hooks/useAlertMonitor';
 
 export default function AppLayout({
     children,
@@ -12,6 +13,9 @@ export default function AppLayout({
 }) {
     const { firebaseUser } = useAuth();
     const { initialize, isInitialized } = useWatchlistStore();
+
+    // Enable price alert monitoring
+    useAlertMonitor();
 
     // Initialize watchlist store globally when user is authenticated
     useEffect(() => {

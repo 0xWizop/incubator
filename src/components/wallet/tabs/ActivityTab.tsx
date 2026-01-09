@@ -89,14 +89,14 @@ export function ActivityTab() {
                 {filteredTransactions.map((tx) => (
                     <div
                         key={tx.id}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition-all"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)]/30 transition-all"
                     >
                         {/* Type Icon */}
                         <div className={clsx(
                             'w-10 h-10 rounded-full flex items-center justify-center',
                             tx.type === 'send' ? 'bg-[var(--accent-red)]/10' :
                                 tx.type === 'receive' ? 'bg-[var(--accent-green)]/10' :
-                                    'bg-[var(--primary)]/10'
+                                    'bg-[var(--background-tertiary)]'
                         )}>
                             {getTypeIcon(tx.type)}
                         </div>

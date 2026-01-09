@@ -21,17 +21,23 @@ import {
     Settings,
     Mail,
     Star,
+    Newspaper,
+    Eye,
 } from 'lucide-react';
 import { useAppStore, useWatchlistStore } from '@/store';
 import { WalletButton } from '@/components/wallet';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth';
 import { WatchlistPanel } from '@/components/watchlist';
+import { NewsFeed } from '@/components/news';
+import { TrackerPanel } from '@/components/tracker';
 
 const navigation = [
     { name: 'Trade', href: '/app/trade/', icon: LineChart },
     { name: 'Screener', href: '/app/screener/', icon: Search },
     { name: 'Explorer', href: '/app/explorer/', icon: Compass },
+    { name: 'News', href: '/app/news/', icon: Newspaper },
+    { name: 'Wallet Tracker', href: '/app/tracker/', icon: Eye },
     { name: 'Dashboard', href: '/app/dashboard/', icon: LayoutDashboard },
     { name: 'Rewards', href: '/app/rewards/', icon: Gift },
     { name: 'dApps', href: 'https://dappincubator.xyz', icon: Boxes, external: true, desktopOnly: true },
@@ -220,6 +226,8 @@ export function Header() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showMobileSearch, setShowMobileSearch] = useState(false);
+    const [showNewsPanel, setShowNewsPanel] = useState(false);
+    const [showTrackerPanel, setShowTrackerPanel] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const watchlistRef = useRef<HTMLDivElement>(null);
@@ -371,6 +379,34 @@ export function Header() {
 
                 {/* Right side */}
                 <div className="flex items-center gap-3">
+                    {/* News button */}
+                    <button
+                        onClick={() => setShowNewsPanel(!showNewsPanel)}
+                        className={clsx(
+                            'p-2 rounded-lg transition-all',
+                            showNewsPanel
+                                ? 'bg-[var(--primary)]/20 text-[var(--primary)] shadow-[0_0_15px_var(--primary-glow)]'
+                                : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
+                        )}
+                        title="News Feed"
+                    >
+                        <Newspaper className="w-5 h-5" />
+                    </button>
+
+                    {/* Tracker button */}
+                    <button
+                        onClick={() => setShowTrackerPanel(!showTrackerPanel)}
+                        className={clsx(
+                            'p-2 rounded-lg transition-all',
+                            showTrackerPanel
+                                ? 'bg-[var(--primary)]/20 text-[var(--primary)] shadow-[0_0_15px_var(--primary-glow)]'
+                                : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
+                        )}
+                        title="Wallet Tracker"
+                    >
+                        <Eye className="w-5 h-5" />
+                    </button>
+
                     {/* Watchlist star button */}
                     <div className="relative" ref={watchlistRef}>
                         <button
@@ -459,6 +495,66 @@ export function Header() {
 
             {/* Auth Modal */}
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+            {/* News Sidebar Panel */}
+            {showNewsPanel && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                        onClick={() => setShowNewsPanel(false)}
+                    />
+
+                    {/* Sidebar */}
+                    <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-[var(--background-secondary)] border-l border-[var(--border)] z-50 shadow-2xl">
+                        <div className="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                            <h2 className="font-bold text-sm flex items-center gap-2">
+                                <Newspaper className="w-4 h-4 text-[var(--primary)]" />
+                                Crypto News
+                            </h2>
+                            <button
+                                onClick={() => setShowNewsPanel(false)}
+                                className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="h-[calc(100%-3.5rem)]">
+                            <NewsFeed />
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Tracker Sidebar Panel */}
+            {showTrackerPanel && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                        onClick={() => setShowTrackerPanel(false)}
+                    />
+
+                    {/* Sidebar */}
+                    <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-[var(--background-secondary)] border-l border-[var(--border)] z-50 shadow-2xl">
+                        <div className="flex items-center justify-between p-3 border-b border-[var(--border)]">
+                            <h2 className="font-bold text-sm flex items-center gap-2">
+                                <Eye className="w-4 h-4 text-[var(--primary)]" />
+                                Wallet Tracker
+                            </h2>
+                            <button
+                                onClick={() => setShowTrackerPanel(false)}
+                                className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="h-[calc(100%-3.5rem)]">
+                            <TrackerPanel />
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Mobile Full-Page Search Overlay */}
             {showMobileSearch && (

@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
-import { Star, List, Bell, Plus, Trash2, X, ChevronRight, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { Star, List, Bell, Plus, Trash2, X, ChevronRight, TrendingUp, TrendingDown, AlertCircle, ChevronDown, Filter } from 'lucide-react';
 import { useWatchlistStore } from '@/store';
 import { useAuth } from '@/context/AuthContext';
-import { Watchlist, WatchlistToken, PriceAlert } from '@/types';
+import { Watchlist, WatchlistToken, PriceAlert, ChainId } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 
 interface WatchlistPanelProps {
@@ -34,6 +34,16 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
 
     const [newListName, setNewListName] = useState('');
     const [showCreateList, setShowCreateList] = useState(false);
+    const [chainFilter, setChainFilter] = useState<ChainId | 'all'>('all');
+    const [showChainDropdown, setShowChainDropdown] = useState(false);
+
+    const CHAIN_OPTIONS: { id: ChainId | 'all'; label: string; color: string }[] = [
+        { id: 'all', label: 'All Chains', color: 'var(--foreground)' },
+        { id: 'solana', label: 'Solana', color: 'var(--solana)' },
+        { id: 'ethereum', label: 'Ethereum', color: 'var(--ethereum)' },
+        { id: 'base', label: 'Base', color: 'var(--base, #0052FF)' },
+        { id: 'arbitrum', label: 'Arbitrum', color: 'var(--arbitrum, #28A0F0)' },
+    ];
 
     // Initialize store when user is authenticated
     useEffect(() => {
@@ -60,6 +70,15 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
     const favorites = watchlists.find(w => w.id === 'favorites');
     const customLists = watchlists.filter(w => w.id !== 'favorites');
 
+    // Filter tokens by chain
+    const filterByChain = <T extends { chainId: ChainId }>(items: T[]): T[] => {
+        if (chainFilter === 'all') return items;
+        return items.filter(item => item.chainId === chainFilter);
+    };
+
+    const filteredFavorites = filterByChain(favorites?.tokens || []);
+    const filteredAlerts = filterByChain(alerts);
+
     const handleCreateList = async () => {
         if (newListName.trim() && firebaseUser?.uid) {
             await createList(firebaseUser.uid, newListName.trim());
@@ -69,9 +88,9 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
     };
 
     const tabs = [
-        { id: 'favorites' as const, label: 'Favorites', icon: Star, count: favorites?.tokens.length || 0 },
+        { id: 'favorites' as const, label: 'Favorites', icon: Star, count: filteredFavorites.length },
         { id: 'watchlists' as const, label: 'Lists', icon: List, count: customLists.length },
-        { id: 'alerts' as const, label: 'Alerts', icon: Bell, count: alerts.filter(a => !a.triggered).length },
+        { id: 'alerts' as const, label: 'Alerts', icon: Bell, count: filteredAlerts.filter(a => !a.triggered).length },
     ];
 
     return (
@@ -82,9 +101,47 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                 <h3 className="font-semibold text-sm">Watchlist</h3>
-                <button onClick={onClose} className="p-1 hover:bg-[var(--background-tertiary)] rounded">
-                    <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Chain Filter */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowChainDropdown(!showChainDropdown)}
+                            className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors"
+                        >
+                            <Filter className="w-3 h-3" />
+                            <span style={{ color: CHAIN_OPTIONS.find(c => c.id === chainFilter)?.color }}>
+                                {CHAIN_OPTIONS.find(c => c.id === chainFilter)?.label}
+                            </span>
+                            <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {showChainDropdown && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden">
+                                {CHAIN_OPTIONS.map(chain => (
+                                    <button
+                                        key={chain.id}
+                                        onClick={() => {
+                                            setChainFilter(chain.id);
+                                            setShowChainDropdown(false);
+                                        }}
+                                        className={clsx(
+                                            'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--background-tertiary)] transition-colors',
+                                            chainFilter === chain.id && 'bg-[var(--background-tertiary)]'
+                                        )}
+                                    >
+                                        <span
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ backgroundColor: chain.color }}
+                                        />
+                                        <span>{chain.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <button onClick={onClose} className="p-1 hover:bg-[var(--background-tertiary)] rounded">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
             {/* Tabs */}
@@ -121,13 +178,13 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
                     </div>
                 ) : isLoading ? (
                     <div className="p-8 text-center">
-                        <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto" />
+                        <div className="w-6 h-6 border border-[var(--border-hover)] border-t-transparent rounded-full animate-spin mx-auto" />
                     </div>
                 ) : (
                     <>
                         {activeTab === 'favorites' && (
                             <FavoritesTab
-                                tokens={favorites?.tokens || []}
+                                tokens={filteredFavorites}
                                 onRemove={(pairAddress) => firebaseUser?.uid && removeToken(firebaseUser.uid, 'favorites', pairAddress)}
                             />
                         )}
@@ -143,7 +200,7 @@ export function WatchlistPanel({ isOpen, onClose }: WatchlistPanelProps) {
                             />
                         )}
                         {activeTab === 'alerts' && (
-                            <AlertsTab alerts={alerts} onRemove={removeAlert} />
+                            <AlertsTab alerts={filteredAlerts} onRemove={removeAlert} />
                         )}
                     </>
                 )}
@@ -229,7 +286,7 @@ function WatchlistsTab({
                         value={newName}
                         onChange={(e) => onNewNameChange(e.target.value)}
                         placeholder="List name..."
-                        className="flex-1 px-3 py-1.5 text-sm bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg focus:border-[var(--primary)] focus:outline-none"
+                        className="flex-1 px-3 py-1.5 text-sm bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg focus:border-[var(--border-hover)] focus:outline-none"
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && onCreate()}
                     />

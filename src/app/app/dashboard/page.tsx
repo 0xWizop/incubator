@@ -108,7 +108,7 @@ function DashboardContent() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                <div className="card card-glow p-2.5 sm:p-4">
+                <div className="card p-2.5 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Total P&L</span>
                         <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-green)]/10">
@@ -124,7 +124,7 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                <div className="card card-glow p-2.5 sm:p-4">
+                <div className="card p-2.5 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Volume</span>
                         <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--primary)]/10">
@@ -139,7 +139,7 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                <div className="card card-glow p-2.5 sm:p-4">
+                <div className="card p-2.5 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                         <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Avg Trade</span>
                         <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-purple)]/10">

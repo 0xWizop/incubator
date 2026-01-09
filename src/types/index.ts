@@ -261,3 +261,37 @@ export interface PriceAlert {
     triggered: boolean;
     createdAt: Date;
 }
+
+// Tracked wallet types
+export interface TrackedWallet {
+    id: string;
+    userId: string;
+    address: string;
+    name: string;
+    chainId: ChainId;
+    isActive: boolean;
+    notifyOnActivity: boolean;
+    lastActivityAt?: Date;
+    createdAt: Date;
+}
+
+export interface WalletActivity {
+    id: string;
+    walletId: string;
+    hash: string;
+    type: 'swap' | 'transfer' | 'buy' | 'sell';
+    tokenIn?: {
+        symbol: string;
+        amount: string;
+        usd: number;
+    };
+    tokenOut?: {
+        symbol: string;
+        amount: string;
+        usd: number;
+    };
+    totalUsd: number;
+    chainId: ChainId;
+    timestamp: Date;
+    notified: boolean;
+}

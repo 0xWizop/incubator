@@ -74,8 +74,8 @@ export function ReceiveTab() {
                                 className={clsx(
                                     'flex items-center gap-2 px-3 py-2 rounded-xl transition-all flex-1',
                                     activeChain === chain
-                                        ? 'bg-[var(--primary)]/10 border-2 border-[var(--primary)]'
-                                        : 'bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)]/50'
+                                        ? 'bg-[var(--background-tertiary)] border border-[var(--border-hover)]'
+                                        : 'bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)]/50'
                                 )}
                             >
                                 <img src={CHAINS[chain].logo} alt={chain} className="w-5 h-5 rounded-full" />
@@ -113,7 +113,7 @@ export function ReceiveTab() {
                     </p>
                     <button
                         onClick={handleCopy}
-                        className="p-2 rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/10 transition-colors"
+                        className="p-2 rounded-lg bg-[var(--background)] hover:bg-[var(--background-tertiary)] transition-colors"
                     >
                         {copied ? (
                             <Check className="w-4 h-4 text-[var(--accent-green)]" />
@@ -135,13 +135,13 @@ export function ReceiveTab() {
                 </button>
                 <button
                     onClick={handleDownloadQR}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--border-hover)] transition-all"
                 >
                     <Download className="w-4 h-4" />
                 </button>
                 <button
                     onClick={handleShare}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--border-hover)] transition-all"
                 >
                     <Share2 className="w-4 h-4" />
                 </button>

@@ -186,7 +186,7 @@ body {
 }
 
 .card-glow:hover {
-  border-color: var(--primary);
+  border-color: var(--border-hover);
 }
 
 /* Glow effect */
@@ -360,8 +360,8 @@ body {
 
 .input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-dim);
+  border-color: var(--border-hover);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
 }
 
 .input::placeholder {

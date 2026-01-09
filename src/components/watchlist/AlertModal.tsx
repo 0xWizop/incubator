@@ -172,7 +172,7 @@ export function AlertModal({ isOpen, onClose, tokenData }: AlertModalProps) {
                                         'flex items-center gap-2 px-3 py-3 rounded-lg border transition-all text-left',
                                         alertType === option.type
                                             ? 'bg-[var(--primary)] text-black border-[var(--primary)]'
-                                            : 'bg-[var(--background-tertiary)] border-[var(--border)] hover:border-[var(--primary)]/50'
+                                            : 'bg-[var(--background-tertiary)] border-[var(--border)] hover:border-[var(--border-hover)]/50'
                                     )}
                                 >
                                     <option.icon className="w-4 h-4" />
@@ -197,7 +197,7 @@ export function AlertModal({ isOpen, onClose, tokenData }: AlertModalProps) {
                                 value={targetValue}
                                 onChange={(e) => setTargetValue(e.target.value)}
                                 placeholder={getPlaceholder()}
-                                className="w-full pl-8 pr-4 py-3 bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-lg font-mono focus:border-[var(--primary)] focus:outline-none transition-colors"
+                                className="w-full pl-8 pr-4 py-3 bg-[var(--background-tertiary)] border border-[var(--border)] rounded-lg text-lg font-mono focus:border-[var(--border-hover)] focus:outline-none transition-colors"
                                 step="any"
                             />
                         </div>

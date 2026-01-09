@@ -10,7 +10,9 @@ import {
     getBalance,
     renameWallet,
     ChainType,
+    importFromBackup as importFromBackupFn,
 } from '@/lib/wallet';
+import type { StoredWalletData } from '@/lib/wallet/storage';
 import { clearSession, hasActiveSession } from '@/lib/wallet/storage';
 
 interface WalletState {
@@ -37,6 +39,7 @@ interface WalletState {
     initialize: () => void;
     createWallet: (password: string, type: 'evm' | 'solana', name?: string) => Promise<boolean>;
     importWallet: (password: string, privateKey: string, type: 'evm' | 'solana', name?: string) => Promise<boolean>;
+    importBackup: (password: string, backupData: StoredWalletData) => Promise<boolean>;
     renameWallet: (address: string, newName: string) => void;
     unlock: (password: string) => Promise<boolean>;
     lock: () => void;
@@ -151,6 +154,35 @@ export const useWalletStore = create<WalletState>()((set, get) => ({
             set({
                 isLoading: false,
                 error: error.message || 'Failed to import wallet. Check your private key.',
+            });
+            return false;
+        }
+    },
+
+    // Import wallets from backup JSON
+    importBackup: async (password, backupData) => {
+        set({ isLoading: true, error: null });
+
+        try {
+            const importedWallets = await importFromBackupFn(backupData, password);
+
+            const updatedWallets = [...get().wallets, ...importedWallets];
+
+            set({
+                wallets: updatedWallets,
+                activeWallet: importedWallets[0] || get().activeWallet,
+                isUnlocked: true,
+                isLoading: false,
+                isModalOpen: false,
+            });
+
+            get().refreshBalances();
+            return true;
+        } catch (error: any) {
+            console.error('Failed to import backup:', error);
+            set({
+                isLoading: false,
+                error: error.message || 'Failed to import backup.',
             });
             return false;
         }

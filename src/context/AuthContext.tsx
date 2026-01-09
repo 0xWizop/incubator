@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
     User as FirebaseUser,
     signInWithEmailAndPassword,
@@ -11,7 +11,8 @@ import {
     onAuthStateChanged,
     updateProfile,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+import { auth, db } from '@/lib/firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 import {
     getUser, createUser
 } from '@/lib/firebase/collections';
@@ -27,6 +28,7 @@ interface AuthContextType {
     signInWithGoogle: () => Promise<void>;
     signOut: () => Promise<void>;
     clearError: () => void;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,40 +38,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const userUnsubscribeRef = useRef<(() => void) | null>(null);
 
-    // Fetch or create Firestore user when Firebase user changes
-    const syncFirestoreUser = useCallback(async (fbUser: FirebaseUser | null) => {
-        if (!fbUser) {
-            setUser(null);
-            return;
+    // Refresh user data from Firestore
+    const refreshUser = useCallback(async () => {
+        if (!firebaseUser) return;
+        const userData = await getUser(firebaseUser.uid);
+        if (userData) setUser(userData);
+    }, [firebaseUser]);
+
+    // Setup real-time listener for user document
+    const setupUserListener = useCallback(async (fbUser: FirebaseUser) => {
+        // Clean up previous listener
+        if (userUnsubscribeRef.current) {
+            userUnsubscribeRef.current();
         }
 
-        try {
-            // Use email as the user identifier (or uid)
-            const userId = fbUser.uid;
-            let firestoreUser = await getUser(userId);
+        const userId = fbUser.uid;
 
-            if (!firestoreUser) {
-                // Create new user in Firestore
-                firestoreUser = await createUser(userId);
+        // First check if user exists, create if not
+        let firestoreUser = await getUser(userId);
+        if (!firestoreUser) {
+            firestoreUser = await createUser(userId);
+        }
+        setUser(firestoreUser);
+        setLoading(false);
+
+        // Setup real-time listener for future updates
+        const unsubscribe = onSnapshot(doc(db, 'users', userId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUser({
+                    address: data.address,
+                    chains: data.chains || [],
+                    createdAt: data.createdAt?.toDate?.() || new Date(),
+                    referralCode: data.referralCode,
+                    referredBy: data.referredBy,
+                    totalVolume: data.totalVolume || 0,
+                    lastActive: data.lastActive?.toDate?.() || new Date(),
+                    email: data.email,
+                    displayName: data.displayName,
+                    photoURL: data.photoURL,
+                    preferences: data.preferences,
+                } as User);
             }
+        });
 
-            setUser(firestoreUser);
-        } catch (err) {
-            console.error('Error syncing Firestore user:', err);
-        }
+        userUnsubscribeRef.current = unsubscribe;
     }, []);
 
     // Listen to auth state changes
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
             setFirebaseUser(fbUser);
-            await syncFirestoreUser(fbUser);
-            setLoading(false);
+
+            if (fbUser) {
+                await setupUserListener(fbUser);
+            } else {
+                setUser(null);
+                setLoading(false);
+                // Clean up user listener
+                if (userUnsubscribeRef.current) {
+                    userUnsubscribeRef.current();
+                    userUnsubscribeRef.current = null;
+                }
+            }
         });
 
-        return () => unsubscribe();
-    }, [syncFirestoreUser]);
+        return () => {
+            unsubscribe();
+            if (userUnsubscribeRef.current) {
+                userUnsubscribeRef.current();
+            }
+        };
+    }, [setupUserListener]);
 
     const signIn = async (email: string, password: string) => {
         try {
@@ -138,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 signInWithGoogle,
                 signOut,
                 clearError,
+                refreshUser,
             }}
         >
             {children}

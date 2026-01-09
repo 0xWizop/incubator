@@ -134,7 +134,7 @@ export function SendTab() {
             {/* Token Selection */}
             <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)]">
                 <label className="block text-xs text-[var(--foreground-muted)] mb-2">Asset to send</label>
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition-all">
+                <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
                     <img src={chainConfig.logo} alt={selectedToken} className="w-8 h-8 rounded-full" />
                     <div className="flex-1 text-left">
                         <p className="font-medium">{selectedToken}</p>
@@ -172,7 +172,7 @@ export function SendTab() {
                                 key={pct}
                                 onClick={() => handleAmountChange((parseFloat(currentBalance) * pct / 100).toFixed(6))}
                                 disabled={isSending}
-                                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all disabled:opacity-50"
+                                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary)] transition-all disabled:opacity-50"
                             >
                                 {pct === 100 ? 'MAX' : `${pct}%`}
                             </button>

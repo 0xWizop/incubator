@@ -43,6 +43,12 @@ function RewardsContent() {
     const [userXP, setUserXP] = useState(0);
     const [totalVolume, setTotalVolume] = useState(0);
     const [isClaiming, setIsClaiming] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     useEffect(() => {
         if (isConnected && address) {
@@ -84,7 +90,7 @@ function RewardsContent() {
         setIsClaiming(false);
     }
 
-    const referralLink = referral ? `https://incubatorprotocol.com/ref/${referral.code}` : '...';
+    const referralLink = referral ? `https://incubatorprotocol-c31de.web.app/?ref=${referral.code}` : '...';
 
     const [createCode, setCreateCode] = useState('');
     const [redeemCode, setRedeemCode] = useState('');
@@ -99,28 +105,54 @@ function RewardsContent() {
     };
 
     async function handleCreateCode() {
-        if (!address || !createCode) return;
+        if (!isConnected || !address) {
+            showToast('Please connect your wallet first', 'error');
+            return;
+        }
+        if (!createCode) {
+            showToast('Please enter a code', 'error');
+            return;
+        }
         setIsSubmitting(true);
-        const success = await firebase.createCustomReferralCode(address, createCode);
-        if (success) {
-            await loadData(address);
-            setCreateCode('');
-            setIsEditing(false);
-        } else {
-            alert('Code taken or invalid format. Use 3-12 alphanumeric characters.');
+        try {
+            const success = await firebase.createCustomReferralCode(address, createCode);
+            if (success) {
+                await loadData(address);
+                setCreateCode('');
+                setIsEditing(false);
+                showToast('Referral code created successfully!', 'success');
+            } else {
+                showToast('Code taken or invalid format. Use 3-12 alphanumeric characters.', 'error');
+            }
+        } catch (error) {
+            console.error('Error creating code:', error);
+            showToast('Error creating code. Please try again.', 'error');
         }
         setIsSubmitting(false);
     }
 
     async function handleRedeemCode() {
-        if (!address || !redeemCode) return;
+        if (!isConnected || !address) {
+            showToast('Please connect your wallet first', 'error');
+            return;
+        }
+        if (!redeemCode) {
+            showToast('Please enter a code to apply', 'error');
+            return;
+        }
         setIsSubmitting(true);
-        const success = await firebase.redeemReferralCode(address, redeemCode);
-        if (success) {
-            await loadData(address);
-            setRedeemCode('');
-        } else {
-            alert('Invalid code, self-referral, or already referred.');
+        try {
+            const success = await firebase.redeemReferralCode(address, redeemCode);
+            if (success) {
+                await loadData(address);
+                setRedeemCode('');
+                showToast('Referral code applied successfully!', 'success');
+            } else {
+                showToast('This referral code is not active or does not exist.', 'error');
+            }
+        } catch (error) {
+            console.error('Error redeeming code:', error);
+            showToast('Error applying code. Please try again.', 'error');
         }
         setIsSubmitting(false);
     }
@@ -197,12 +229,12 @@ function RewardsContent() {
 
             {/* Stats Cards - 2x2 on mobile, 4 across on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                <div className="card p-1.5 sm:p-3 flex flex-col">
                     <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm font-bold text-[var(--accent-green)] uppercase tracking-wide">Claimable</span>
                         <Coins className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-green)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold text-[var(--accent-green)] font-mono h-5 sm:h-8 flex items-center">
+                    <p className="text-sm sm:text-xl font-semibold text-[var(--accent-green)] h-5 sm:h-7 flex items-center">
                         ${claimable.toFixed(2)}
                     </p>
                     <button
@@ -214,32 +246,32 @@ function RewardsContent() {
                     </button>
                 </div>
 
-                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                <div className="card p-1.5 sm:p-3 flex flex-col">
                     <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Trading</span>
                         <TrendingUp className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--primary)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm sm:text-xl font-semibold h-5 sm:h-7 flex items-center">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
                     <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">Lifetime</p>
                 </div>
 
-                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                <div className="card p-1.5 sm:p-3 flex flex-col">
                     <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Referral</span>
                         <Users className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-purple)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm sm:text-xl font-semibold h-5 sm:h-7 flex items-center">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
                     <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">
                         {referral?.referredUsers.length || 0} refs
                     </p>
                 </div>
 
-                <div className="card card-glow p-1.5 sm:p-4 flex flex-col">
+                <div className="card p-1.5 sm:p-3 flex flex-col">
                     <div className="flex items-center justify-between mb-0.5 sm:mb-2">
                         <span className="text-[0.6rem] sm:text-sm text-[var(--foreground-muted)]">Ref Vol</span>
                         <Trophy className="w-3 h-3 sm:w-5 sm:h-5 text-[var(--accent-yellow)]" />
                     </div>
-                    <p className="text-sm sm:text-2xl font-semibold font-mono h-5 sm:h-8 flex items-center">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
+                    <p className="text-sm sm:text-xl font-semibold h-5 sm:h-7 flex items-center">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
                     <p className="text-[0.55rem] sm:text-sm text-[var(--foreground-muted)] mt-1 sm:mt-auto">Total</p>
                 </div>
             </div>
@@ -273,7 +305,7 @@ function RewardsContent() {
                             <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    placeholder="e.g. CRYPTOKING"
+                                    placeholder="e.g. THEINCUBATOR"
                                     className="input flex-1 uppercase font-mono text-sm"
                                     value={createCode}
                                     onChange={(e) => setCreateCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
@@ -305,7 +337,7 @@ function RewardsContent() {
                                 Share your link and earn <span className="text-[var(--primary)] font-bold">0.5%</span> of all referral trading fees. Forever.
                             </p>
                             <div className="flex items-center gap-2">
-                                <div className="flex-1 px-3 py-2.5 bg-[var(--background-tertiary)] rounded-lg font-mono text-xs sm:text-sm border border-[var(--border)] truncate">
+                                <div className="flex-1 px-3 py-2.5 bg-[var(--background-tertiary)] rounded-lg font-mono text-xs sm:text-sm border border-[var(--border)] text-left overflow-hidden text-ellipsis">
                                     {referralLink}
                                 </div>
                                 <button
@@ -376,7 +408,7 @@ function RewardsContent() {
                         className={clsx(
                             'flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all',
                             activeTab === tab.id
-                                ? 'bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/30'
+                                ? 'bg-[var(--background-tertiary)] text-[var(--foreground)] border border-[var(--border-hover)]'
                                 : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
                         )}
                     >
@@ -466,6 +498,18 @@ function RewardsContent() {
                     </div>
                 )
             }
-        </div >
+
+            {/* Toast notification */}
+            {toast && (
+                <div className={clsx(
+                    "fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-fade-in",
+                    toast.type === 'success'
+                        ? "bg-[var(--accent-green)] text-black"
+                        : "bg-[var(--accent-red)] text-white"
+                )}>
+                    {toast.type === 'success' ? '✓' : '✕'} {toast.message}
+                </div>
+            )}
+        </div>
     );
 }

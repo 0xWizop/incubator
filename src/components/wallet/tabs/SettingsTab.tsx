@@ -121,8 +121,8 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                             className={clsx(
                                 'w-full flex items-center gap-3 p-3 rounded-xl transition-all',
                                 wallet.address === activeWallet?.address
-                                    ? 'bg-[var(--primary)]/10 border-2 border-[var(--primary)]'
-                                    : 'bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)]/50'
+                                    ? 'bg-[var(--background-tertiary)] border border-[var(--border-hover)]'
+                                    : 'bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)]/50'
                             )}
                         >
                             <div className={clsx(
@@ -192,9 +192,9 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                     {/* Add Wallet */}
                     <button
                         onClick={() => openModal('create')}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-dashed border-[var(--border)] hover:border-[var(--primary)] transition-all"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-dashed border-[var(--border)] hover:border-[var(--border-hover)] transition-all"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--background-tertiary)] flex items-center justify-center">
                             <Plus className="w-5 h-5 text-[var(--primary)]" />
                         </div>
                         <span className="font-medium text-sm">Add New Wallet</span>
@@ -213,8 +213,8 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                         className={clsx(
                             'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
                             mounted && theme === 'light'
-                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
-                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                                ? 'bg-[var(--background-tertiary)] border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)]/50 hover:text-[var(--foreground)]'
                         )}
                     >
                         <Sun className="w-5 h-5" />
@@ -225,8 +225,8 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                         className={clsx(
                             'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
                             mounted && theme === 'dark'
-                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
-                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                                ? 'bg-[var(--background-tertiary)] border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)]/50 hover:text-[var(--foreground)]'
                         )}
                     >
                         <Moon className="w-5 h-5" />
@@ -237,8 +237,8 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                         className={clsx(
                             'flex flex-col items-center gap-2 p-3 rounded-xl border transition-all',
                             mounted && theme === 'system'
-                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]'
-                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--foreground)]'
+                                ? 'bg-[var(--background-tertiary)] border-[var(--primary)] text-[var(--primary)]'
+                                : 'bg-[var(--background-tertiary)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)]/50 hover:text-[var(--foreground)]'
                         )}
                     >
                         <Monitor className="w-5 h-5" />
@@ -256,9 +256,9 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                     {/* Backup JSON */}
                     <button
                         onClick={handleBackup}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] transition-all group"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--background-tertiary)] flex items-center justify-center">
                             <Download className="w-5 h-5 text-[var(--primary)]" />
                         </div>
                         <div className="flex-1 text-left">
@@ -384,7 +384,7 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                                     setShowPrivateKey(false);
                                     setPrivateKeyVisible(false);
                                 }}
-                                className="w-full mt-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--primary)] transition-all"
+                                className="w-full mt-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--border-hover)] transition-all"
                             >
                                 Close
                             </button>

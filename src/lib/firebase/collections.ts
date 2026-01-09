@@ -15,7 +15,7 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Trade, Referral, Rewards, ChainId, UserPreferences, Watchlist, WatchlistToken, PriceAlert } from '@/types';
+import { User, Trade, Referral, Rewards, ChainId, UserPreferences, Watchlist, WatchlistToken, PriceAlert, TrackedWallet, WalletActivity } from '@/types';
 
 // Helper to normalize IDs (lowercase addresses, keep UIDs as is)
 function normalizeId(id: string): string {
@@ -30,6 +30,7 @@ export const referralsCollection = collection(db, 'referrals');
 export const rewardsCollection = collection(db, 'rewards');
 export const watchlistsCollection = collection(db, 'watchlists');
 export const alertsCollection = collection(db, 'alerts');
+export const trackedWalletsCollection = collection(db, 'trackedWallets');
 
 // Default user preferences
 export const defaultPreferences: UserPreferences = {
@@ -119,6 +120,16 @@ export async function createUser(
         referralRewards: 0,
         claimedRewards: 0,
         lastUpdated: now,
+    });
+
+    // Auto-create the referral document so referral link works immediately
+    await setDoc(doc(referralsCollection, referralCode), {
+        ownerId: normalizeId(address),
+        code: referralCode,
+        referredUsers: [],
+        totalReferralVolume: 0,
+        earnedRewards: 0,
+        createdAt: now,
     });
 
     return {
@@ -287,14 +298,34 @@ export async function getUserTrades(
 export async function createCustomReferralCode(address: string, newCode: string): Promise<boolean> {
     try {
         // Validate code format (alphanumeric, 3-12 chars)
-        if (!/^[A-Z0-9]{3,12}$/.test(newCode)) return false;
+        if (!/^[A-Z0-9]{3,12}$/.test(newCode)) {
+            console.error('Invalid code format:', newCode);
+            return false;
+        }
 
-        const user = await getUser(address);
-        if (!user) return false;
+        let user = await getUser(address);
+
+        // If user doesn't exist, create them first
+        if (!user) {
+            console.log('User not found, creating new user:', address);
+            user = await createUser(address);
+        }
 
         // Check if code is already taken
         const existingRef = await getDoc(doc(referralsCollection, newCode));
-        if (existingRef.exists()) return false;
+        if (existingRef.exists()) {
+            console.error('Code already taken:', newCode);
+            return false;
+        }
+
+        // Delete old referral doc if user had one
+        if (user.referralCode && user.referralCode !== newCode) {
+            try {
+                await deleteDoc(doc(referralsCollection, user.referralCode));
+            } catch (e) {
+                // Ignore if old doc doesn't exist
+            }
+        }
 
         // Create new referral doc
         await setDoc(doc(referralsCollection, newCode), {
@@ -303,6 +334,7 @@ export async function createCustomReferralCode(address: string, newCode: string)
             referredUsers: [],
             totalReferralVolume: 0,
             earnedRewards: 0,
+            createdAt: serverTimestamp(),
         });
 
         // Update user profile
@@ -310,6 +342,7 @@ export async function createCustomReferralCode(address: string, newCode: string)
             referralCode: newCode
         });
 
+        console.log('Successfully created referral code:', newCode);
         return true;
     } catch (error) {
         console.error('Error creating referral code:', error);
@@ -859,6 +892,99 @@ export async function markAlertTriggered(alertId: string): Promise<boolean> {
         return true;
     } catch (error) {
         console.error('Error marking alert triggered:', error);
+        return false;
+    }
+}
+
+// === TRACKED WALLET FUNCTIONS ===
+
+const MAX_TRACKED_WALLETS = 10;
+
+export async function getTrackedWallets(userId: string): Promise<TrackedWallet[]> {
+    try {
+        const q = query(
+            trackedWalletsCollection,
+            where('userId', '==', normalizeId(userId)),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate() || new Date(),
+            lastActivityAt: doc.data().lastActivityAt?.toDate(),
+        })) as TrackedWallet[];
+    } catch (error) {
+        console.error('Error getting tracked wallets:', error);
+        return [];
+    }
+}
+
+export async function addTrackedWallet(
+    userId: string,
+    wallet: Omit<TrackedWallet, 'id' | 'userId' | 'createdAt' | 'isActive'>
+): Promise<TrackedWallet | null> {
+    try {
+        // Check limit
+        const existing = await getTrackedWallets(userId);
+        if (existing.length >= MAX_TRACKED_WALLETS) {
+            console.error('Tracked wallet limit reached');
+            return null;
+        }
+
+        // Check if already tracking this address
+        if (existing.some(w => w.address.toLowerCase() === wallet.address.toLowerCase() && w.chainId === wallet.chainId)) {
+            console.error('Already tracking this wallet');
+            return null;
+        }
+
+        const walletId = `${normalizeId(userId)}-${wallet.address.toLowerCase()}-${Date.now()}`;
+        const now = serverTimestamp();
+
+        const walletData = {
+            ...wallet,
+            id: walletId,
+            userId: normalizeId(userId),
+            address: wallet.address.toLowerCase(),
+            isActive: true,
+            createdAt: now,
+        };
+
+        await setDoc(doc(trackedWalletsCollection, walletId), walletData);
+
+        return {
+            ...wallet,
+            id: walletId,
+            userId: normalizeId(userId),
+            address: wallet.address.toLowerCase(),
+            isActive: true,
+            createdAt: new Date(),
+        } as TrackedWallet;
+    } catch (error) {
+        console.error('Error adding tracked wallet:', error);
+        return null;
+    }
+}
+
+export async function updateTrackedWallet(
+    walletId: string,
+    updates: Partial<Pick<TrackedWallet, 'name' | 'isActive' | 'notifyOnActivity' | 'lastActivityAt'>>
+): Promise<boolean> {
+    try {
+        await updateDoc(doc(trackedWalletsCollection, walletId), updates);
+        return true;
+    } catch (error) {
+        console.error('Error updating tracked wallet:', error);
+        return false;
+    }
+}
+
+export async function deleteTrackedWallet(walletId: string): Promise<boolean> {
+    try {
+        await deleteDoc(doc(trackedWalletsCollection, walletId));
+        return true;
+    } catch (error) {
+        console.error('Error deleting tracked wallet:', error);
         return false;
     }
 }

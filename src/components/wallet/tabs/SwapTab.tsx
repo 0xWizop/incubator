@@ -59,7 +59,7 @@ export function SwapTab() {
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(
                         'p-2 rounded-lg transition-colors',
-                        showSettings ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'hover:bg-[var(--background-tertiary)] text-[var(--foreground-muted)]'
+                        showSettings ? 'bg-[var(--background-tertiary)] text-[var(--primary)]' : 'hover:bg-[var(--background-tertiary)] text-[var(--foreground-muted)]'
                     )}
                 >
                     <Settings className="w-4 h-4" />
@@ -115,7 +115,7 @@ export function SwapTab() {
                         placeholder="0.00"
                         className="flex-1 bg-transparent text-2xl font-mono font-bold outline-none placeholder:text-[var(--foreground-muted)]/30"
                     />
-                    <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition-all">
+                    <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
                         <img src={chainConfig.logo} alt={fromToken} className="w-6 h-6 rounded-full" />
                         <span className="font-bold text-sm">{fromToken}</span>
                         <ChevronDown className="w-4 h-4 text-[var(--foreground-muted)]" />
@@ -138,7 +138,7 @@ export function SwapTab() {
             <div className="flex justify-center -my-2 relative z-10">
                 <button
                     onClick={handleSwapDirection}
-                    className="p-3 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-all shadow-lg hover:scale-110 active:scale-95"
+                    className="p-3 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] hover:border-[var(--border-hover)] text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-all shadow-lg hover:scale-110 active:scale-95"
                 >
                     <ArrowUpDown className="w-5 h-5" />
                 </button>
@@ -158,7 +158,7 @@ export function SwapTab() {
                         className="flex-1 bg-transparent text-2xl font-mono font-bold outline-none placeholder:text-[var(--foreground-muted)]/30"
                         readOnly
                     />
-                    <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--primary)] transition-all">
+                    <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
                         <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">$</div>
                         <span className="font-bold text-sm">{toToken}</span>
                         <ChevronDown className="w-4 h-4 text-[var(--foreground-muted)]" />

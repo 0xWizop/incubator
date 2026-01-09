@@ -7,77 +7,50 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Helper to check if the authenticated user owns this document
-    // Works with both Firebase UID and wallet addresses (lowercase)
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
     // Users collection
-    // - Users can read/write their own document
-    // - Leaderboard queries allowed for authenticated users
+    // - Authenticated users can read any user (for leaderboard)
+    // - Users can write their own document
     match /users/{userId} {
-      // Allow user to read/write their own profile
-      allow read, write: if isOwner(userId);
-      
-      // Allow authenticated users to read for leaderboard (public profile data)
       allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
     
     // Trades collection
-    // - Private to the user who made the trade
-    // - Users can only read/create their own trades
+    // - Authenticated users can read/create trades
     match /trades/{tradeId} {
-      allow read: if isAuthenticated() 
-                  && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() 
-                    && request.resource.data.userId == request.auth.uid;
-      // No update/delete - trades are immutable records
+      allow read, create: if isAuthenticated();
     }
     
     // Rewards collection
-    // - Users can read their own rewards
-    // - Users can update only the claimedRewards field
+    // - Authenticated users can read/write rewards
     match /rewards/{userId} {
-      allow read: if isOwner(userId);
-      
-      // Allow claiming rewards (only updating claimedRewards)
-      allow update: if isOwner(userId)
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['claimedRewards', 'lastUpdated']);
-      
-      // Creation handled by user signup flow
-      allow create: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
     
     // Referrals collection
     // - Anyone authenticated can read (to look up codes)
-    // - Only owner can create/update their referral code
+    // - Authenticated users can create/update referrals
     match /referrals/{code} {
       allow read: if isAuthenticated();
-      
-      allow create: if isAuthenticated() 
-                    && request.resource.data.ownerId == request.auth.uid;
-      
-      allow update: if isAuthenticated() 
-                    && resource.data.ownerId == request.auth.uid;
+      allow create, update: if isAuthenticated();
     }
     
     // Watchlists collection
-    // - Users can only read/write their own watchlists
+    // - Authenticated users can manage their watchlists
     match /watchlists/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated();
     }
     
     // Alerts collection
-    // - Users can only manage their own alerts
+    // - Authenticated users can manage their own alerts
     match /alerts/{alertId} {
-      allow read: if isAuthenticated() 
-                  && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() 
-                    && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() 
-                            && resource.data.userId == request.auth.uid;
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Tracked Wallets collection
+    // - Authenticated users can manage their tracked wallets
+    match /trackedWallets/{walletId} {
+      allow read, write: if isAuthenticated();
     }
   }
 }

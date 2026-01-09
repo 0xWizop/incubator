@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Wallet, Key, Plus, ArrowLeft, Eye, EyeOff, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Wallet, Key, Plus, ArrowLeft, Eye, EyeOff, Lock, AlertTriangle, CheckCircle, Upload } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { WalletDashboard } from './WalletDashboard';
+import type { StoredWalletData } from '@/lib/wallet/storage';
 
 export function WalletModal() {
     const {
@@ -18,6 +19,7 @@ export function WalletModal() {
         openModal,
         createWallet,
         importWallet,
+        importBackup,
         unlock,
         setError,
     } = useWalletStore();
@@ -28,6 +30,9 @@ export function WalletModal() {
     const [showPassword, setShowPassword] = useState(false);
     const [walletType, setWalletType] = useState<'evm' | 'solana'>('evm');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [importMode, setImportMode] = useState<'key' | 'backup'>('key');
+    const [backupData, setBackupData] = useState<StoredWalletData | null>(null);
+    const [backupFileName, setBackupFileName] = useState<string>('');
 
     if (!isModalOpen) return null;
 
@@ -38,6 +43,9 @@ export function WalletModal() {
         setShowPassword(false);
         setAgreedToTerms(false);
         setError(null);
+        setBackupData(null);
+        setBackupFileName('');
+        setImportMode('key');
         closeModal();
     };
 
@@ -84,6 +92,52 @@ export function WalletModal() {
         }
     };
 
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setBackupFileName(file.name);
+        setError(null);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const content = e.target?.result as string;
+                const parsed = JSON.parse(content) as StoredWalletData;
+
+                // Validate structure
+                if (!parsed.wallets || !Array.isArray(parsed.wallets)) {
+                    throw new Error('Invalid backup file format');
+                }
+
+                setBackupData(parsed);
+            } catch (err) {
+                setError('Invalid backup file. Please select a valid JSON backup.');
+                setBackupData(null);
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleImportBackup = async () => {
+        if (!backupData) {
+            setError('Please select a backup file');
+            return;
+        }
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters');
+            return;
+        }
+
+        const success = await importBackup(password, backupData);
+        if (success) {
+            setPassword('');
+            setBackupData(null);
+            setBackupFileName('');
+            setImportMode('key');
+        }
+    };
+
     const handleUnlock = async () => {
         if (!password) {
             setError('Please enter your password');
@@ -114,9 +168,9 @@ export function WalletModal() {
 
             <button
                 onClick={() => openModal('create')}
-                className="w-full flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] transition-all group"
+                className="w-full flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all group"
             >
-                <div className="w-12 h-12 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center group-hover:bg-[var(--primary)]/20 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[var(--background-tertiary)] flex items-center justify-center group-hover:bg-[var(--primary)]/20 transition-colors">
                     <Plus className="w-6 h-6 text-[var(--primary)]" />
                 </div>
                 <div className="text-left">
@@ -129,7 +183,7 @@ export function WalletModal() {
 
             <button
                 onClick={() => openModal('import')}
-                className="w-full flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] transition-all group"
+                className="w-full flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all group"
             >
                 <div className="w-12 h-12 rounded-xl bg-[var(--accent-yellow)]/10 flex items-center justify-center group-hover:bg-[var(--accent-yellow)]/20 transition-colors">
                     <Key className="w-6 h-6 text-[var(--accent-yellow)]" />
@@ -342,97 +396,223 @@ export function WalletModal() {
             <div className="text-center mb-4">
                 <h2 className="text-xl font-bold">Import Wallet</h2>
                 <p className="text-sm text-[var(--foreground-muted)] mt-1">
-                    Enter your private key to import
+                    Import from private key or backup file
                 </p>
             </div>
 
-            {/* Wallet Type Selection */}
+            {/* Import Mode Tabs */}
             <div className="flex gap-2 p-1 bg-[var(--background-tertiary)] rounded-lg">
                 <button
-                    onClick={() => setWalletType('evm')}
+                    onClick={() => { setImportMode('key'); setError(null); }}
                     className={clsx(
-                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
-                        walletType === 'evm'
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2',
+                        importMode === 'key'
                             ? 'bg-[var(--primary)] text-black'
                             : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                     )}
                 >
-                    EVM (ETH/Base/Arb)
+                    <Key className="w-4 h-4" />
+                    Private Key
                 </button>
                 <button
-                    onClick={() => setWalletType('solana')}
+                    onClick={() => { setImportMode('backup'); setError(null); }}
                     className={clsx(
-                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
-                        walletType === 'solana'
-                            ? 'bg-[var(--solana)] text-white'
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2',
+                        importMode === 'backup'
+                            ? 'bg-[var(--primary)] text-black'
                             : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                     )}
                 >
-                    Solana
+                    <Upload className="w-4 h-4" />
+                    Backup File
                 </button>
             </div>
 
-            <div className="space-y-3">
-                {/* Private Key Input */}
-                <div>
-                    <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
-                        {walletType === 'solana' ? 'Private Key (Base58)' : 'Private Key (0x...)'}
-                    </label>
-                    <div className="relative">
-                        <textarea
-                            value={privateKey}
-                            onChange={(e) => setPrivateKey(e.target.value)}
-                            placeholder="Paste your private key here"
-                            className="input input-no-icon w-full h-24 py-2 resize-none font-mono text-xs"
-                        />
-                    </div>
-                </div>
-
-                {/* Password Input for Encryption */}
-                <div>
-                    <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
-                        Set Password (to encrypt locally)
-                    </label>
-                    <div className="relative">
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter a strong password"
-                            className="input input-no-icon w-full pr-10"
-                        />
+            {importMode === 'key' ? (
+                <>
+                    {/* Wallet Type Selection */}
+                    <div className="flex gap-2 p-1 bg-[var(--background-tertiary)] rounded-lg">
                         <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                            onClick={() => setWalletType('evm')}
+                            className={clsx(
+                                'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
+                                walletType === 'evm'
+                                    ? 'bg-[var(--ethereum)]/20 text-[var(--ethereum)] border border-[var(--ethereum)]/30'
+                                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                            )}
                         >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            EVM (ETH/Base/Arb)
+                        </button>
+                        <button
+                            onClick={() => setWalletType('solana')}
+                            className={clsx(
+                                'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all',
+                                walletType === 'solana'
+                                    ? 'bg-[var(--solana)]/20 text-[var(--solana)] border border-[var(--solana)]/30'
+                                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                            )}
+                        >
+                            Solana
                         </button>
                     </div>
-                </div>
-            </div>
 
-            {/* Error */}
-            {error && (
-                <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-sm text-[var(--accent-red)]">
-                    {error}
-                </div>
+                    <div className="space-y-3">
+                        {/* Private Key Input */}
+                        <div>
+                            <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                                {walletType === 'solana' ? 'Private Key (Base58)' : 'Private Key (0x...)'}
+                            </label>
+                            <div className="relative">
+                                <textarea
+                                    value={privateKey}
+                                    onChange={(e) => setPrivateKey(e.target.value)}
+                                    placeholder="Paste your private key here"
+                                    className="input input-no-icon w-full h-24 py-2 resize-none font-mono text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Password Input for Encryption */}
+                        <div>
+                            <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                                Set Password (to encrypt locally)
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter a strong password"
+                                    className="input input-no-icon w-full pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-sm text-[var(--accent-red)]">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handleImportWallet}
+                        disabled={isLoading || !privateKey || !password}
+                        className="btn btn-primary w-full py-3"
+                    >
+                        {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Key className="w-4 h-4 mr-2" />
+                                Import Wallet
+                            </>
+                        )}
+                    </button>
+                </>
+            ) : (
+                <>
+                    {/* Backup File Upload */}
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                                Backup File (JSON)
+                            </label>
+                            <label className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--background-tertiary)] hover:border-[var(--border-hover)] transition-all cursor-pointer">
+                                <Upload className="w-8 h-8 text-[var(--foreground-muted)]" />
+                                {backupFileName ? (
+                                    <div className="text-center">
+                                        <p className="text-sm font-medium text-[var(--primary)]">{backupFileName}</p>
+                                        <p className="text-xs text-[var(--foreground-muted)]">
+                                            {backupData ? `${backupData.wallets.length} wallet(s) found` : 'Processing...'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center">
+                                        <p className="text-sm font-medium">Click to select backup file</p>
+                                        <p className="text-xs text-[var(--foreground-muted)]">
+                                            Upload your cypherx wallet backup
+                                        </p>
+                                    </div>
+                                )}
+                                <input
+                                    type="file"
+                                    accept=".json,application/json"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+
+                        {backupData && (
+                            <div className="p-3 rounded-lg bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/20">
+                                <p className="text-sm text-[var(--accent-green)] font-medium">
+                                    ✓ Valid backup detected
+                                </p>
+                                <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                                    Contains {backupData.wallets.length} wallet{backupData.wallets.length !== 1 ? 's' : ''}: {backupData.wallets.map(w => w.name).join(', ')}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Password Input */}
+                        <div>
+                            <label className="block text-xs text-[var(--foreground-muted)] mb-1.5">
+                                Backup Password
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter backup password"
+                                    className="input input-no-icon w-full pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                            <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                                Use the same password from when the backup was created
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-sm text-[var(--accent-red)]">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handleImportBackup}
+                        disabled={isLoading || !backupData || !password}
+                        className="btn btn-primary w-full py-3"
+                    >
+                        {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Restore from Backup
+                            </>
+                        )}
+                    </button>
+                </>
             )}
-
-            <button
-                onClick={handleImportWallet}
-                disabled={isLoading || !privateKey || !password}
-                className="btn btn-primary w-full py-3"
-            >
-                {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                ) : (
-                    <>
-                        <Key className="w-4 h-4 mr-2" />
-                        Import Wallet
-                    </>
-                )}
-            </button>
         </div>
     );
 

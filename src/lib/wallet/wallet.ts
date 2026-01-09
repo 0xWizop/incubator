@@ -14,7 +14,7 @@ export const CHAINS = {
         name: 'Ethereum',
         symbol: 'ETH',
         logo: 'https://i.imgur.com/NKQlhQj.png',
-        rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/demo',
+        rpcUrl: 'https://rpc.ankr.com/eth',
         chain: mainnet,
     },
     base: {
@@ -186,6 +186,74 @@ export async function importSolanaWallet(privateKeyBase58: string, password: str
         console.error(error);
         throw new Error('Invalid private key');
     }
+}
+
+// Import wallets from a JSON backup file
+export async function importFromBackup(
+    backupData: StoredWalletData,
+    password: string
+): Promise<WalletAccount[]> {
+    // Validate backup structure
+    if (!backupData || !Array.isArray(backupData.wallets) || backupData.wallets.length === 0) {
+        throw new Error('Invalid backup file: no wallets found');
+    }
+
+    const importedWallets: WalletAccount[] = [];
+    const existingData = getStoredWalletData() || { wallets: [] };
+    const existingAddresses = new Set(existingData.wallets.map(w => w.address.toLowerCase()));
+
+    for (const walletData of backupData.wallets) {
+        // Skip if wallet already exists
+        if (existingAddresses.has(walletData.address.toLowerCase())) {
+            console.log(`Skipping wallet ${walletData.address} - already exists`);
+            continue;
+        }
+
+        // Validate wallet data structure
+        if (!walletData.address || !walletData.encryptedPrivateKey || !walletData.type) {
+            console.warn('Skipping invalid wallet entry in backup');
+            continue;
+        }
+
+        try {
+            // Attempt to decrypt the private key with the provided password
+            const decryptedKey = await decryptData(walletData.encryptedPrivateKey, password);
+            if (!decryptedKey) {
+                throw new Error('Failed to decrypt - incorrect password');
+            }
+
+            // Re-encrypt with the same password and add to storage
+            // The key is already encrypted in the backup, so we just add it directly
+            existingData.wallets.push({
+                address: walletData.address,
+                encryptedPrivateKey: walletData.encryptedPrivateKey,
+                name: walletData.name || `Imported ${walletData.type === 'solana' ? 'Solana' : 'Wallet'}`,
+                type: walletData.type,
+                derivationPath: walletData.derivationPath,
+            });
+
+            // Set session key for immediate use
+            setSessionKey(walletData.address, decryptedKey);
+
+            importedWallets.push({
+                address: walletData.address,
+                name: walletData.name || `Imported ${walletData.type === 'solana' ? 'Solana' : 'Wallet'}`,
+                type: walletData.type,
+            });
+        } catch (error) {
+            console.error(`Failed to import wallet ${walletData.address}:`, error);
+            throw new Error('Incorrect password or corrupted backup');
+        }
+    }
+
+    if (importedWallets.length === 0) {
+        throw new Error('No new wallets to import (all may already exist)');
+    }
+
+    // Save the updated wallet data
+    setStoredWalletData(existingData);
+
+    return importedWallets;
 }
 
 // Unlock a wallet with password
