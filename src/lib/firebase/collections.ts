@@ -611,13 +611,14 @@ export async function getWatchlists(userId: string): Promise<Watchlist[]> {
 
         if (!docSnap.exists()) {
             // Initialize with empty favorites list
+            const now = Timestamp.now();
             const initialData = {
                 lists: [{
                     id: DEFAULT_FAVORITES_ID,
                     name: 'Favorites',
                     tokens: [],
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
+                    createdAt: now,
+                    updatedAt: now,
                 }]
             };
             await setDoc(docRef, initialData);
@@ -661,16 +662,18 @@ export async function createWatchlist(userId: string, name: string): Promise<Wat
         };
 
         if (!docSnap.exists()) {
+            const now = Timestamp.now();
             await setDoc(docRef, {
                 lists: [
-                    { id: DEFAULT_FAVORITES_ID, name: 'Favorites', tokens: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
-                    { ...newList, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+                    { id: DEFAULT_FAVORITES_ID, name: 'Favorites', tokens: [], createdAt: now, updatedAt: now },
+                    { ...newList, createdAt: now, updatedAt: now }
                 ]
             });
         } else {
             const currentLists = docSnap.data().lists || [];
+            const now = Timestamp.now();
             await updateDoc(docRef, {
-                lists: [...currentLists, { ...newList, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }]
+                lists: [...currentLists, { ...newList, createdAt: now, updatedAt: now }]
             });
         }
 
@@ -712,13 +715,14 @@ export async function addToWatchlist(
 
         if (!docSnap.exists()) {
             // Initialize with favorites containing this token
+            const now = Timestamp.now();
             await setDoc(docRef, {
                 lists: [{
                     id: DEFAULT_FAVORITES_ID,
                     name: 'Favorites',
-                    tokens: [{ ...token, addedAt: serverTimestamp() }],
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
+                    tokens: [{ ...token, addedAt: now }],
+                    createdAt: now,
+                    updatedAt: now,
                 }]
             });
             return true;
@@ -735,8 +739,9 @@ export async function addToWatchlist(
             return true; // Already exists
         }
 
-        currentLists[listIndex].tokens = [...existingTokens, { ...token, addedAt: serverTimestamp() }];
-        currentLists[listIndex].updatedAt = serverTimestamp();
+        const now = Timestamp.now();
+        currentLists[listIndex].tokens = [...existingTokens, { ...token, addedAt: now }];
+        currentLists[listIndex].updatedAt = now;
 
         await updateDoc(docRef, { lists: currentLists });
         return true;
@@ -764,7 +769,7 @@ export async function removeFromWatchlist(
 
         currentLists[listIndex].tokens = (currentLists[listIndex].tokens || [])
             .filter((t: any) => t.pairAddress !== pairAddress);
-        currentLists[listIndex].updatedAt = serverTimestamp();
+        currentLists[listIndex].updatedAt = Timestamp.now();
 
         await updateDoc(docRef, { lists: currentLists });
         return true;
