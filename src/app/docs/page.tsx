@@ -26,6 +26,9 @@ import {
     Award,
     Gem,
     Crown,
+    Eye,
+    Newspaper,
+    Server,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -42,11 +45,14 @@ interface DocSection {
 const docSections: DocSection[] = [
     { id: 'getting-started', title: 'Getting Started', icon: Zap },
     { id: 'wallet', title: 'Wallet', icon: Wallet },
+    { id: 'tracker', title: 'Wallet Tracker', icon: Eye },
+    { id: 'news', title: 'News Feed', icon: Newspaper },
     { id: 'trading', title: 'Trading', icon: Terminal },
     { id: 'screener', title: 'Token Screener', icon: TrendingUp },
     { id: 'explorer', title: 'Block Explorer', icon: Layers },
     { id: 'rewards', title: 'Rewards & Referrals', icon: Trophy },
     { id: 'chains', title: 'Supported Chains', icon: Globe },
+    { id: 'providers', title: 'Data Providers', icon: Server },
     { id: 'security', title: 'Security', icon: Shield },
 ];
 
@@ -194,19 +200,125 @@ function GettingStartedContent() {
             <SubSection title="Key Features">
                 <FeatureList items={[
                     { title: "Multi-Chain Trading", description: "Swap tokens across 4 major networks from one dashboard" },
+                    { title: "Wallet Tracker", description: "Monitor activity for any wallet address in real-time" },
+                    { title: "News Feed", description: "Stay updated with breaking crypto news and price alerts" },
                     { title: "Embedded Wallet", description: "Built-in non-custodial wallet — no browser extension needed" },
                     { title: "Real-Time Data", description: "Live charts, prices, and on-chain data powered by DexScreener" },
-                    { title: "Block Explorer", description: "Track transactions and blocks across all supported chains" },
                     { title: "Rewards Program", description: "Earn XP and unlock tiers based on your trading volume" }
                 ]} />
             </SubSection>
+        </>
+    );
+}
 
-            <SubSection title="Platform Fees">
-                <Paragraph>
-                    Incubator Protocol charges 0% platform fees on all trades. Standard DEX swap fees and network gas fees apply.
-                    We route trades through aggregators like Jupiter (Solana) and 1inch (EVM) for optimal execution.
-                </Paragraph>
+function WalletTrackerContent() {
+    return (
+        <>
+            <SectionTitle>Wallet Tracker</SectionTitle>
+            <Paragraph>
+                The Wallet Tracker allows you to monitor any wallet address on Ethereum, Solana, Base, or Arbitrum.
+                Get notified instantly when monitored wallets perform trades.
+            </Paragraph>
+
+            <SubSection title="How to Track a Wallet">
+                <StepList steps={[
+                    "Click the Eye icon (👁️) in the header or sidebar to open the tracker",
+                    "Click 'Add Wallet'",
+                    "Paste any EVM (0x...) or Solana (Base58) address",
+                    "Give it a nickname (optional)",
+                    "Toggle notifications on/off"
+                ]} />
             </SubSection>
+
+            <SubSection title="Features">
+                <FeatureList items={[
+                    { title: "Auto-Chain Detection", description: "Automatically detects if an address is EVM or Solana" },
+                    { title: "Smart Notifications", description: "Browser notifications trigger only on major activity (Swaps/Trades)" },
+                    { title: "Activity Feed", description: "View recent activity for all your tracked wallets in one place" },
+                    { title: "Privacy", description: "Your tracked wallets are private and only visible to you" }
+                ]} />
+            </SubSection>
+        </>
+    );
+}
+
+function NewsFeedContent() {
+    return (
+        <>
+            <SectionTitle>News Feed & Alerts</SectionTitle>
+            <Paragraph>
+                Stay ahead of the market with our integrated real-time news feed and smart price alerting system.
+            </Paragraph>
+
+            <SubSection title="Crypto News">
+                <Paragraph>
+                    Access the latest breaking news from top crypto sources directly in the app.
+                    The feed updates automatically every minute.
+                </Paragraph>
+                <FeatureList items={[
+                    { title: "Sidebar Access", description: "Quick slide-out panel via the newspaper icon in the header" },
+                    { title: "Dedicated Page", description: "Full-screen reading view at /app/news" },
+                    { title: "Notifications", description: "Get browser alerts for breaking stories" }
+                ]} />
+            </SubSection>
+
+            <SubSection title="Price Alerts">
+                <Paragraph>
+                    Set custom price targets on any token to receive instant browser notifications when they hit.
+                </Paragraph>
+                <StepList steps={[
+                    "Go to the Trade page or Screener",
+                    "Click the Bell icon on any token",
+                    "Set your target price or percentage change",
+                    "Receive a notification even if the tab is in the background"
+                ]} />
+            </SubSection>
+        </>
+    );
+}
+
+function ProvidersContent() {
+    return (
+        <>
+            <SectionTitle>Data Providers</SectionTitle>
+            <Paragraph>
+                Incubator Protocol aggregates data from industry-leading providers to ensure accuracy, speed, and reliability.
+            </Paragraph>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
+                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                        DexScreener
+                    </h3>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                        Primary source for real-time token prices, charts, and market data across all chains.
+                    </p>
+                </div>
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
+                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                        CoinGecko
+                    </h3>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                        Trusted source for global cryptocurrency market data, metadata, and token info.
+                    </p>
+                </div>
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
+                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                        CryptoCompare
+                    </h3>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                        Powering our global news feed and historical market data analysis.
+                    </p>
+                </div>
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
+                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                        Lightspeed
+                    </h3>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                        Our exclusive partner for cross-chain swap execution and routing.
+                    </p>
+                </div>
+            </div>
         </>
     );
 }
@@ -319,27 +431,6 @@ function ScreenerContent() {
                     { title: "Search", description: "Find any token by name, symbol, or contract address" }
                 ]} />
             </SubSection>
-
-            <SubSection title="Chain Filters">
-                <Paragraph>
-                    Filter tokens by chain to focus on specific networks. Click any chain button
-                    (Solana, Ethereum, Base, Arbitrum) to show only tokens from that network,
-                    or select "All Chains" to see everything.
-                </Paragraph>
-            </SubSection>
-
-            <SubSection title="Token Data">
-                <Paragraph>
-                    Each token in the screener displays key metrics including price, 24h change,
-                    market cap, liquidity depth, and trading volume. Click any row to open
-                    the full trading terminal for that token.
-                </Paragraph>
-            </SubSection>
-
-            <InfoCard type="info">
-                Data is sourced in real-time from DexScreener API. The screener fetches approximately
-                350 tokens across all chains, with customizable limits per chain.
-            </InfoCard>
         </>
     );
 }
@@ -360,14 +451,6 @@ function ExplorerContent() {
                     { title: "Universal Search", description: "Search by transaction hash, block number, or wallet address" },
                     { title: "Chain-Specific Pages", description: "Dedicated explorer pages for each network with pagination" }
                 ]} />
-            </SubSection>
-
-            <SubSection title="Chain Overview Cards">
-                <Paragraph>
-                    The main explorer displays overview cards for each selected chain showing
-                    the latest block number. Click any card to open the dedicated chain explorer
-                    with full block history and transaction details.
-                </Paragraph>
             </SubSection>
         </>
     );
@@ -404,13 +487,6 @@ function RewardsContent() {
                     "Earn up to 1.5% of your referrals' trading volume (based on your tier)",
                     "Claim your accumulated rewards anytime from the Rewards page"
                 ]} />
-            </SubSection>
-
-            <SubSection title="XP System">
-                <Paragraph>
-                    Earn XP based on your trading volume and referral activity. XP is displayed
-                    on the leaderboard and contributes to your overall ranking in the community.
-                </Paragraph>
             </SubSection>
         </>
     );
@@ -451,14 +527,6 @@ function ChainsContent() {
                     speed="~250ms"
                 />
             </div>
-
-            <SubSection title="Switching Chains">
-                <Paragraph>
-                    Use the chain selector in the sidebar to switch between networks.
-                    Your wallet balances and available tokens will update automatically
-                    to reflect the selected chain.
-                </Paragraph>
-            </SubSection>
         </>
     );
 }
@@ -478,16 +546,6 @@ function SecurityContent() {
                     { title: "Local Encryption", description: "Private keys are encrypted with your password and stored locally" },
                     { title: "Audited DEX Routes", description: "All swaps route through established, audited DEX contracts" },
                     { title: "Open Source", description: "Core components are open source and verifiable" }
-                ]} />
-            </SubSection>
-
-            <SubSection title="Best Practices">
-                <StepList steps={[
-                    "Always verify you're on the official site before connecting your wallet",
-                    "Double-check token contract addresses before trading",
-                    "Never share your wallet password or private key with anyone",
-                    "Start with small amounts when trading new or unfamiliar tokens",
-                    "Be cautious of tokens with very low liquidity or suspicious contracts"
                 ]} />
             </SubSection>
 
@@ -516,6 +574,9 @@ export default function DocsPage() {
         switch (activeSection) {
             case 'getting-started': return <GettingStartedContent />;
             case 'wallet': return <WalletContent />;
+            case 'tracker': return <WalletTrackerContent />;
+            case 'news': return <NewsFeedContent />;
+            case 'providers': return <ProvidersContent />;
             case 'trading': return <TradingContent />;
             case 'screener': return <ScreenerContent />;
             case 'explorer': return <ExplorerContent />;
@@ -535,16 +596,9 @@ export default function DocsPage() {
             )}>
                 {/* Sidebar Header */}
                 <div className="p-6 border-b border-[var(--border)]">
-                    <Link href="/" className="flex items-center gap-2 mb-4">
+                    <Link href="/" className="flex items-center gap-2">
                         <img src="https://i.imgur.com/8UIQt03.png" alt="Incubator Protocol" className="w-8 h-8" />
                         <span className="font-bold text-lg">Documentation</span>
-                    </Link>
-                    <Link
-                        href="/app/trade"
-                        className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to App
                     </Link>
                 </div>
 
@@ -593,12 +647,19 @@ export default function DocsPage() {
                 </nav>
 
                 {/* Sidebar Footer */}
-                <div className="p-4 border-t border-[var(--border)]">
+                <div className="p-4 border-t border-[var(--border)] space-y-3">
+                    <Link
+                        href="/app/dashboard"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-sm font-medium hover:bg-[var(--primary)]/20 transition-colors w-full justify-center"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to App
+                    </Link>
                     <a
                         href="https://twitter.com/IncubatorProt"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                        className="flex items-center gap-2 px-3 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors justify-center"
                     >
                         <ExternalLink className="w-4 h-4" />
                         Follow on X
