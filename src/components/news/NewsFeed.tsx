@@ -11,10 +11,12 @@ export function NewsFeed() {
     const { data: articles, isLoading, isRefetching, refetch } = useLatestNews(20, true);
 
     return (
-        <div className="flex flex-col h-full bg-[var(--background)]">
-            <NewsHeader isRefreshing={isRefetching} onRefresh={() => refetch()} />
+        <div className="flex flex-col h-full bg-[var(--background)] overflow-hidden">
+            <div className="flex-shrink-0">
+                <NewsHeader isRefreshing={isRefetching} onRefresh={() => refetch()} />
+            </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto overscroll-contain">
                 {isLoading ? (
                     // Loading state
                     <>

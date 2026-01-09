@@ -10,6 +10,7 @@ import {
     TrendingUp,
     Activity,
     ChevronDown,
+    Shield,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
@@ -21,8 +22,9 @@ import { CHAINS } from '@/lib/wallet';
 import { PortfolioTab } from './tabs/PortfolioTab';
 import { ActivityTab } from './tabs/ActivityTab';
 import { SettingsTab } from './tabs/SettingsTab';
+import { WalletSecurityTab } from './tabs/WalletSecurityTab';
 
-type TabId = 'assets' | 'activity' | 'settings';
+type TabId = 'assets' | 'activity' | 'security' | 'settings';
 
 interface WalletDashboardProps {
     onClose: () => void;
@@ -64,6 +66,8 @@ export function WalletDashboard({ onClose }: WalletDashboardProps) {
                 return <PortfolioTab />;
             case 'activity':
                 return <ActivityTab />;
+            case 'security':
+                return <WalletSecurityTab onLock={lock} />;
             case 'settings':
                 return <SettingsTab onLock={lock} />;
             default:
@@ -166,8 +170,8 @@ export function WalletDashboard({ onClose }: WalletDashboardProps) {
                 {renderTabContent()}
             </div>
 
-            {/* Bottom Navigation Bar - 3 tabs like reference */}
-            <div className="grid grid-cols-3 border-t border-[var(--border)] bg-[var(--background-secondary)]">
+            {/* Bottom Navigation Bar - 4 tabs */}
+            <div className="grid grid-cols-4 border-t border-[var(--border)] bg-[var(--background-secondary)]">
                 <button
                     onClick={() => setActiveTab('assets')}
                     className={clsx(
@@ -187,7 +191,18 @@ export function WalletDashboard({ onClose }: WalletDashboardProps) {
                     )}
                 >
                     <Activity className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">Transactions</span>
+                    <span className="text-[10px] font-medium">Activity</span>
+                </button>
+
+                <button
+                    onClick={() => setActiveTab('security')}
+                    className={clsx(
+                        "flex flex-col items-center justify-center py-3 gap-1 transition-colors",
+                        activeTab === 'security' ? "text-[var(--primary)]" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    )}
+                >
+                    <Shield className="w-5 h-5" />
+                    <span className="text-[10px] font-medium">Security</span>
                 </button>
 
                 <button

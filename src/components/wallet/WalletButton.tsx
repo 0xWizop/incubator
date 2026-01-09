@@ -11,6 +11,7 @@ import {
     ArrowUpRight,
     ArrowDownLeft,
     RefreshCw,
+    ArrowDownUp,
     ChevronDown,
     Search,
     X,
@@ -147,7 +148,7 @@ export function WalletButton() {
                 className="flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl bg-[var(--primary)] text-black font-medium text-xs lg:text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
             >
                 <Wallet className="w-4 h-4" />
-                <span>{wallets.length > 0 ? 'Unlock' : 'Connect Wallet'}</span>
+                <span>{wallets.length > 0 ? 'Unlock' : 'Connect'}</span>
             </button>
         );
     }
@@ -360,19 +361,19 @@ export function WalletButton() {
 
                             {/* SEND TAB */}
                             {activeTab === 'send' && (
-                                <div className="p-3 relative">
-                                    <h3 className="font-bold text-base mb-3">Send</h3>
+                                <div className="p-4 relative">
+                                    <h3 className="font-bold text-base mb-4">Send</h3>
 
                                     {/* Token Selector Modal */}
                                     {showSendTokenSelector && (
-                                        <div className="absolute inset-0 bg-[var(--background-secondary)] z-10 p-3 rounded-2xl">
-                                            <div className="flex items-center justify-between mb-2">
+                                        <div className="absolute inset-0 bg-[var(--background-secondary)] z-10 p-4 rounded-2xl">
+                                            <div className="flex items-center justify-between mb-3">
                                                 <h4 className="font-bold text-sm">Select Asset</h4>
                                                 <button onClick={() => setShowSendTokenSelector(false)} className="p-1 rounded-lg hover:bg-[var(--background-tertiary)]">
                                                     <X className="w-4 h-4" />
                                                 </button>
                                             </div>
-                                            <div className="space-y-0.5">
+                                            <div className="space-y-1">
                                                 {tokens.map((token) => (
                                                     <button
                                                         key={token.symbol}
@@ -380,9 +381,9 @@ export function WalletButton() {
                                                             setSelectedSendToken(token);
                                                             setShowSendTokenSelector(false);
                                                         }}
-                                                        className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-[var(--background-tertiary)] transition-colors"
+                                                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--background-tertiary)] transition-colors"
                                                     >
-                                                        <img src={token.logo} className="w-7 h-7 rounded-full" />
+                                                        <img src={token.logo} className="w-8 h-8 rounded-full" />
                                                         <div className="flex-1 text-left">
                                                             <p className="text-sm font-medium">{token.symbol}</p>
                                                             <p className="text-[10px] text-[var(--foreground-muted)]">{token.name}</p>
@@ -396,10 +397,10 @@ export function WalletButton() {
                                         </div>
                                     )}
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         {/* Amount with inline token selector */}
-                                        <div className="p-2.5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                                            <div className="flex justify-between mb-1">
+                                        <div className="p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                                            <div className="flex justify-between mb-1.5">
                                                 <label className="text-[10px] text-[var(--foreground-muted)]">Amount</label>
                                                 <span className="text-[10px] text-[var(--foreground-muted)]">
                                                     Balance: {parseFloat((selectedSendToken || tokens[0]).balance).toFixed(4)}
@@ -411,23 +412,23 @@ export function WalletButton() {
                                                     value={sendAmount}
                                                     onChange={(e) => setSendAmount(e.target.value)}
                                                     placeholder="0.00"
-                                                    className="flex-1 min-w-0 bg-transparent text-xl font-bold outline-none"
+                                                    className="flex-1 min-w-0 bg-transparent text-2xl font-bold outline-none"
                                                 />
                                                 <button
                                                     onClick={() => setShowSendTokenSelector(true)}
-                                                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all flex-shrink-0"
+                                                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all flex-shrink-0"
                                                 >
                                                     <img src={(selectedSendToken || tokens[0]).logo} className="w-5 h-5 rounded-full" />
                                                     <span className="text-xs font-medium">{(selectedSendToken || tokens[0]).symbol}</span>
                                                     <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
                                                 </button>
                                             </div>
-                                            <div className="flex gap-1.5 mt-2">
+                                            <div className="flex gap-2 mt-2.5">
                                                 {[25, 50, 75, 100].map((pct) => (
                                                     <button
                                                         key={pct}
                                                         onClick={() => setSendAmount((parseFloat((selectedSendToken || tokens[0]).balance) * pct / 100).toFixed(6))}
-                                                        className="flex-1 py-1 text-[10px] rounded-lg bg-[var(--background)] hover:bg-[var(--background-tertiary)] transition-colors"
+                                                        className="flex-1 py-1.5 text-[10px] rounded-lg bg-[var(--background)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary)] transition-colors"
                                                     >
                                                         {pct === 100 ? 'MAX' : `${pct}%`}
                                                     </button>
@@ -436,20 +437,20 @@ export function WalletButton() {
                                         </div>
 
                                         {/* Recipient */}
-                                        <div className="p-2.5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                                            <label className="text-[10px] text-[var(--foreground-muted)] block mb-1">Recipient Address</label>
+                                        <div className="p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                                            <label className="text-[10px] text-[var(--foreground-muted)] block mb-1.5">Recipient Address</label>
                                             <input
                                                 type="text"
                                                 value={sendRecipient}
                                                 onChange={(e) => setSendRecipient(e.target.value)}
                                                 placeholder="Enter address..."
-                                                className="w-full bg-transparent text-xs font-mono outline-none truncate"
+                                                className="w-full bg-transparent text-sm font-mono outline-none truncate"
                                             />
                                         </div>
 
                                         <button
                                             disabled={!sendAmount || !sendRecipient}
-                                            className="w-full py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-black font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Send {(selectedSendToken || tokens[0]).symbol}
                                         </button>
@@ -490,7 +491,21 @@ export function WalletButton() {
                             {/* SWAP TAB */}
                             {activeTab === 'swap' && (
                                 <div className="p-4 relative">
-                                    <h3 className="font-bold text-lg mb-4">Swap</h3>
+                                    {/* Header with Slippage */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold text-lg">Swap</h3>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-[10px] text-[var(--foreground-muted)] mr-1">Slippage:</span>
+                                            {[0.5, 1, 2].map((s) => (
+                                                <button
+                                                    key={s}
+                                                    className="px-2 py-1 text-[10px] rounded-md bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+                                                >
+                                                    {s}%
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
 
                                     {/* From Token Selector Modal */}
                                     {showSwapFromSelector && (
@@ -555,84 +570,87 @@ export function WalletButton() {
                                         </div>
                                     )}
 
-                                    <div className="space-y-2">
-                                        {/* From */}
-                                        <div className="p-2.5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                                            <div className="flex justify-between mb-1">
-                                                <label className="text-[10px] text-[var(--foreground-muted)]">You pay</label>
-                                                <span className="text-[10px] text-[var(--foreground-muted)]">Balance: {parseFloat(tokens.find(t => t.symbol === (swapFromToken || chainConfig.symbol))?.balance || '0').toFixed(4)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="number"
-                                                    value={swapAmount}
-                                                    onChange={(e) => setSwapAmount(e.target.value)}
-                                                    placeholder="0.00"
-                                                    className="flex-1 min-w-0 bg-transparent text-xl font-bold outline-none"
-                                                />
-                                                <button
-                                                    onClick={() => setShowSwapFromSelector(true)}
-                                                    className="flex items-center gap-1 px-2 py-1.5 bg-[var(--background)] rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-all flex-shrink-0"
-                                                >
-                                                    <img src={tokens.find(t => t.symbol === (swapFromToken || chainConfig.symbol))?.logo || chainConfig.logo} className="w-5 h-5 rounded-full" />
-                                                    <span className="text-xs font-medium">{swapFromToken || chainConfig.symbol}</span>
-                                                    <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
-                                                </button>
-                                            </div>
+                                    {/* You Pay Card */}
+                                    <div className="p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs text-[var(--foreground-muted)]">You Pay</label>
+                                            <span className="text-xs text-[var(--foreground-muted)]">USD</span>
                                         </div>
-
-                                        <div className="flex justify-center -my-1 z-10 relative">
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                value={swapAmount}
+                                                onChange={(e) => setSwapAmount(e.target.value)}
+                                                placeholder="0"
+                                                className="flex-1 min-w-0 bg-transparent text-2xl font-bold outline-none placeholder:text-[var(--foreground-muted)]/40"
+                                            />
                                             <button
-                                                onClick={() => {
-                                                    const temp = swapFromToken || chainConfig.symbol;
-                                                    setSwapFromToken(swapToToken);
-                                                    setSwapToToken(temp);
-                                                }}
-                                                className="w-8 h-8 rounded-full bg-[var(--background-secondary)] border border-[var(--border)] flex items-center justify-center hover:border-[var(--border-hover)] transition-colors"
+                                                onClick={() => setShowSwapFromSelector(true)}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--background)] rounded-full border border-[var(--border)] hover:border-[var(--primary)] transition-all"
                                             >
-                                                <RefreshCw className="w-4 h-4" />
+                                                <img src={tokens.find(t => t.symbol === (swapFromToken || chainConfig.symbol))?.logo || chainConfig.logo} className="w-5 h-5 rounded-full" />
+                                                <span className="text-sm font-medium">{swapFromToken || chainConfig.symbol}</span>
+                                                <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
                                             </button>
                                         </div>
-
-                                        {/* To */}
-                                        <div className="p-2.5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                                            <label className="text-[10px] text-[var(--foreground-muted)] block mb-1">You receive</label>
-                                            <div className="flex items-center gap-2">
-                                                <span className="flex-1 min-w-0 text-xl font-bold text-[var(--foreground-muted)] truncate">
-                                                    {swapAmount ? (parseFloat(swapAmount) * price).toFixed(2) : '0.00'}
-                                                </span>
-                                                <button
-                                                    onClick={() => setShowSwapToSelector(true)}
-                                                    className="flex items-center gap-1 px-2 py-1.5 bg-[var(--background)] rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-all flex-shrink-0"
-                                                >
-                                                    <img src={tokens.find(t => t.symbol === swapToToken)?.logo || 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'} className="w-5 h-5 rounded-full" />
-                                                    <span className="text-xs font-medium">{swapToToken}</span>
-                                                    <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
-                                                </button>
+                                        {/* Quick Amount + Balance row */}
+                                        <div className="flex items-center justify-between mt-3">
+                                            <div className="flex gap-1.5">
+                                                {[25, 50, 75, 100].map((pct) => (
+                                                    <button
+                                                        key={pct}
+                                                        onClick={() => setSwapAmount((parseFloat(tokens.find(t => t.symbol === (swapFromToken || chainConfig.symbol))?.balance || '0') * pct / 100).toFixed(6))}
+                                                        className="px-2.5 py-1 text-[10px] rounded-md bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+                                                    >
+                                                        {pct === 100 ? 'Max' : `${pct}%`}
+                                                    </button>
+                                                ))}
                                             </div>
+                                            <span className="text-[10px] text-[var(--foreground-muted)]">
+                                                Bal: {parseFloat(tokens.find(t => t.symbol === (swapFromToken || chainConfig.symbol))?.balance || '0').toFixed(4)} {swapFromToken || chainConfig.symbol}
+                                            </span>
                                         </div>
+                                    </div>
 
-                                        {/* Swap Info */}
-                                        {swapAmount && parseFloat(swapAmount) > 0 && (
-                                            <div className="p-2 rounded-lg bg-[var(--background-tertiary)]/50 text-[10px] space-y-1">
-                                                <div className="flex justify-between">
-                                                    <span className="text-[var(--foreground-muted)]">Rate</span>
-                                                    <span>1 {swapFromToken || chainConfig.symbol} = ${price.toLocaleString()} {swapToToken}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-[var(--foreground-muted)]">Network Fee</span>
-                                                    <span>~$2.50</span>
-                                                </div>
-                                            </div>
-                                        )}
-
+                                    {/* Swap Direction Button - Between cards */}
+                                    <div className="flex justify-center -my-2 relative z-10">
                                         <button
-                                            disabled={!swapAmount || parseFloat(swapAmount) <= 0}
-                                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-black font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            onClick={() => {
+                                                const temp = swapFromToken || chainConfig.symbol;
+                                                setSwapFromToken(swapToToken);
+                                                setSwapToToken(temp);
+                                            }}
+                                            className="w-8 h-8 rounded-full bg-[var(--background)] border border-[var(--border)] flex items-center justify-center text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
                                         >
-                                            Swap
+                                            <ArrowDownUp className="w-4 h-4" />
                                         </button>
                                     </div>
+
+                                    {/* You Receive Card */}
+                                    <div className="p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                                        <label className="text-xs text-[var(--foreground-muted)] block mb-2">You Receive</label>
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex-1 min-w-0 text-2xl font-bold text-[var(--foreground-muted)]">
+                                                {swapAmount ? (parseFloat(swapAmount) * price).toFixed(2) : '0'}
+                                            </span>
+                                            <button
+                                                onClick={() => setShowSwapToSelector(true)}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--background)] rounded-full border border-[var(--border)] hover:border-[var(--primary)] transition-all"
+                                            >
+                                                <img src={tokens.find(t => t.symbol === swapToToken)?.logo || 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'} className="w-5 h-5 rounded-full" />
+                                                <span className="text-sm font-medium">{swapToToken}</span>
+                                                <ChevronDown className="w-3 h-3 text-[var(--foreground-muted)]" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Button */}
+                                    <button
+                                        disabled={!swapAmount || parseFloat(swapAmount) <= 0}
+                                        className="w-full py-3.5 rounded-xl bg-[var(--background-tertiary)] text-[var(--foreground-muted)] font-bold text-sm disabled:opacity-60 mt-4 hover:bg-[var(--primary)] hover:text-black disabled:hover:bg-[var(--background-tertiary)] disabled:hover:text-[var(--foreground-muted)] transition-colors"
+                                    >
+                                        {swapAmount && parseFloat(swapAmount) > 0 ? 'Swap' : 'Enter amount'}
+                                    </button>
                                 </div>
                             )}
 

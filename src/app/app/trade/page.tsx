@@ -496,11 +496,11 @@ function TradePageContent() {
     const timeframes = ['1M', '5M', '15M', '1H', '4H', '1D'];
 
     return (
-        <div className="min-h-[calc(100dvh-4rem)] lg:min-h-0 lg:h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden pb-16 lg:pb-0">
+        <div className="h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden">
             {/* Main content - Chart & Data */}
-            <div className="flex-1 flex flex-col min-w-0 lg:border-r border-[var(--border)]">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:border-r border-[var(--border)]">
                 {/* Header */}
-                <div className="px-2 sm:px-6 py-2 sm:py-4 border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                <div className="flex-shrink-0 px-2 sm:px-6 py-2 sm:py-4 border-b border-[var(--border)] bg-[var(--background-secondary)]">
                     {/* Token info - single row on mobile */}
                     <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -795,9 +795,9 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
     ];
 
     return (
-        <div className="flex flex-col bg-[var(--background-secondary)] h-[300px] lg:flex-1 lg:h-auto lg:min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col bg-[var(--background-secondary)] overflow-hidden">
             {/* Tab Header */}
-            <div className="px-2 sm:px-4 py-0 border-b border-[var(--border)] flex items-center gap-1 sm:gap-4 bg-[var(--background-secondary)] overflow-x-auto scrollbar-thin scrollbar-none">
+            <div className="flex-shrink-0 px-2 sm:px-4 py-0 border-b border-[var(--border)] flex items-center gap-1 sm:gap-4 bg-[var(--background-secondary)] overflow-x-auto scrollbar-thin scrollbar-none">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
@@ -817,35 +817,26 @@ const TradingPanel = React.memo(function TradingPanel({ tokenData }: { tokenData
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-hidden flex flex-col relative">
                 {activeTab === 'trades' && tokenData && (
                     <RecentTradesFeed chainId={tokenData.chainId} tokenData={tokenData} />
                 )}
                 {activeTab === 'swap' && (
-                    <div className="lg:hidden fixed inset-0 top-0 bottom-[64px] z-[40] bg-[var(--background)] flex flex-col">
-                        <div className="flex items-center gap-3 px-4 h-14 border-b border-[var(--border)] bg-[var(--background-secondary)] flex-shrink-0">
-                            <button
-                                onClick={() => setActiveTab('trades')}
-                                className="p-2 -ml-2 hover:bg-[var(--background-tertiary)] rounded-lg transition-colors"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
-                            <span className="font-bold">Swap</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 pb-20">
-                            <SwapPanel token={tokenData} />
+                    <div className="lg:hidden fixed inset-0 top-0 bottom-[64px] z-[40] bg-[var(--background)] flex flex-col overflow-hidden">
+                        <div className="flex-1 p-3 pb-4 overflow-hidden">
+                            <SwapPanel token={tokenData} onBack={() => setActiveTab('trades')} />
                         </div>
                     </div>
                 )}
                 {activeTab === 'orders' && (
-                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-hidden">
+                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-y-auto overscroll-contain">
                         <ArrowUpDown className="w-8 h-8 opacity-50" />
                         <p className="text-sm font-medium">No Open Orders</p>
                         <p className="text-xs text-center">Your limit orders will appear here once placed.</p>
                     </div>
                 )}
                 {activeTab === 'positions' && (
-                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-hidden">
+                    <div className="h-full flex flex-col items-center justify-start text-[var(--foreground-muted)] gap-2 p-6 pt-8 overflow-y-auto overscroll-contain">
                         <BarChart3 className="w-8 h-8 opacity-50" />
                         <p className="text-sm font-medium">No Open Positions</p>
                         <p className="text-xs text-center">Connect wallet and trade to see your positions here.</p>
@@ -1006,7 +997,7 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
     );
 });
 
-const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | null }) {
+const SwapPanel = React.memo(function SwapPanel({ token, onBack }: { token: TokenPair | null; onBack?: () => void }) {
     // Use wallet store directly
     const { activeWallet, isUnlocked, balances, activeChain, openModal } = useWalletStore();
     const { defaultSlippage } = usePreferences();
@@ -1042,26 +1033,37 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
 
     return (
         <div className="flex flex-col h-full relative z-10">
-            <div className="mb-4 sm:mb-8">
-                <h3 className="font-bold text-lg sm:text-2xl mb-1 flex items-center gap-2">
-                    Swap v2
-                </h3>
-                <p className="text-xs text-[var(--foreground-muted)]">
-                    via{' '}
-                    <a
-                        href="https://lightspeed-9288f.web.app/docs"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[var(--primary)] hover:underline"
+            {/* Header with back button (mobile) and title */}
+            <div className="flex items-center justify-between mb-3 sm:mb-6">
+                {onBack ? (
+                    <button
+                        onClick={onBack}
+                        className="p-1.5 -ml-1.5 hover:bg-[var(--background-tertiary)] rounded-lg transition-colors"
                     >
-                        Lightspeed
-                    </a>
-                </p>
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                ) : (
+                    <div />
+                )}
+                <div className="text-right">
+                    <h3 className="font-bold text-sm sm:text-2xl">Swap v2</h3>
+                    <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">
+                        via{' '}
+                        <a
+                            href="https://lightspeed-9288f.web.app/docs"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--primary)] hover:underline"
+                        >
+                            Lightspeed
+                        </a>
+                    </p>
+                </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
                 {/* Pay Input */}
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group transition-colors shadow-lg opacity-80">
+                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] group transition-colors shadow-lg opacity-80">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You pay</label>
                         <span className="text-xs text-[var(--foreground-muted)]">
@@ -1076,7 +1078,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             placeholder="0.00"
                             value={payAmount}
                             disabled
-                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
+                            className="bg-transparent text-xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
                         />
                         <button
                             disabled
@@ -1098,14 +1100,14 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                 </div>
 
                 {/* Switch Button */}
-                <div className="flex justify-center -my-4 relative z-10">
-                    <button disabled className="p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)] shadow-md cursor-not-allowed opacity-70">
+                <div className="flex justify-center -my-2 sm:-my-4 relative z-10">
+                    <button disabled className="p-2 sm:p-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)] shadow-md cursor-not-allowed opacity-70">
                         <ArrowUpDown className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Receive Input */}
-                <div className="p-3 sm:p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] transition-colors shadow-lg opacity-80">
+                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] transition-colors shadow-lg opacity-80">
                     <div className="flex justify-between mb-2">
                         <label className="text-xs text-[var(--foreground-muted)] font-medium">You receive</label>
                         <span className="text-xs text-[var(--foreground-muted)]">Balance: ---</span>
@@ -1115,7 +1117,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
                             type="text"
                             placeholder="0.00"
                             value={receiveAmount}
-                            className="bg-transparent text-2xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
+                            className="bg-transparent text-xl sm:text-3xl font-mono font-bold outline-none w-full placeholder:text-[var(--foreground-muted)]/30 cursor-not-allowed text-[var(--foreground-muted)]"
                             readOnly
                             disabled
                         />
@@ -1135,7 +1137,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
             </div>
 
             {/* Price Info */}
-            <div className="mt-6 mb-4 p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-3 opacity-60">
+            <div className="mt-3 sm:mt-6 mb-2 sm:mb-4 p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-1.5 sm:space-y-3 opacity-60">
                 <div className="flex justify-between text-sm">
                     <span className="text-[var(--foreground-muted)]">Rate</span>
                     <span className="font-mono text-xs">1 {token?.quoteToken?.symbol || 'Quote'} ≈ {token?.priceUsd && token?.quoteToken?.symbol ? (1 / (token.priceUsd / (token.quoteToken.symbol === 'SOL' ? 190 : token.quoteToken.symbol === 'ETH' ? 3500 : 1))).toFixed(2) : '---'} {token?.baseToken.symbol}</span>
@@ -1158,7 +1160,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
             </div>
 
             {/* Maintenance Message (Small popup/banner) */}
-            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+            <div className="mb-2 sm:mb-4 p-2 sm:p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 sm:gap-3">
                 <Wrench className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-200/80 leading-relaxed">
                     <span className="font-bold text-amber-500 block mb-0.5">Under Maintenance</span>
@@ -1168,7 +1170,7 @@ const SwapPanel = React.memo(function SwapPanel({ token }: { token: TokenPair | 
 
             <button
                 disabled
-                className="mt-auto w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed border border-[var(--border)]"
+                className="mt-auto w-full py-2.5 sm:py-4 text-sm sm:text-lg font-bold rounded-xl bg-[var(--background-tertiary)] text-[var(--foreground-muted)] cursor-not-allowed border border-[var(--border)]"
             >
                 Maintenance Mode
             </button>

@@ -4,3 +4,5 @@ export { SwapTab } from './SwapTab';
 export { SendTab } from './SendTab';
 export { ReceiveTab } from './ReceiveTab';
 export { SettingsTab } from './SettingsTab';
+export { WalletSecurityTab } from './WalletSecurityTab';
+

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpDown, ChevronDown, Settings, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ArrowDownUp, ChevronDown, Settings } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
 import { CHAINS } from '@/lib/wallet';
@@ -24,7 +24,6 @@ export function SwapTab() {
 
     // Mock price calculation
     const price = activeWallet?.type === 'solana' ? 180 : 3500;
-    const calculatedToAmount = fromAmount ? (parseFloat(fromAmount) * price).toFixed(2) : '';
 
     const handleSwapDirection = () => {
         setFromToken(toToken);
@@ -35,6 +34,15 @@ export function SwapTab() {
 
     const handleSwap = () => {
         alert('Lightspeed integration coming soon! This will enable fast cross-chain swaps.');
+    };
+
+    const handlePercentageClick = (percentage: number) => {
+        const balance = parseFloat(currentBalance);
+        if (balance > 0) {
+            const newAmount = (balance * percentage / 100).toFixed(6);
+            setFromAmount(newAmount);
+            setToAmount((parseFloat(newAmount) * price).toFixed(2));
+        }
     };
 
     return (
@@ -96,12 +104,12 @@ export function SwapTab() {
                 </div>
             )}
 
-            {/* From Token */}
+            {/* From Token (You Pay) */}
             <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)]">
                 <div className="flex justify-between mb-2">
                     <label className="text-xs text-[var(--foreground-muted)]">You pay</label>
                     <span className="text-xs text-[var(--foreground-muted)]">
-                        Balance: {parseFloat(currentBalance).toFixed(4)} {chainConfig.symbol}
+                        Bal: {parseFloat(currentBalance).toFixed(4)} {chainConfig.symbol}
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -121,34 +129,36 @@ export function SwapTab() {
                         <ChevronDown className="w-4 h-4 text-[var(--foreground-muted)]" />
                     </button>
                 </div>
-                {parseFloat(currentBalance) > 0 && (
-                    <button
-                        onClick={() => {
-                            setFromAmount(currentBalance);
-                            setToAmount((parseFloat(currentBalance) * price).toFixed(2));
-                        }}
-                        className="text-xs text-[var(--primary)] mt-2 hover:underline"
-                    >
-                        Max
-                    </button>
-                )}
+
+                {/* Quick Amount Selectors */}
+                <div className="flex gap-2 mt-3">
+                    {[25, 50, 75, 100].map((pct) => (
+                        <button
+                            key={pct}
+                            onClick={() => handlePercentageClick(pct)}
+                            className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary)] transition-all"
+                        >
+                            {pct === 100 ? 'Max' : `${pct}%`}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Swap Direction Button */}
             <div className="flex justify-center -my-2 relative z-10">
                 <button
                     onClick={handleSwapDirection}
-                    className="p-3 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] hover:border-[var(--border-hover)] text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-all shadow-lg hover:scale-110 active:scale-95"
+                    className="p-3 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] hover:border-[var(--border-hover)] text-[var(--primary)] hover:text-[var(--primary)] transition-all shadow-lg hover:scale-110 active:scale-95"
                 >
-                    <ArrowUpDown className="w-5 h-5" />
+                    <ArrowDownUp className="w-5 h-5" />
                 </button>
             </div>
 
-            {/* To Token */}
+            {/* To Token (You Receive) */}
             <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)]">
                 <div className="flex justify-between mb-2">
                     <label className="text-xs text-[var(--foreground-muted)]">You receive</label>
-                    <span className="text-xs text-[var(--foreground-muted)]">Balance: ---</span>
+                    <span className="text-xs text-[var(--foreground-muted)]">Bal: 0.0000</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <input
@@ -168,7 +178,7 @@ export function SwapTab() {
 
             {/* Swap Info */}
             {fromAmount && (
-                <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-2 text-sm">
+                <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-1.5 text-sm">
                     <div className="flex justify-between">
                         <span className="text-[var(--foreground-muted)]">Rate</span>
                         <span className="font-mono text-xs">1 {fromToken} = {price.toLocaleString()} {toToken}</span>
@@ -190,7 +200,7 @@ export function SwapTab() {
                     onClick={() => openModal()}
                     className="w-full py-4 text-lg font-bold rounded-xl transition-all bg-[var(--primary)] text-black shadow-[0_0_15px_var(--primary-glow)] hover:opacity-90 hover:shadow-[0_0_25px_var(--primary-glow)]"
                 >
-                    Connect Wallet
+                    Connect
                 </button>
             ) : (
                 <button
@@ -209,3 +219,4 @@ export function SwapTab() {
         </div>
     );
 }
+

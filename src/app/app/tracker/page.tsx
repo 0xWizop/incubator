@@ -27,55 +27,41 @@ export default function TrackerPage() {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="p-4 border-b border-[var(--border)]">
-                <div className="flex items-center justify-between mb-4">
+            <div className="p-3 sm:p-4 border-b border-[var(--border)]">
+                <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Eye className="w-6 h-6 text-[var(--primary)]" />
-                            Wallet Tracker
+                        <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                            <Eye className="w-5 h-5 text-[var(--primary)]" />
+                            Tracker
                         </h1>
-                        <p className="text-sm text-[var(--foreground-muted)] mt-1">
-                            Monitor any wallet for trades and activity
+                        <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
+                            Monitor wallet activity
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-black font-medium rounded-lg hover:opacity-90 transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Wallet
-                    </button>
-                </div>
-
-                {/* Chain Filter */}
-                <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-[var(--foreground-muted)]" />
-                    <button
-                        onClick={() => setSelectedChain('all')}
-                        className={clsx(
-                            'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                            selectedChain === 'all'
-                                ? 'bg-[var(--primary)] text-black'
-                                : 'bg-[var(--background-tertiary)] hover:bg-[var(--background)]'
-                        )}
-                    >
-                        All Chains
-                    </button>
-                    {Object.entries(CHAIN_LOGOS).map(([id, logo]) => (
+                    <div className="flex items-center gap-2">
+                        {/* Chain Filter Dropdown */}
+                        <div className="relative">
+                            <select
+                                value={selectedChain}
+                                onChange={(e) => setSelectedChain(e.target.value as ChainId | 'all')}
+                                className="appearance-none px-3 py-1.5 pr-7 rounded-lg text-xs font-medium bg-[var(--background-tertiary)] border border-[var(--border)] focus:border-[var(--primary)] outline-none cursor-pointer"
+                            >
+                                <option value="all">All</option>
+                                <option value="ethereum">ETH</option>
+                                <option value="base">Base</option>
+                                <option value="arbitrum">ARB</option>
+                                <option value="solana">SOL</option>
+                            </select>
+                            <Filter className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--foreground-muted)] pointer-events-none" />
+                        </div>
                         <button
-                            key={id}
-                            onClick={() => setSelectedChain(id as ChainId)}
-                            className={clsx(
-                                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                                selectedChain === id
-                                    ? 'bg-[var(--primary)] text-black'
-                                    : 'bg-[var(--background-tertiary)] hover:bg-[var(--background)]'
-                            )}
+                            onClick={() => setShowAddModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-black text-xs font-medium rounded-lg hover:opacity-90 transition-colors"
                         >
-                            <img src={logo} alt={id} className="w-4 h-4 rounded-full" />
-                            <span className="capitalize">{id}</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            Add
                         </button>
-                    ))}
+                    </div>
                 </div>
             </div>
 

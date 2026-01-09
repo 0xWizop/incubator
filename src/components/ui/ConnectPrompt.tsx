@@ -22,7 +22,7 @@ export function ConnectPrompt({ message, onConnect }: ConnectPromptProps) {
                 onClick={onConnect}
                 className="px-6 py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
             >
-                Connect Wallet
+                Connect
             </button>
         </div>
     );

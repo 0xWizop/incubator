@@ -37,7 +37,7 @@ const navigation = [
     { name: 'Screener', href: '/app/screener/', icon: Search },
     { name: 'Explorer', href: '/app/explorer/', icon: Compass },
     { name: 'News', href: '/app/news/', icon: Newspaper },
-    { name: 'Wallet Tracker', href: '/app/tracker/', icon: Eye },
+    { name: 'Tracker', href: '/app/tracker/', icon: Eye },
     { name: 'Dashboard', href: '/app/dashboard/', icon: LayoutDashboard },
     { name: 'Rewards', href: '/app/rewards/', icon: Gift },
     { name: 'dApps', href: 'https://dappincubator.xyz', icon: Boxes, external: true, desktopOnly: true },
@@ -379,11 +379,11 @@ export function Header() {
 
                 {/* Right side */}
                 <div className="flex items-center gap-3">
-                    {/* News button */}
+                    {/* News button - desktop only */}
                     <button
                         onClick={() => setShowNewsPanel(!showNewsPanel)}
                         className={clsx(
-                            'p-2 rounded-lg transition-all',
+                            'hidden lg:block p-2 rounded-lg transition-all',
                             showNewsPanel
                                 ? 'bg-[var(--primary)]/20 text-[var(--primary)] shadow-[0_0_15px_var(--primary-glow)]'
                                 : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'
@@ -393,11 +393,11 @@ export function Header() {
                         <Newspaper className="w-5 h-5" />
                     </button>
 
-                    {/* Tracker button */}
+                    {/* Tracker button - desktop only */}
                     <button
                         onClick={() => setShowTrackerPanel(!showTrackerPanel)}
                         className={clsx(
-                            'p-2 rounded-lg transition-all',
+                            'hidden lg:block p-2 rounded-lg transition-all',
                             showTrackerPanel
                                 ? 'bg-[var(--primary)]/20 text-[var(--primary)] shadow-[0_0_15px_var(--primary-glow)]'
                                 : 'text-[var(--foreground-muted)] hover:bg-[var(--background-tertiary)] hover:text-[var(--foreground)]'

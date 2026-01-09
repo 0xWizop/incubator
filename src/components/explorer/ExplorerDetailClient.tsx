@@ -337,73 +337,79 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
     const txFee = (gasUsed * gasPrice) / 1e18;
 
     return (
-        <div className="p-4 sm:p-6 max-w-6xl mx-auto pb-20 lg:pb-6">
-            <Breadcrumb items={[{ label: 'Transaction' }, { label: shortHash }]} />
+        <div className="flex flex-col h-full p-4 sm:p-6 pb-0 max-w-6xl mx-auto w-full overflow-hidden">
+            {/* Fixed Header Section */}
+            <div className="flex-shrink-0">
+                <Breadcrumb items={[{ label: 'Transaction' }, { label: shortHash }]} />
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <div className={clsx('p-3 rounded-xl', isSuccess ? 'bg-[var(--accent-green)]/10' : 'bg-[var(--accent-red)]/10')}>
-                        {isSuccess ? <CheckCircle className="w-6 h-6 text-[var(--accent-green)]" /> : <XCircle className="w-6 h-6 text-[var(--accent-red)]" />}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-4">
+                    <div className="flex items-center gap-3">
+                        <div className={clsx('p-3 rounded-xl', isSuccess ? 'bg-[var(--accent-green)]/10' : 'bg-[var(--accent-red)]/10')}>
+                            {isSuccess ? <CheckCircle className="w-6 h-6 text-[var(--accent-green)]" /> : <XCircle className="w-6 h-6 text-[var(--accent-red)]" />}
+                        </div>
+                        <div>
+                            <h1 className="text-xl sm:text-2xl font-bold">Transaction Details</h1>
+                            <p className="text-sm text-[var(--foreground-muted)]">{isSuccess ? 'Success' : 'Failed'}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold">Transaction Details</h1>
-                        <p className="text-sm text-[var(--foreground-muted)]">{isSuccess ? 'Success' : 'Failed'}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
-                        <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
-                        <span className="text-sm font-medium capitalize">{selectedChain}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="card p-4 sm:p-6 mb-6">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Hash className="w-5 h-5" /> Transaction Hash</h2>
-                <div className="flex items-center gap-3 p-3 bg-[var(--background-tertiary)] rounded-xl">
-                    <code className="flex-1 font-mono text-sm break-all">{hash}</code>
-                    <CopyButton text={hash} />
-                </div>
-            </div>
-
-            <div className="card p-4 sm:p-6 mb-6">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User className="w-5 h-5" /> Parties</h2>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                    <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
-                        <p className="text-xs text-[var(--foreground-muted)] mb-1">From</p>
-                        <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.from}</Link>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-[var(--foreground-muted)] hidden sm:block" />
-                    <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
-                        <p className="text-xs text-[var(--foreground-muted)] mb-1">To</p>
-                        {transaction.to ? (
-                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.to}</Link>
-                        ) : <span className="text-sm text-[var(--foreground-muted)]">Contract Creation</span>}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
+                            <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
+                            <span className="text-sm font-medium capitalize">{selectedChain}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div className="card p-4">
-                    <p className="text-xs text-[var(--foreground-muted)] mb-1">Value</p>
-                    <p className="font-bold text-lg">{parseFloat(transaction.value).toFixed(6)} ETH</p>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain pb-4 sm:pb-6 space-y-4">
+                <div className="card p-4 sm:p-6">
+                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Hash className="w-5 h-5" /> Transaction Hash</h2>
+                    <div className="flex items-center gap-3 p-3 bg-[var(--background-tertiary)] rounded-xl">
+                        <code className="flex-1 font-mono text-sm break-all">{hash}</code>
+                        <CopyButton text={hash} />
+                    </div>
                 </div>
-                <div className="card p-4">
-                    <p className="text-xs text-[var(--foreground-muted)] mb-1">Block</p>
-                    <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}`} className="font-bold text-lg text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
-                </div>
-                <div className="card p-4">
-                    <p className="text-xs text-[var(--foreground-muted)] mb-1">Fee</p>
-                    <p className="font-bold text-lg">{txFee.toFixed(6)} ETH</p>
-                </div>
-            </div>
 
-            <div className="card p-4 sm:p-6">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Fuel className="w-5 h-5" /> Gas Details</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Used</p><p className="font-mono text-sm">{gasUsed.toLocaleString()}</p></div>
-                    <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Price</p><p className="font-mono text-sm">{(gasPrice / 1e9).toFixed(2)} Gwei</p></div>
-                    <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Nonce</p><p className="font-mono text-sm">{transaction.nonce || 0}</p></div>
+                <div className="card p-4 sm:p-6">
+                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User className="w-5 h-5" /> Parties</h2>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                        <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
+                            <p className="text-xs text-[var(--foreground-muted)] mb-1">From</p>
+                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.from}</Link>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-[var(--foreground-muted)] hidden sm:block" />
+                        <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
+                            <p className="text-xs text-[var(--foreground-muted)] mb-1">To</p>
+                            {transaction.to ? (
+                                <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.to}</Link>
+                            ) : <span className="text-sm text-[var(--foreground-muted)]">Contract Creation</span>}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="card p-4">
+                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Value</p>
+                        <p className="font-bold text-lg">{parseFloat(transaction.value).toFixed(6)} ETH</p>
+                    </div>
+                    <div className="card p-4">
+                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Block</p>
+                        <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}`} className="font-bold text-lg text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
+                    </div>
+                    <div className="card p-4">
+                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Fee</p>
+                        <p className="font-bold text-lg">{txFee.toFixed(6)} ETH</p>
+                    </div>
+                </div>
+
+                <div className="card p-4 sm:p-6">
+                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Fuel className="w-5 h-5" /> Gas Details</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Used</p><p className="font-mono text-sm">{gasUsed.toLocaleString()}</p></div>
+                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Price</p><p className="font-mono text-sm">{(gasPrice / 1e9).toFixed(2)} Gwei</p></div>
+                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Nonce</p><p className="font-mono text-sm">{transaction.nonce || 0}</p></div>
+                    </div>
                 </div>
             </div>
         </div>

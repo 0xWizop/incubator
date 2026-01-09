@@ -4,16 +4,8 @@ import { useState } from 'react';
 import {
     Wallet,
     Plus,
-    Key,
     Lock,
-    LogOut,
-    ChevronRight,
-    AlertTriangle,
-    Eye,
-    EyeOff,
     Check,
-    Download,
-    Trash2,
     Sun,
     Moon,
     Monitor,
@@ -25,20 +17,16 @@ import { useTheme } from 'next-themes';
 import { useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
-import { getSessionKey, getStoredWalletData, clearStoredWalletData } from '@/lib/wallet';
 
 interface SettingsTabProps {
     onLock: () => void;
 }
 
 export function SettingsTab({ onLock }: SettingsTabProps) {
-    const { wallets, activeWallet, setActiveWallet, openModal, initialize, renameWallet } = useWalletStore();
+    const { wallets, activeWallet, setActiveWallet, openModal, renameWallet } = useWalletStore();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const [showPrivateKey, setShowPrivateKey] = useState(false);
-    const [privateKeyVisible, setPrivateKeyVisible] = useState(false);
     const [confirmLock, setConfirmLock] = useState(false);
-    const [revealedKey, setRevealedKey] = useState<string | null>(null);
 
     // Rename state
     const [editingWallet, setEditingWallet] = useState<string | null>(null);
@@ -47,41 +35,6 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
     useEffect(() => {
         setMounted(true);
     }, []);
-
-    const handleExportKey = () => {
-        if (!activeWallet) return;
-
-        const key = getSessionKey(activeWallet.address);
-        if (key) {
-            setRevealedKey(key);
-            setShowPrivateKey(true);
-        } else {
-            // Should not happen if unlocked, but handle gracefully
-            alert('Session expired. Please lock and unlock your wallet.');
-        }
-    };
-
-    const handleBackup = () => {
-        const data = getStoredWalletData();
-        if (!data) return;
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cypherx-wallet-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
-    const handleResetWallet = () => {
-        if (window.confirm('Are you sure you want to completely erase your wallet? This action cannot be undone. Make sure you have a backup.')) {
-            clearStoredWalletData();
-            window.location.reload();
-        }
-    };
 
     const handleLockWallet = () => {
         if (confirmLock) {
@@ -247,41 +200,12 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                 </div>
             </div>
 
-            {/* Security */}
+            {/* Quick Actions */}
             <div>
                 <h4 className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider mb-3 px-1">
-                    Security & Backup
+                    Quick Actions
                 </h4>
                 <div className="space-y-2">
-                    {/* Backup JSON */}
-                    <button
-                        onClick={handleBackup}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--background-tertiary)] flex items-center justify-center">
-                            <Download className="w-5 h-5 text-[var(--primary)]" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="font-medium text-sm">Download Backup</p>
-                            <p className="text-xs text-[var(--foreground-muted)]">Save encrypted wallet file (JSON)</p>
-                        </div>
-                    </button>
-
-                    {/* Export Private Key */}
-                    <button
-                        onClick={handleExportKey}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--accent-red)]/50 transition-all group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-red)]/10 flex items-center justify-center">
-                            <Key className="w-5 h-5 text-[var(--accent-red)]" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="font-medium text-sm">Export Private Key</p>
-                            <p className="text-xs text-[var(--foreground-muted)]">View and copy your private key</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)] group-hover:text-[var(--accent-red)]" />
-                    </button>
-
                     {/* Lock Wallet */}
                     <button
                         onClick={handleLockWallet}
@@ -304,94 +228,15 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                             </p>
                         </div>
                     </button>
-
-                    {/* Reset Wallet */}
-                    <button
-                        onClick={handleResetWallet}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:bg-[var(--accent-red)]/10 hover:border-[var(--accent-red)] transition-all group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-red)]/5 flex items-center justify-center">
-                            <Trash2 className="w-5 h-5 text-[var(--accent-red)]" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="font-medium text-sm text-[var(--accent-red)]">Reset App</p>
-                            <p className="text-xs text-[var(--foreground-muted)]">Delete all data from browser</p>
-                        </div>
-                    </button>
                 </div>
             </div>
 
-            {/* Private Key Modal */}
-            {
-                showPrivateKey && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-                        <div
-                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                            onClick={() => {
-                                setShowPrivateKey(false);
-                                setPrivateKeyVisible(false);
-                            }}
-                        />
-                        <div className="relative w-full max-w-md bg-[var(--background-secondary)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl">
-                            <div className="flex gap-3 p-3 rounded-xl bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 mb-4">
-                                <AlertTriangle className="w-5 h-5 text-[var(--accent-red)] flex-shrink-0" />
-                                <div className="text-xs text-[var(--foreground-muted)]">
-                                    <p className="font-medium text-[var(--accent-red)] mb-1">Warning</p>
-                                    <p>Never share your private key. Anyone with this key has full control of your wallet.</p>
-                                </div>
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-                                <div className="flex justify-between items-center mb-2">
-                                    <p className="text-xs text-[var(--foreground-muted)]">
-                                        {activeWallet?.type === 'solana' ? 'Private Key (Base58)' : 'Private Key'}
-                                    </p>
-                                    <button
-                                        onClick={() => setPrivateKeyVisible(!privateKeyVisible)}
-                                        className="p-1.5 hover:bg-[var(--border)] rounded-lg transition-colors"
-                                    >
-                                        {privateKeyVisible ? (
-                                            <EyeOff className="w-4 h-4 text-[var(--foreground-muted)]" />
-                                        ) : (
-                                            <Eye className="w-4 h-4 text-[var(--foreground-muted)]" />
-                                        )}
-                                    </button>
-                                </div>
-                                <div className="relative min-h-[40px] flex items-center">
-                                    <p className="font-mono text-sm break-all w-full leading-5">
-                                        {privateKeyVisible
-                                            ? revealedKey
-                                            : '•'.repeat(Math.min(revealedKey?.length || 64, 64))
-                                        }
-                                    </p>
-                                    {privateKeyVisible && (
-                                        <button
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(revealedKey || '');
-                                                alert('Copied to clipboard');
-                                            }}
-                                            className="absolute right-0 bottom-0 p-1.5 bg-[var(--background-tertiary)] hover:bg-[var(--background)] rounded-lg border border-[var(--border)] shadow-sm"
-                                            title="Copy"
-                                        >
-                                            <Key className="w-3 h-3" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    setShowPrivateKey(false);
-                                    setPrivateKeyVisible(false);
-                                }}
-                                className="w-full mt-4 py-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-medium hover:border-[var(--border-hover)] transition-all"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Security Notice */}
+            <div className="p-3 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                <p className="text-xs text-[var(--foreground-muted)]">
+                    For private keys, backups, and advanced security options, visit the <span className="text-[var(--primary)] font-medium">Security</span> tab.
+                </p>
+            </div>
         </div >
     );
 }
