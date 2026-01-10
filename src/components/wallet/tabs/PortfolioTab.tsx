@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     ArrowUpRight,
     ArrowDownLeft,
     RefreshCw,
     Plus,
-    Maximize2
+    Maximize2,
+    History
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useWalletStore } from '@/store/walletStore';
@@ -24,6 +26,7 @@ interface TokenHolding {
 }
 
 export function PortfolioTab() {
+    const router = useRouter();
     const { activeWallet, balances, activeChain } = useWalletStore();
     const { hideBalances } = usePreferences();
     const { formatCurrency } = useCurrency();

@@ -5,6 +5,7 @@ import { Sidebar, Header, BottomTabNav } from '@/components/layout';
 import { useAuth } from '@/context/AuthContext';
 import { useWatchlistStore } from '@/store';
 import { useAlertMonitor } from '@/hooks/useAlertMonitor';
+import { NewsMonitor } from '@/components/news/NewsMonitor';
 
 export default function AppLayout({
     children,
@@ -17,7 +18,6 @@ export default function AppLayout({
     // Enable price alert monitoring
     useAlertMonitor();
 
-    // Initialize watchlist store globally when user is authenticated
     useEffect(() => {
         // Only initialize if not already done or if user changes
         if (firebaseUser?.uid) {
@@ -31,6 +31,7 @@ export default function AppLayout({
 
     return (
         <div className="flex h-screen overflow-hidden">
+            <NewsMonitor />
             {/* Sidebar */}
             <Sidebar />
 

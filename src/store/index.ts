@@ -72,6 +72,7 @@ export { useWalletStore } from './walletStore';
 
 // Re-export watchlist store
 export { useWatchlistStore } from './watchlistStore';
+export { usePortfolioStore } from './portfolioStore';
 
 // Trading state
 interface TradingState {

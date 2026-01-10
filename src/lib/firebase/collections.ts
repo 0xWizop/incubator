@@ -15,7 +15,26 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Trade, Referral, Rewards, ChainId, UserPreferences, Watchlist, WatchlistToken, PriceAlert, TrackedWallet, WalletActivity } from '@/types';
+import {
+    User,
+    Trade,
+    Referral,
+    Rewards,
+    ChainId,
+    UserPreferences,
+    Watchlist,
+    WatchlistToken,
+    PriceAlert,
+    TrackedWallet,
+    WalletActivity,
+    PortfolioSnapshot,
+    SnapshotHolding,
+    SharedWatchlist,
+    WatchlistVisibility,
+    WatchlistFollower,
+    EnhancedPriceAlert,
+    AlertConditionType,
+} from '@/types';
 
 // Helper to normalize IDs (lowercase addresses, keep UIDs as is)
 function normalizeId(id: string): string {
@@ -31,6 +50,8 @@ export const rewardsCollection = collection(db, 'rewards');
 export const watchlistsCollection = collection(db, 'watchlists');
 export const alertsCollection = collection(db, 'alerts');
 export const trackedWalletsCollection = collection(db, 'trackedWallets');
+export const portfolioSnapshotsCollection = collection(db, 'portfolioSnapshots');
+export const watchlistFollowersCollection = collection(db, 'watchlistFollowers');
 
 // Default user preferences
 export const defaultPreferences: UserPreferences = {
@@ -38,7 +59,8 @@ export const defaultPreferences: UserPreferences = {
     defaultChain: 'solana',
     // Trading defaults
     defaultSlippage: 1, // 1% default
-    customSlippage: undefined,
+    // customSlippage: undefined - removed to avoid Firestore error
+    // Display defaults
     // Display defaults
     currencyDisplay: 'USD',
     hideBalances: false,
@@ -47,6 +69,7 @@ export const defaultPreferences: UserPreferences = {
         tradeAlerts: false,
         rewardUpdates: true,
         priceAlerts: false,
+        newsAlerts: false,
     },
 };
 
@@ -176,8 +199,11 @@ export async function updateUserPreferences(
             },
         };
 
+        // Sanitize preferences to remove undefined values which Firestore doesn't support
+        const safePrefs = JSON.parse(JSON.stringify(updatedPrefs));
+
         await updateDoc(doc(usersCollection, normalizeId(userId)), {
-            preferences: updatedPrefs,
+            preferences: safePrefs,
             lastActive: serverTimestamp(),
         });
 
@@ -985,6 +1011,365 @@ export async function deleteTrackedWallet(walletId: string): Promise<boolean> {
         return true;
     } catch (error) {
         console.error('Error deleting tracked wallet:', error);
+        return false;
+    }
+}
+
+// === COPY TRADING FUNCTIONS ===
+
+import { Trader, CopyRelationship, CopySettings, CopyPerformance, CopiedTrade, TraderApplication } from '@/types';
+
+export const tradersCollection = collection(db, 'traders');
+export const copyRelationshipsCollection = collection(db, 'copyRelationships');
+export const copiedTradesCollection = collection(db, 'copiedTrades');
+
+// Generate mock traders for demo (will be replaced with real data later)
+const MOCK_TRADERS: Trader[] = [
+    {
+        id: 'trader-sol-whale',
+        walletAddress: 'CxU6...BDp8',
+        displayName: 'SolanaWhale',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=SolanaWhale',
+        bio: 'Full-time Solana degen. 3+ years trading memecoins and DeFi. DYOR, NFA.',
+        isVerified: true,
+        isPro: true,
+        stats: {
+            followers: 847,
+            totalVolume: 2450000,
+            winRate: 72.5,
+            roi7d: 18.4,
+            roi30d: 127.5,
+            roi90d: 342.1,
+            roiAllTime: 1250.0,
+            totalTrades: 1234,
+            profitableTrades: 894,
+            avgTradeSize: 1985,
+            activeChains: ['solana'],
+        },
+        settings: {
+            allowCopying: true,
+            commissionRate: 10,
+            minCopyAmount: 50,
+            maxCopiers: 1000,
+        },
+        createdAt: new Date('2023-06-15'),
+        lastTradeAt: new Date(),
+    },
+    {
+        id: 'trader-defi-master',
+        walletAddress: '0x742d...f44e',
+        displayName: 'DeFiMaster',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=DeFiMaster',
+        bio: 'Swing trading ETH and major alts. Risk-managed positions with tight stops.',
+        isVerified: true,
+        isPro: true,
+        stats: {
+            followers: 612,
+            totalVolume: 1850000,
+            winRate: 68.2,
+            roi7d: 8.2,
+            roi30d: 98.2,
+            roi90d: 215.4,
+            roiAllTime: 890.0,
+            totalTrades: 892,
+            profitableTrades: 608,
+            avgTradeSize: 2075,
+            activeChains: ['ethereum', 'arbitrum'],
+        },
+        settings: {
+            allowCopying: true,
+            commissionRate: 10,
+            minCopyAmount: 100,
+            maxCopiers: 500,
+        },
+        createdAt: new Date('2023-08-20'),
+        lastTradeAt: new Date(),
+    },
+    {
+        id: 'trader-meme-king',
+        walletAddress: '7xKp...9mNz',
+        displayName: 'MemeKing',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=MemeKing',
+        bio: '🐸 Early meme hunter. Finding the next 100x before CT. High risk, high reward.',
+        isVerified: true,
+        isPro: true,
+        stats: {
+            followers: 891,
+            totalVolume: 980000,
+            winRate: 45.8,
+            roi7d: 42.1,
+            roi30d: 82.1,
+            roi90d: 567.3,
+            roiAllTime: 2100.0,
+            totalTrades: 2456,
+            profitableTrades: 1124,
+            avgTradeSize: 399,
+            activeChains: ['solana', 'base'],
+        },
+        settings: {
+            allowCopying: true,
+            commissionRate: 15,
+            minCopyAmount: 25,
+            maxCopiers: 2000,
+        },
+        createdAt: new Date('2024-01-10'),
+        lastTradeAt: new Date(),
+    },
+    {
+        id: 'trader-base-builder',
+        walletAddress: '0xa3c1...8e2f',
+        displayName: 'BaseBuilder',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=BaseBuilder',
+        bio: 'Base ecosystem specialist. Focused on sustainable gains and new launches.',
+        isVerified: true,
+        isPro: true,
+        stats: {
+            followers: 324,
+            totalVolume: 520000,
+            winRate: 65.4,
+            roi7d: 12.3,
+            roi30d: 45.6,
+            roi90d: 120.8,
+            roiAllTime: 380.0,
+            totalTrades: 456,
+            profitableTrades: 298,
+            avgTradeSize: 1140,
+            activeChains: ['base'],
+        },
+        settings: {
+            allowCopying: true,
+            commissionRate: 8,
+            minCopyAmount: 50,
+            maxCopiers: 300,
+        },
+        createdAt: new Date('2024-03-01'),
+        lastTradeAt: new Date(),
+    },
+    {
+        id: 'trader-arb-alpha',
+        walletAddress: '0xb7d2...4a1c',
+        displayName: 'ArbAlpha',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=ArbAlpha',
+        bio: 'Arbitrum OG. Finding alpha in the L2 ecosystem since day 1.',
+        isVerified: false,
+        isPro: true,
+        stats: {
+            followers: 198,
+            totalVolume: 340000,
+            winRate: 58.2,
+            roi7d: 5.8,
+            roi30d: 32.4,
+            roi90d: 89.2,
+            roiAllTime: 210.0,
+            totalTrades: 312,
+            profitableTrades: 182,
+            avgTradeSize: 1090,
+            activeChains: ['arbitrum'],
+        },
+        settings: {
+            allowCopying: true,
+            commissionRate: 10,
+            minCopyAmount: 75,
+            maxCopiers: 200,
+        },
+        createdAt: new Date('2024-02-15'),
+        lastTradeAt: new Date(),
+    },
+];
+
+// Get all traders (leaderboard)
+export async function getTraders(
+    sortBy: 'roi30d' | 'followers' | 'winRate' | 'totalVolume' = 'roi30d',
+    limitCount = 20
+): Promise<Trader[]> {
+    try {
+        // For MVP, return mock data sorted
+        // Later: query Firestore
+        const sorted = [...MOCK_TRADERS].sort((a, b) => {
+            switch (sortBy) {
+                case 'roi30d':
+                    return b.stats.roi30d - a.stats.roi30d;
+                case 'followers':
+                    return b.stats.followers - a.stats.followers;
+                case 'winRate':
+                    return b.stats.winRate - a.stats.winRate;
+                case 'totalVolume':
+                    return b.stats.totalVolume - a.stats.totalVolume;
+                default:
+                    return b.stats.roi30d - a.stats.roi30d;
+            }
+        });
+        return sorted.slice(0, limitCount);
+    } catch (error) {
+        console.error('Error getting traders:', error);
+        return [];
+    }
+}
+
+// Get single trader by ID
+export async function getTraderById(traderId: string): Promise<Trader | null> {
+    try {
+        // For MVP, search mock data
+        // Later: query Firestore
+        const trader = MOCK_TRADERS.find(t => t.id === traderId);
+        return trader || null;
+    } catch (error) {
+        console.error('Error getting trader:', error);
+        return null;
+    }
+}
+
+// Follow/copy a trader
+export async function followTrader(
+    userId: string,
+    traderId: string,
+    settings: CopySettings
+): Promise<CopyRelationship | null> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        const now = new Date();
+
+        const relationship: CopyRelationship = {
+            id: relationshipId,
+            copierId: normalizeId(userId),
+            traderId,
+            settings,
+            performance: {
+                totalCopiedTrades: 0,
+                totalVolume: 0,
+                totalProfit: 0,
+                totalLoss: 0,
+                currentRoi: 0,
+            },
+            totalCommissionPaid: 0,
+            createdAt: now,
+            startedAt: now,
+        };
+
+        await setDoc(doc(copyRelationshipsCollection, relationshipId), {
+            ...relationship,
+            createdAt: serverTimestamp(),
+            startedAt: serverTimestamp(),
+        });
+
+        return relationship;
+    } catch (error) {
+        console.error('Error following trader:', error);
+        return null;
+    }
+}
+
+// Unfollow/stop copying a trader
+export async function unfollowTrader(userId: string, traderId: string): Promise<boolean> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        await deleteDoc(doc(copyRelationshipsCollection, relationshipId));
+        return true;
+    } catch (error) {
+        console.error('Error unfollowing trader:', error);
+        return false;
+    }
+}
+
+// Pause copying a trader
+export async function pauseCopying(userId: string, traderId: string): Promise<boolean> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        await updateDoc(doc(copyRelationshipsCollection, relationshipId), {
+            'settings.isActive': false,
+            pausedAt: serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        console.error('Error pausing copy:', error);
+        return false;
+    }
+}
+
+// Resume copying a trader
+export async function resumeCopying(userId: string, traderId: string): Promise<boolean> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        await updateDoc(doc(copyRelationshipsCollection, relationshipId), {
+            'settings.isActive': true,
+            pausedAt: null,
+        });
+        return true;
+    } catch (error) {
+        console.error('Error resuming copy:', error);
+        return false;
+    }
+}
+
+// Get user's followed traders
+export async function getMyFollowedTraders(userId: string): Promise<CopyRelationship[]> {
+    try {
+        const q = query(
+            copyRelationshipsCollection,
+            where('copierId', '==', normalizeId(userId)),
+            orderBy('createdAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                copierId: data.copierId,
+                traderId: data.traderId,
+                settings: data.settings,
+                performance: data.performance || {
+                    totalCopiedTrades: 0,
+                    totalVolume: 0,
+                    totalProfit: 0,
+                    totalLoss: 0,
+                    currentRoi: 0,
+                },
+                totalCommissionPaid: data.totalCommissionPaid || 0,
+                createdAt: data.createdAt?.toDate() || new Date(),
+                startedAt: data.startedAt?.toDate() || new Date(),
+                pausedAt: data.pausedAt?.toDate(),
+                stoppedAt: data.stoppedAt?.toDate(),
+            };
+        });
+    } catch (error) {
+        console.error('Error getting followed traders:', error);
+        return [];
+    }
+}
+
+// Check if user is following a trader
+export async function isFollowingTrader(userId: string, traderId: string): Promise<boolean> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        const docSnap = await getDoc(doc(copyRelationshipsCollection, relationshipId));
+        return docSnap.exists();
+    } catch (error) {
+        console.error('Error checking follow status:', error);
+        return false;
+    }
+}
+
+// Update copy settings
+export async function updateCopySettings(
+    userId: string,
+    traderId: string,
+    settings: Partial<CopySettings>
+): Promise<boolean> {
+    try {
+        const relationshipId = `${normalizeId(userId)}-${traderId}`;
+        const docRef = doc(copyRelationshipsCollection, relationshipId);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) return false;
+
+        const currentSettings = docSnap.data().settings || {};
+        await updateDoc(docRef, {
+            settings: { ...currentSettings, ...settings },
+        });
+        return true;
+    } catch (error) {
+        console.error('Error updating copy settings:', error);
         return false;
     }
 }

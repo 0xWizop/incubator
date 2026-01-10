@@ -7,8 +7,8 @@ import { NewsSkeleton } from './NewsSkeleton';
 import { Newspaper } from 'lucide-react';
 
 export function NewsFeed() {
-    // Enable notifications when NewsFeed is mounted (user has news panel open or on news page)
-    const { data: articles, isLoading, isRefetching, refetch } = useLatestNews(20, true);
+    // Notifications are now handled globally by NewsMonitor
+    const { data: articles, isLoading, isRefetching, refetch } = useLatestNews(20, false);
 
     return (
         <div className="flex flex-col h-full bg-[var(--background)] overflow-hidden">

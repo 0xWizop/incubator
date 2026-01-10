@@ -14,7 +14,7 @@ export const CHAINS = {
         name: 'Ethereum',
         symbol: 'ETH',
         logo: 'https://i.imgur.com/NKQlhQj.png',
-        rpcUrl: 'https://rpc.ankr.com/eth',
+        rpcUrl: 'https://eth.llamarpc.com',
         chain: mainnet,
     },
     base: {

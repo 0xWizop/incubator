@@ -1043,9 +1043,9 @@ const SwapPanel = React.memo(function SwapPanel({ token, onBack }: { token: Toke
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                 ) : (
-                    <div />
+                    <div className="lg:hidden" />
                 )}
-                <div className="text-right">
+                <div className="text-right lg:text-left">
                     <h3 className="font-bold text-sm sm:text-2xl">Swap v2</h3>
                     <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">
                         via{' '}

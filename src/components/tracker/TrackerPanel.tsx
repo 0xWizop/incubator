@@ -145,7 +145,7 @@ function WalletCard({
                         )}
                     </button>
                     <a
-                        href={`/app/explorer/detail?address=${wallet.address}&chain=${wallet.chainId}`}
+                        href={`/app/explorer/detail?type=address&id=${wallet.address}&chain=${wallet.chainId}`}
                         className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
                         title="View in explorer"
                     >

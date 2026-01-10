@@ -132,7 +132,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
     const totalPages = chainId === 'solana' ? 1 : Math.min(50, Math.ceil(latestBlockNumber / blocksPerPage));
 
     return (
-        <div className="flex flex-col h-full overflow-hidden p-2 sm:p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col h-full lg:overflow-hidden overflow-y-auto p-2 sm:p-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-4">
@@ -229,7 +229,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
             </div>
 
             {/* Main Content Grid */}
-            <div className="flex-1 grid lg:grid-cols-3 gap-6 overflow-hidden">
+            <div className="flex-1 grid lg:grid-cols-3 gap-6 lg:overflow-hidden h-fit lg:h-auto">
                 {/* Blocks Section - Takes 2 columns */}
                 <div className="lg:col-span-2 card p-0 flex flex-col overflow-hidden">
                     <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">

@@ -52,5 +52,15 @@ service cloud.firestore {
     match /trackedWallets/{walletId} {
       allow read, write: if isAuthenticated();
     }
+
+    // Portfolio Snapshots collection
+    match /portfolioSnapshots/{snapshotId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Watchlist Followers collection
+    match /watchlistFollowers/{followerId} {
+      allow read, write: if isAuthenticated();
+    }
   }
 }

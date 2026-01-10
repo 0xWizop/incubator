@@ -558,7 +558,8 @@ export default function SettingsPage() {
                                     {[
                                         { id: 'tradeAlerts', label: 'Trade Alerts', desc: 'Get notified on price movements' },
                                         { id: 'rewardUpdates', label: 'Reward Updates', desc: 'New rewards and tier progress' },
-                                        { id: 'priceAlerts', label: 'Price Alerts', desc: 'Custom price target notifications' }
+                                        { id: 'priceAlerts', label: 'Price Alerts', desc: 'Custom price target notifications' },
+                                        { id: 'newsAlerts', label: 'News Alerts', desc: 'Breaking crypto news notifications' }
                                     ].map((item) => (
                                         <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/30 transition-colors">
                                             <div>

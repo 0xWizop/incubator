@@ -133,6 +133,7 @@ export interface UserPreferences {
         tradeAlerts: boolean;
         rewardUpdates: boolean;
         priceAlerts: boolean;
+        newsAlerts: boolean;
     };
 }
 
@@ -295,3 +296,194 @@ export interface WalletActivity {
     timestamp: Date;
     notified: boolean;
 }
+
+// Copy Trading types
+export interface TraderStats {
+    followers: number;
+    totalVolume: number;
+    winRate: number;
+    roi7d: number;
+    roi30d: number;
+    roi90d: number;
+    roiAllTime: number;
+    totalTrades: number;
+    profitableTrades: number;
+    avgTradeSize: number;
+    activeChains: ChainId[];
+}
+
+export interface Trader {
+    id: string;
+    walletAddress: string;
+    displayName: string;
+    avatar?: string;
+    bio?: string;
+    isVerified: boolean;
+    isPro: boolean;
+    stats: TraderStats;
+    settings: {
+        allowCopying: boolean;
+        commissionRate: number;
+        minCopyAmount?: number;
+        maxCopiers?: number;
+    };
+    createdAt: Date;
+    lastTradeAt?: Date;
+}
+
+export interface CopySettings {
+    isActive: boolean;
+    maxAmountPerTrade: number;
+    copyRatio: number;
+    onlyChains?: ChainId[];
+    onlyTokens?: string[];
+    excludeTokens?: string[];
+    minTradeSize?: number;
+    maxTradeSize?: number;
+    stopLossPercent?: number;
+    takeProfitPercent?: number;
+    maxDailyLoss?: number;
+}
+
+export interface CopyPerformance {
+    totalCopiedTrades: number;
+    totalVolume: number;
+    totalProfit: number;
+    totalLoss: number;
+    currentRoi: number;
+    lastCopyAt?: Date;
+}
+
+export interface CopyRelationship {
+    id: string;
+    copierId: string;
+    traderId: string;
+    settings: CopySettings;
+    performance: CopyPerformance;
+    totalCommissionPaid: number;
+    createdAt: Date;
+    startedAt: Date;
+    pausedAt?: Date;
+    stoppedAt?: Date;
+}
+
+export interface CopiedTrade {
+    id: string;
+    copyRelationshipId: string;
+    originalTrade: {
+        traderId: string;
+        txHash: string;
+        chainId: ChainId;
+        tokenIn: string;
+        tokenOut: string;
+        amountIn: string;
+        amountOut: string;
+        amountInUsd: number;
+        timestamp: Date;
+    };
+    copiedTrade: {
+        copierId: string;
+        txHash?: string;
+        amountIn: string;
+        amountOut?: string;
+        executedAt?: Date;
+        status: 'pending' | 'executed' | 'failed' | 'skipped';
+        failureReason?: string;
+    };
+    copyRatio: number;
+    profitLoss?: number;
+    commission?: number;
+    createdAt: Date;
+}
+
+export interface TraderApplication {
+    id: string;
+    userId: string;
+    walletAddress: string;
+    bio: string;
+    experience: string;
+    strategy: string;
+    expectedRoi: string;
+    verificationTxHash?: string;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewedAt?: Date;
+    reviewedBy?: string;
+    rejectionReason?: string;
+    createdAt: Date;
+}
+
+// === PORTFOLIO SNAPSHOT TYPES ===
+
+export interface PortfolioSnapshot {
+    id: string;
+    userId: string;
+    walletAddress: string;
+    chainId: ChainId;
+    timestamp: Date;
+    holdings: SnapshotHolding[];
+    totalValueUsd: number;
+}
+
+export interface SnapshotHolding {
+    tokenAddress: string;
+    symbol: string;
+    name: string;
+    balance: string;
+    priceUsd: number;
+    valueUsd: number;
+    logo?: string;
+}
+
+// === SHARED WATCHLIST TYPES ===
+
+export type WatchlistVisibility = 'private' | 'public' | 'shared';
+
+export interface SharedWatchlist extends Watchlist {
+    ownerId: string;
+    ownerName?: string;
+    visibility: WatchlistVisibility;
+    followers: number;
+    sharedWith?: string[]; // User IDs with access
+    description?: string;
+    tags?: string[];
+}
+
+export interface WatchlistFollower {
+    id: string;
+    userId: string;
+    watchlistId: string;
+    ownerId: string;
+    followedAt: Date;
+}
+
+// === ENHANCED PRICE ALERT TYPES ===
+
+export type AlertConditionType =
+    | 'price_above'
+    | 'price_below'
+    | 'volume_above'
+    | 'volume_below'
+    | 'liquidity_change'
+    | 'percent_change';
+
+export type AlertTimeframe = '1h' | '24h' | '7d';
+
+export interface EnhancedPriceAlert {
+    id: string;
+    userId: string;
+    tokenAddress: string;
+    pairAddress: string;
+    chainId: ChainId;
+    symbol: string;
+    name: string;
+    logo?: string;
+    conditionType: AlertConditionType;
+    targetValue: number;
+    currentValue: number; // Value at creation
+    timeframe?: AlertTimeframe; // For percent change
+    triggered: boolean;
+    triggeredAt?: Date;
+    triggeredValue?: number; // Value when triggered
+    createdAt: Date;
+}
+

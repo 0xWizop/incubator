@@ -144,7 +144,7 @@ export default function HomePage() {
 
           {/* Subheadline */}
           <p className={`mt-8 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            Master the markets with the ultimate multichain terminal. Seamlessly trade, track, and analyze across Solana, Ethereum, Base & Arbitrum in one unified interface.
+            The ultimate multichain terminal. Trade, track, and analyze across Solana, Ethereum, Base & Arbitrum in one unified interface.
           </p>
 
           {/* CTA */}

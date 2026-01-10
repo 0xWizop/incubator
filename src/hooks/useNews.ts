@@ -35,7 +35,7 @@ function showNewsNotification(article: NewsArticle) {
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
 
-    const notification = new Notification('📰 Breaking Crypto News', {
+    const notification = new Notification('Incubator News', {
         body: article.title,
         icon: article.imageUrl || '/icon.png',
         tag: `news-${article.id}`,

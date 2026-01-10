@@ -224,7 +224,7 @@ function ExplorerContent() {
     };
 
     return (
-        <div className="p-2 sm:p-6 max-w-7xl mx-auto overflow-x-hidden w-full pb-24 lg:pb-6">
+        <div className="h-full overflow-y-auto p-2 sm:p-6 max-w-7xl mx-auto overflow-x-hidden w-full pb-24 lg:pb-6">
             {/* Header */}
             <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
                 <div>

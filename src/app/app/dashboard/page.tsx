@@ -12,6 +12,8 @@ import {
     ArrowDownRight,
     Wallet,
     User as UserIcon,
+    FileText,
+    Download,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAppStore } from '@/store';
@@ -22,6 +24,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useWalletStore } from '@/store/walletStore';
 import { useWallet } from '@/hooks/useWallet';
 import { ConnectPrompt } from '@/components/ui/ConnectPrompt';
+import { TransactionHistory } from '@/components/tax';
 
 import { Suspense } from 'react';
 
@@ -40,6 +43,7 @@ function DashboardContent() {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(false);
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+    const [showTaxModal, setShowTaxModal] = useState(false);
 
     // Get display name from auth or wallet
     const displayName = firebaseUser?.displayName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Trader');
@@ -153,6 +157,32 @@ function DashboardContent() {
                     </div>
                 </div>
 
+                {/* Tax Reports - Subtle */}
+                <div className="flex items-center justify-between p-3 sm:p-4 mb-4 sm:mb-6 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg hover:border-[var(--border)]/60 transition-colors">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <FileText className="w-4 h-4 text-[var(--foreground-muted)]" />
+                        <div>
+                            <p className="text-xs sm:text-sm font-medium">Export for Taxes</p>
+                            <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">
+                                Download transaction history
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            if (!isConnected) {
+                                connect();
+                            } else {
+                                setShowTaxModal(true);
+                            }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-[var(--background-tertiary)] border border-[var(--border)] text-xs sm:text-sm font-medium rounded-lg hover:bg-[var(--background)] transition-all"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{isConnected ? 'Export' : 'Connect'}</span>
+                    </button>
+                </div>
+
                 <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
                     {/* Recent Trades Table */}
                     <div className="lg:col-span-2 bg-transparent sm:card p-0 sm:p-6 overflow-hidden">
@@ -223,6 +253,11 @@ function DashboardContent() {
                     </div>
                 </div>
             </div>
+
+            {/* Tax Export Modal */}
+            {showTaxModal && (
+                <TransactionHistory onClose={() => setShowTaxModal(false)} />
+            )}
         </div>
     );
 }

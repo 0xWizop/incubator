@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { Watchlist, WatchlistToken, PriceAlert, ChainId } from '@/types';
+import { Watchlist, WatchlistToken, PriceAlert, ChainId, SharedWatchlist, WatchlistVisibility } from '@/types';
 import {
     getWatchlists,
     addToWatchlist,
@@ -12,6 +12,15 @@ import {
     createAlert as createAlertDb,
     deleteAlert as deleteAlertDb,
 } from '@/lib/firebase/collections';
+import {
+    getPublicWatchlists,
+    searchWatchlists,
+    followWatchlist,
+    unfollowWatchlist,
+    getFollowedWatchlists,
+    isFollowingWatchlist,
+    updateWatchlistVisibility,
+} from '@/lib/firebase/collections-extended';
 
 const DEFAULT_FAVORITES_ID = 'favorites';
 const STORAGE_KEY = 'incubator_watchlist';
@@ -29,6 +38,8 @@ interface WatchlistState {
     // State
     watchlists: Watchlist[];
     alerts: PriceAlert[];
+    publicWatchlists: SharedWatchlist[];
+    followedWatchlists: SharedWatchlist[];
     isLoading: boolean;
     isInitialized: boolean;
     activeWatchlistId: string;
@@ -52,6 +63,15 @@ interface WatchlistState {
     addAlert: (userId: string | undefined, alert: Omit<PriceAlert, 'id' | 'userId' | 'triggered' | 'createdAt'>) => Promise<void>;
     removeAlert: (alertId: string) => Promise<void>;
 
+    // Shared watchlist actions
+    discoverWatchlists: () => Promise<void>;
+    searchPublicWatchlists: (query: string) => Promise<void>;
+    followWatchlist: (watchlistId: string, ownerId: string) => Promise<void>;
+    unfollowWatchlist: (watchlistId: string, ownerId: string) => Promise<void>;
+    loadFollowedWatchlists: (userId: string) => Promise<void>;
+    isFollowing: (watchlistId: string) => Promise<boolean>;
+    updateVisibility: (userId: string, listId: string, visibility: WatchlistVisibility, description?: string, tags?: string[]) => Promise<void>;
+
     // Panel controls
     openPanel: (tab?: 'favorites' | 'watchlists' | 'alerts') => void;
     closePanel: () => void;
@@ -62,6 +82,8 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     // Initial state
     watchlists: [],
     alerts: [],
+    publicWatchlists: [],
+    followedWatchlists: [],
     isLoading: false,
     isInitialized: false,
     activeWatchlistId: DEFAULT_FAVORITES_ID,
@@ -275,6 +297,78 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
         set({ alerts: alerts.filter(a => a.id !== alertId) });
 
         await deleteAlertDb(alertId);
+    },
+
+    // Shared watchlist actions
+    discoverWatchlists: async () => {
+        set({ isLoading: true });
+        try {
+            const publicLists = await getPublicWatchlists(50);
+            set({ publicWatchlists: publicLists, isLoading: false });
+        } catch (error) {
+            console.error('Error discovering watchlists:', error);
+            set({ isLoading: false });
+        }
+    },
+
+    searchPublicWatchlists: async (query: string) => {
+        set({ isLoading: true });
+        try {
+            const results = await searchWatchlists(query);
+            set({ publicWatchlists: results, isLoading: false });
+        } catch (error) {
+            console.error('Error searching watchlists:', error);
+            set({ isLoading: false });
+        }
+    },
+
+    followWatchlist: async (watchlistId: string, ownerId: string) => {
+        try {
+            const userId = ''; // Will be passed from component
+            await followWatchlist(userId, watchlistId, ownerId);
+            // Refresh followed watchlists
+            const followed = await getFollowedWatchlists(userId);
+            set({ followedWatchlists: followed });
+        } catch (error) {
+            console.error('Error following watchlist:', error);
+        }
+    },
+
+    unfollowWatchlist: async (watchlistId: string, ownerId: string) => {
+        try {
+            const userId = ''; // Will be passed from component
+            await unfollowWatchlist(userId, watchlistId, ownerId);
+            set({
+                followedWatchlists: get().followedWatchlists.filter(w => w.id !== watchlistId)
+            });
+        } catch (error) {
+            console.error('Error unfollowing watchlist:', error);
+        }
+    },
+
+    loadFollowedWatchlists: async (userId: string) => {
+        try {
+            const followed = await getFollowedWatchlists(userId);
+            set({ followedWatchlists: followed });
+        } catch (error) {
+            console.error('Error loading followed watchlists:', error);
+        }
+    },
+
+    isFollowing: async (watchlistId: string) => {
+        const { followedWatchlists } = get();
+        return followedWatchlists.some(w => w.id === watchlistId);
+    },
+
+    updateVisibility: async (userId: string, listId: string, visibility: WatchlistVisibility, description?: string, tags?: string[]) => {
+        try {
+            await updateWatchlistVisibility(userId, listId, visibility, description, tags);
+            // Refresh watchlists
+            const watchlists = await getWatchlists(userId);
+            set({ watchlists });
+        } catch (error) {
+            console.error('Error updating visibility:', error);
+        }
     },
 
     // Panel controls
