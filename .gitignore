@@ -29,3 +29,6 @@ ts-debug.log*
 
 # vercel
 .vercel
+
+# infrastructure
+/scripts/
