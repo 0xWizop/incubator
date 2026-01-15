@@ -48,3 +48,16 @@ export function formatAddress(address: string, startChars = 6, endChars = 4): st
     if (address.length <= startChars + endChars) return address;
     return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
 }
+
+/**
+ * Format currency value
+ */
+export function formatCurrency(value: number): string {
+    if (value === 0) return '$0.00';
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
+}

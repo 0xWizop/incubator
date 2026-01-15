@@ -7,7 +7,8 @@ import { useWalletStore } from '@/store/walletStore';
 import { CHAINS } from '@/lib/wallet';
 
 export function SwapTab() {
-    const { activeWallet, balances, activeChain, openModal } = useWalletStore();
+    const { activeWallet, isUnlocked, balances, activeChain, openModal } = useWalletStore();
+    const isConnected = isUnlocked && !!activeWallet;
 
     const [fromAmount, setFromAmount] = useState('');
     const [toAmount, setToAmount] = useState('');
@@ -16,24 +17,88 @@ export function SwapTab() {
     const [slippage, setSlippage] = useState(0.5);
     const [showSettings, setShowSettings] = useState(false);
 
+    // 0x State
+    const [quote, setQuote] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+
     const currentBalance = activeWallet
         ? balances[`${activeWallet.address}-${activeChain}`] || '0'
         : '0';
 
     const chainConfig = activeWallet?.type === 'solana' ? CHAINS.solana : CHAINS[activeChain];
 
-    // Mock price calculation
-    const price = activeWallet?.type === 'solana' ? 180 : 3500;
+    const fetchQuote = async (amount: string) => {
+        if (!amount || parseFloat(amount) <= 0) return;
+        if (activeWallet?.type === 'solana') return; // Skip Solana for now
+
+        setIsLoading(true);
+        try {
+            const { getPrice, getZeroExChainId } = await import('@/lib/services/zeroEx');
+            const numericChainId = getZeroExChainId(activeChain);
+
+            if (!numericChainId) return;
+
+            // Convert to Wei (assuming 18 decimals for ETH)
+            const amountInWei = (parseFloat(amount) * 1e18).toString();
+            // Native Token (ETH, etc) usually represented as 0xeee...
+            const sellTokenAddr = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+            // USDC Address (Hardcoded for now based on chain - ideally dynamic)
+            // Base USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+            let buyTokenAddr = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+
+            if (activeChain === 'ethereum') buyTokenAddr = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+            if (activeChain === 'arbitrum') buyTokenAddr = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+
+            const data = await getPrice({
+                chainId: numericChainId,
+                sellToken: sellTokenAddr,
+                buyToken: buyTokenAddr,
+                sellAmount: amountInWei,
+            });
+
+            if (data) {
+                setQuote(data);
+                // USDC has 6 decimals
+                if (data.buyAmount) {
+                    setToAmount((parseFloat(data.buyAmount) / 1e6).toFixed(6));
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAmountChange = (val: string) => {
+        setFromAmount(val);
+        if (activeWallet?.type === 'solana') {
+            // Mock fallback for Sol
+            setToAmount(val ? (parseFloat(val) * 180).toFixed(2) : '');
+            return;
+        }
+
+        if (timer) clearTimeout(timer);
+        const newTimer = setTimeout(() => {
+            fetchQuote(val);
+        }, 600);
+        setTimer(newTimer);
+    };
 
     const handleSwapDirection = () => {
         setFromToken(toToken);
         setToToken(fromToken);
         setFromAmount(toAmount);
-        setToAmount(fromAmount);
+        handleAmountChange(toAmount); // Trigger quote fetch
     };
 
     const handleSwap = () => {
-        alert('Lightspeed integration coming soon! This will enable fast cross-chain swaps.');
+        if (!isConnected) {
+            openModal();
+            return;
+        }
+        alert('Swap execution integration coming next step via 0x API!');
     };
 
     const handlePercentageClick = (percentage: number) => {
@@ -41,7 +106,8 @@ export function SwapTab() {
         if (balance > 0) {
             const newAmount = (balance * percentage / 100).toFixed(6);
             setFromAmount(newAmount);
-            setToAmount((parseFloat(newAmount) * price).toFixed(2));
+            // Trigger fetch
+            handleAmountChange(newAmount);
         }
     };
 
@@ -54,12 +120,12 @@ export function SwapTab() {
                     <p className="text-xs text-[var(--foreground-muted)]">
                         via{' '}
                         <a
-                            href="https://lightspeed-9288f.web.app/docs"
+                            href="https://0x.org/docs"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[var(--primary)] hover:underline"
                         >
-                            Lightspeed
+                            0x Protocol
                         </a>
                     </p>
                 </div>
@@ -116,10 +182,7 @@ export function SwapTab() {
                     <input
                         type="number"
                         value={fromAmount}
-                        onChange={(e) => {
-                            setFromAmount(e.target.value);
-                            setToAmount(e.target.value ? (parseFloat(e.target.value) * price).toFixed(2) : '');
-                        }}
+                        onChange={(e) => handleAmountChange(e.target.value)}
                         placeholder="0.00"
                         className="flex-1 bg-transparent text-2xl font-mono font-bold outline-none placeholder:text-[var(--foreground-muted)]/30"
                     />
@@ -158,7 +221,9 @@ export function SwapTab() {
             <div className="p-4 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)]">
                 <div className="flex justify-between mb-2">
                     <label className="text-xs text-[var(--foreground-muted)]">You receive</label>
-                    <span className="text-xs text-[var(--foreground-muted)]">Bal: 0.0000</span>
+                    <span className="text-xs text-[var(--foreground-muted)]">
+                        {isLoading ? 'Fetching best price...' : 'Bal: 0.0000'}
+                    </span>
                 </div>
                 <div className="flex items-center gap-3">
                     <input
@@ -177,19 +242,34 @@ export function SwapTab() {
             </div>
 
             {/* Swap Info */}
-            {fromAmount && (
+            {(fromAmount || quote) && (
                 <div className="p-3 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] space-y-1.5 text-sm">
                     <div className="flex justify-between">
                         <span className="text-[var(--foreground-muted)]">Rate</span>
-                        <span className="font-mono text-xs">1 {fromToken} = {price.toLocaleString()} {toToken}</span>
+                        <span className="font-mono text-xs">
+                            {quote ? `1 ${fromToken} ≈ ${parseFloat(quote.price).toFixed(6)} ${toToken}` : '---'}
+                        </span>
                     </div>
+                    {quote && (
+                        <>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-[var(--foreground-muted)]">Estimated Gas</span>
+                                <span className="text-xs font-medium">${quote.estimatedGas ? (parseFloat(quote.estimatedGas) * 0.000000001 * 2000 * 0.003).toFixed(2) : '~'}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-[var(--foreground-muted)]">Price Impact</span>
+                                <span className={clsx(
+                                    "text-xs",
+                                    parseFloat(quote.estimatedPriceImpact || '0') > 2 ? 'text-red-500' : 'text-green-500'
+                                )}>
+                                    {quote.estimatedPriceImpact ? parseFloat(quote.estimatedPriceImpact).toFixed(2) : '< 0.01'}%
+                                </span>
+                            </div>
+                        </>
+                    )}
                     <div className="flex justify-between">
                         <span className="text-[var(--foreground-muted)]">Slippage</span>
                         <span className="text-xs">{slippage}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-[var(--foreground-muted)]">Network Fee</span>
-                        <span className="text-xs">~$2.50</span>
                     </div>
                 </div>
             )}
@@ -219,4 +299,3 @@ export function SwapTab() {
         </div>
     );
 }
-

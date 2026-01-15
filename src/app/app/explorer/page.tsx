@@ -21,12 +21,15 @@ import {
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { TimeAgo } from '@/components/ui/TimeAgo';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { formatCurrency } from '@/lib/utils/format';
 
 import { Suspense } from 'react';
+import { LoadingSpinner } from '@/components/ui/Loading';
 
 export default function ExplorerPage() {
     return (
-        <Suspense fallback={<div className="p-6 text-center">Loading explorer...</div>}>
+        <Suspense fallback={<LoadingSpinner fullHeight size="lg" text="Loading explorer..." />}>
             <ExplorerContent />
         </Suspense>
     );
@@ -34,6 +37,7 @@ export default function ExplorerPage() {
 
 function ExplorerContent() {
     const router = useRouter();
+    const { getPriceForChain } = useCryptoPrices();
     const { selectedChains } = useAppStore();
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -94,8 +98,13 @@ function ExplorerContent() {
             // Update latest heights for search validation
             const newHeights = { ...latestHeights };
 
-            // Resolve Blocks
-            const blockResults = await Promise.all(blockPromises);
+            // Wait for BOTH Blocks and Transactions to resolve
+            const [blockResults, txResults] = await Promise.all([
+                Promise.all(blockPromises),
+                Promise.all(txPromises)
+            ]);
+
+            // Process Blocks
             const flattenedBlocks: Block[] = blockResults.flat();
 
             // Capture latest heights
@@ -108,12 +117,13 @@ function ExplorerContent() {
 
             // Sort by timestamp desc
             flattenedBlocks.sort((a, b) => b.timestamp - a.timestamp);
-            setBlocks(flattenedBlocks);
 
-            // Resolve Transactions
-            const txResults = await Promise.all(txPromises);
+            // Process Transactions
             const flattenedTxs = txResults.flat();
             flattenedTxs.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Update State Simultaneously
+            setBlocks(flattenedBlocks);
             setTransactions(flattenedTxs);
 
         } catch (error) {
@@ -125,7 +135,7 @@ function ExplorerContent() {
 
     useEffect(() => {
         fetchData(false); // Initial load
-        const interval = setInterval(() => fetchData(true), 3000); // 3s refresh (Background)
+        const interval = setInterval(() => fetchData(true), 10000); // 10s refresh (Background)
         return () => clearInterval(interval);
     }, [fetchData]);
 
@@ -382,7 +392,23 @@ function ExplorerContent() {
                     </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden">
                         {loading && blocks.length === 0 ? (
-                            <div className="p-8 text-center text-[var(--foreground-muted)] text-sm">Loading blocks...</div>
+                            <div className="divide-y divide-[var(--border)]">
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="px-4 py-3 animate-pulse">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-[var(--background-tertiary)]" />
+                                                <div className="h-4 w-16 bg-[var(--background-tertiary)] rounded" />
+                                            </div>
+                                            <div className="h-3 w-12 bg-[var(--background-tertiary)] rounded" />
+                                        </div>
+                                        <div className="flex justify-between items-center pl-8">
+                                            <div className="h-3 w-20 bg-[var(--background-tertiary)] rounded" />
+                                            <div className="h-3 w-24 bg-[var(--background-tertiary)] rounded" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
                             <div className="divide-y divide-[var(--border)]">
                                 {blocks.map((block) => (
@@ -445,7 +471,23 @@ function ExplorerContent() {
                     </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden">
                         {loading && transactions.length === 0 ? (
-                            <div className="p-8 text-center text-[var(--foreground-muted)] text-sm">Loading transactions...</div>
+                            <div className="divide-y divide-[var(--border)]">
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="px-4 py-3 animate-pulse">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2 w-2/3">
+                                                <div className="w-6 h-6 rounded-full bg-[var(--background-tertiary)] shrink-0" />
+                                                <div className="h-4 w-full bg-[var(--background-tertiary)] rounded" />
+                                            </div>
+                                            <div className="h-3 w-12 bg-[var(--background-tertiary)] rounded ml-2" />
+                                        </div>
+                                        <div className="flex justify-between items-center pl-8">
+                                            <div className="h-3 w-24 bg-[var(--background-tertiary)] rounded" />
+                                            <div className="h-3 w-32 bg-[var(--background-tertiary)] rounded" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
                             <div className="divide-y divide-[var(--border)]">
                                 {transactions.map((tx) => (
@@ -463,8 +505,19 @@ function ExplorerContent() {
                                                     {tx.hash}
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] sm:text-xs text-[var(--foreground-muted)] whitespace-nowrap ml-2">
-                                                <TimeAgo timestamp={tx.timestamp} />
+                                            <div className="text-[10px] sm:text-xs text-[var(--foreground-muted)] whitespace-nowrap ml-2 text-right">
+                                                <div className="font-mono text-[var(--primary)]">
+                                                    {parseFloat(tx.value).toFixed(4)} {tx.chainId === 'solana' ? 'SOL' : 'ETH'}
+                                                    {(() => {
+                                                        const price = getPriceForChain(tx.chainId);
+                                                        const value = parseFloat(tx.value);
+                                                        if (!price || isNaN(value)) return null;
+                                                        return <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(value * price)})</span>;
+                                                    })()}
+                                                </div>
+                                                <div className="mt-0.5">
+                                                    <TimeAgo timestamp={tx.timestamp} />
+                                                </div>
                                             </div>
                                         </div>
 
@@ -483,14 +536,14 @@ function ExplorerContent() {
                                                     />
                                                     <span className="capitalize">{tx.chainId}</span>
                                                 </div>
-                                                <span className="font-mono text-[var(--foreground)]">
-                                                    {parseFloat(tx.value).toFixed(4)} {tx.chainId === 'solana' ? 'SOL' : 'ETH'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1 font-mono">
-                                                <span>{tx.from.slice(0, 4)}...</span>
-                                                <ArrowRight className="w-2.5 h-2.5" />
-                                                <span>{tx.to ? tx.to.slice(0, 4) + '...' : 'Contract'}</span>
+                                                <div className="flex items-center gap-3">
+                                                    {/* Value moved to top right */}
+                                                </div>
+                                                <div className="flex items-center gap-1 font-mono">
+                                                    <span>{tx.from.slice(0, 4)}...</span>
+                                                    <ArrowRight className="w-2.5 h-2.5" />
+                                                    <span>{tx.to ? tx.to.slice(0, 4) + '...' : 'Contract'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </Link>

@@ -22,7 +22,8 @@ import { Camera } from 'lucide-react';
 import { updateProfile } from 'firebase/auth';
 
 import { ChainId, UserPreferences, CurrencyDisplay } from '@/types';
-import { Eye, EyeOff, DollarSign, Percent } from 'lucide-react';
+import { Eye, EyeOff, DollarSign, Percent, Shield, Zap, LayoutTemplate } from 'lucide-react';
+import { WalletManagerSection } from './WalletManagerSection';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -354,20 +355,8 @@ export default function SettingsPage() {
                         )}
 
                         {activeTab === 'wallets' && (
-                            <div className="max-w-2xl mx-auto text-center py-12">
-                                <div className="w-16 h-16 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center mx-auto mb-6">
-                                    <Wallet className="w-8 h-8 text-[var(--foreground-muted)]" />
-                                </div>
-                                <h3 className="text-xl font-bold mb-2">Manage Wallets</h3>
-                                <p className="text-[var(--foreground-muted)] mb-8 max-w-md mx-auto">
-                                    Connect multiple wallets to track your portfolio across chains. Use the wallet button in the header to manage your connections.
-                                </p>
-                                <button
-                                    onClick={() => document.getElementById('wallet-connect-trigger')?.click()}
-                                    className="px-6 py-3 rounded-xl bg-[var(--primary)] text-black font-bold hover:bg-[var(--primary)]/90 transition-all"
-                                >
-                                    Open Wallet Manager
-                                </button>
+                            <div className="max-w-2xl mx-auto py-8">
+                                <WalletManagerSection />
                             </div>
                         )}
 
@@ -451,6 +440,45 @@ export default function SettingsPage() {
                                                         )}
                                                     </button>
                                                 ))}
+                                            </div>
+                                        </section>
+
+                                        {/* Pro / Appearance Settings */}
+                                        <section className="space-y-3 pt-6 border-t border-[var(--border)]">
+                                            <h3 className="text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider px-1">Interface</h3>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Compact Mode */}
+                                                <div className="p-4 rounded-xl bg-[var(--background-tertiary)]/30 border border-[var(--border)] flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 rounded-lg bg-[var(--background)]">
+                                                            <LayoutTemplate className="w-4 h-4 text-[var(--foreground)]" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-sm">Compact Mode</p>
+                                                            <p className="text-[10px] text-[var(--foreground-muted)]">Denser lists & tables</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-10 h-6 rounded-full bg-[var(--background)] border border-[var(--border)] relative cursor-pointer">
+                                                        <div className="absolute top-1 left-1 w-3.5 h-3.5 rounded-full bg-[var(--foreground-muted)]" />
+                                                    </div>
+                                                </div>
+
+                                                {/* Reduced Motion */}
+                                                <div className="p-4 rounded-xl bg-[var(--background-tertiary)]/30 border border-[var(--border)] flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 rounded-lg bg-[var(--background)]">
+                                                            <Zap className="w-4 h-4 text-[var(--foreground)]" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-sm">Reduced Motion</p>
+                                                            <p className="text-[10px] text-[var(--foreground-muted)]">Minimize animations</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-10 h-6 rounded-full bg-[var(--background)] border border-[var(--border)] relative cursor-pointer">
+                                                        <div className="absolute top-1 left-1 w-3.5 h-3.5 rounded-full bg-[var(--foreground-muted)]" />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </section>
                                     </div>
@@ -549,37 +577,31 @@ export default function SettingsPage() {
                         )}
 
                         {activeTab === 'notifications' && (
-                            <div className="max-w-2xl mx-auto">
-                                <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-                                    <Bell className="w-5 h-5 text-[var(--primary)]" />
-                                    Notifications
-                                </h2>
-                                <div className="space-y-4">
-                                    {[
-                                        { id: 'tradeAlerts', label: 'Trade Alerts', desc: 'Get notified on price movements' },
-                                        { id: 'rewardUpdates', label: 'Reward Updates', desc: 'New rewards and tier progress' },
-                                        { id: 'priceAlerts', label: 'Price Alerts', desc: 'Custom price target notifications' },
-                                        { id: 'newsAlerts', label: 'News Alerts', desc: 'Breaking crypto news notifications' }
-                                    ].map((item) => (
-                                        <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-tertiary)]/50 border border-[var(--border)] hover:border-[var(--primary)]/30 transition-colors">
-                                            <div>
-                                                <p className="font-medium">{item.label}</p>
-                                                <p className="text-sm text-[var(--foreground-muted)]">{item.desc}</p>
+                            <div className="max-w-2xl mx-auto py-6 space-y-8">
+                                <div className="p-5 bg-[var(--background-secondary)] rounded-xl border border-[var(--border)]">
+                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                        <Bell className="w-5 h-5 text-[var(--primary)]" />
+                                        Notification Preferences
+                                    </h3>
+
+                                    <div className="space-y-4">
+                                        {[
+                                            { id: 'wallet_activity', label: 'Wallet Activity', desc: 'Get notified when your tracked wallets make a trade' },
+                                            { id: 'price_alerts', label: 'Price Alerts', desc: 'Receive alerts when tokens hit your targets' },
+                                            { id: 'news_digest', label: 'Daily News Digest', desc: 'Morning summary of market moving news' },
+                                            { id: 'security_alerts', label: 'Security Alerts', desc: 'Login attempts and major security events' }
+                                        ].map((item) => (
+                                            <div key={item.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors">
+                                                <div>
+                                                    <p className="font-medium text-sm">{item.label}</p>
+                                                    <p className="text-xs text-[var(--foreground-muted)]">{item.desc}</p>
+                                                </div>
+                                                <button className="relative w-11 h-6 bg-[var(--background-tertiary)] border border-[var(--border)] rounded-full transition-colors data-[state=checked]:bg-[var(--primary)] data-[state=checked]:border-[var(--primary)]">
+                                                    <span className="block w-4 h-4 bg-white rounded-full shadow-sm transform translate-x-1 transition-transform data-[state=checked]:translate-x-6" />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => handleToggleNotification(item.id as keyof UserPreferences['notifications'], !preferences.notifications[item.id as keyof UserPreferences['notifications']])}
-                                                className={clsx(
-                                                    'w-12 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20',
-                                                    preferences.notifications[item.id as keyof UserPreferences['notifications']] ? 'bg-[var(--primary)]' : 'bg-[var(--background)] border border-[var(--border)]'
-                                                )}
-                                            >
-                                                <div className={clsx(
-                                                    'absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm',
-                                                    preferences.notifications[item.id as keyof UserPreferences['notifications']] ? 'right-1 bg-white' : 'left-1 bg-[var(--foreground-muted)]'
-                                                )} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}

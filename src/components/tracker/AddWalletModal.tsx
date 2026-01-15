@@ -9,6 +9,7 @@ interface AddWalletModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (address: string, name: string, chainId: ChainId, notify: boolean) => Promise<any>;
+    initialAddress?: string;
 }
 
 // Auto-detect chain from address format
@@ -23,8 +24,8 @@ function detectChain(address: string): ChainId {
     return 'ethereum'; // Default to EVM
 }
 
-export function AddWalletModal({ isOpen, onClose, onAdd }: AddWalletModalProps) {
-    const [address, setAddress] = useState('');
+export function AddWalletModal({ isOpen, onClose, onAdd, initialAddress = '' }: AddWalletModalProps) {
+    const [address, setAddress] = useState(initialAddress);
     const [name, setName] = useState('');
     const [notify, setNotify] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);

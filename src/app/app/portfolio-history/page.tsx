@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { SnapshotViewer } from '@/components/portfolio';
 import { ArrowLeft, Info } from 'lucide-react';
 
+import { LoadingSpinner } from '@/components/ui/Loading';
+
 export default function PortfolioHistoryPage() {
     const { firebaseUser } = useAuth();
     const router = useRouter();
@@ -18,7 +20,7 @@ export default function PortfolioHistoryPage() {
     if (!isClient) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-[var(--background)]">
-                <div className="text-[var(--foreground-muted)]">Loading...</div>
+                <LoadingSpinner size="lg" text="Loading history..." />
             </div>
         );
     }

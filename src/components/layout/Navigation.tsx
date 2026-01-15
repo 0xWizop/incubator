@@ -23,10 +23,13 @@ import {
     Star,
     Newspaper,
     Eye,
+    LayoutGrid,
+    Sparkles,
 } from 'lucide-react';
 import { useAppStore, useWatchlistStore } from '@/store';
 import { WalletButton } from '@/components/wallet';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
 import { AuthModal } from '@/components/auth';
 import { WatchlistPanel } from '@/components/watchlist';
 import { NewsFeed } from '@/components/news';
@@ -34,6 +37,7 @@ import { TrackerPanel } from '@/components/tracker';
 
 const navigation = [
     { name: 'Trade', href: '/app/trade/', icon: LineChart },
+    { name: 'Heatmap', href: '/app/heatmap/', icon: LayoutGrid },
     { name: 'Screener', href: '/app/screener/', icon: Search },
     { name: 'Explorer', href: '/app/explorer/', icon: Compass },
     { name: 'News', href: '/app/news/', icon: Newspaper },
@@ -80,11 +84,11 @@ export function Sidebar() {
                     <Link href="/" className="flex items-center gap-2.5">
                         <img
                             src="https://i.imgur.com/8UIQt03.png"
-                            alt="Incubator Protocol"
+                            alt="The Incubator"
                             className="w-8 h-8 rounded-lg"
                         />
-                        <span className="text-sm font-black tracking-wide text-[var(--primary)] uppercase">
-                            INCUBATOR PROTOCOL
+                        <span className="text-base font-black tracking-wide text-[var(--primary)] uppercase">
+                            THE INCUBATOR
                         </span>
                     </Link>
                     <button
@@ -215,10 +219,14 @@ export function Sidebar() {
     );
 }
 
+import { useLatestNews } from '@/hooks/useNews';
+
 export function Header() {
     const { toggleSidebar, searchQuery, setSearchQuery } = useAppStore();
     const { firebaseUser, loading: authLoading, signOut } = useAuth();
     const { watchlists, isPanelOpen, openPanel, closePanel, initialize, isInitialized } = useWatchlistStore();
+    const { data: newsArticles, isLoading: isNewsLoading } = useLatestNews(20, true);
+    const { isTrial, daysRemaining } = useSubscription();
 
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -228,18 +236,39 @@ export function Header() {
     const [showMobileSearch, setShowMobileSearch] = useState(false);
     const [showNewsPanel, setShowNewsPanel] = useState(false);
     const [showTrackerPanel, setShowTrackerPanel] = useState(false);
+    const [recentSearches, setRecentSearches] = useState<any[]>([]);
     const searchRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const watchlistRef = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+
     // Initialize watchlist store when user is authenticated
-    // Initialize watchlist store
     useEffect(() => {
         if (!authLoading && !isInitialized) {
             initialize(firebaseUser?.uid);
         }
     }, [authLoading, firebaseUser?.uid, isInitialized, initialize]);
+
+    // Load recent searches
+    useEffect(() => {
+        const saved = localStorage.getItem('recentSearches');
+        if (saved) {
+            try {
+                setRecentSearches(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to parse recent searches', e);
+            }
+        }
+    }, []);
+
+    const addToRecent = (pair: any) => {
+        const newItem = { ...pair, timestamp: Date.now() };
+        const filtered = recentSearches.filter(p => p.pairAddress !== pair.pairAddress);
+        const updated = [newItem, ...filtered].slice(0, 15);
+        setRecentSearches(updated);
+        localStorage.setItem('recentSearches', JSON.stringify(updated));
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -284,6 +313,7 @@ export function Header() {
     }, [setSearchQuery]);
 
     const handleResultClick = (pair: any) => {
+        addToRecent(pair);
         setShowDropdown(false);
         setSearchQuery('');
         // Navigate to trade page with chain and pair address
@@ -325,7 +355,7 @@ export function Header() {
                                 className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm focus:!outline-none focus:!border-transparent focus:!ring-0 focus:!shadow-none placeholder:text-[var(--foreground-muted)]"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                                onFocus={() => (searchResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && setShowDropdown(true)}
                             />
                             {isSearching && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -334,9 +364,27 @@ export function Header() {
                             )}
 
                             {/* Search Results Dropdown */}
-                            {showDropdown && searchResults.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-                                    {searchResults.map((pair, i) => (
+                            {showDropdown && (searchResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+                                    {searchQuery.length === 0 && recentSearches.length > 0 && (
+                                        <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider">Recent Searches</span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setRecentSearches([]);
+                                                        localStorage.removeItem('recentSearches');
+                                                    }}
+                                                    className="text-[10px] text-[var(--primary)] hover:underline"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(searchQuery.length === 0 ? recentSearches : searchResults).map((pair, i) => (
                                         <button
                                             key={`${pair.chainId}-${pair.pairAddress}-${i}`}
                                             onClick={() => handleResultClick(pair)}
@@ -379,6 +427,17 @@ export function Header() {
 
                 {/* Right side */}
                 <div className="flex items-center gap-3">
+                    {/* Trial Badge */}
+                    {isTrial && (
+                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[var(--primary)]/20 to-amber-500/20 border border-[var(--primary)]/30 mr-2">
+                            <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+                            <div className="flex flex-col leading-none">
+                                <span className="text-[10px] font-bold text-[var(--primary)] uppercase">Free Trial</span>
+                                <span className="text-[9px] text-[var(--foreground-muted)]">{daysRemaining} days left</span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* News button - desktop only */}
                     <button
                         onClick={() => setShowNewsPanel(!showNewsPanel)}
@@ -520,7 +579,7 @@ export function Header() {
                             </button>
                         </div>
                         <div className="h-[calc(100%-3.5rem)]">
-                            <NewsFeed />
+                            <NewsFeed articles={newsArticles} isLoading={isNewsLoading} />
                         </div>
                     </div>
                 </>
@@ -537,20 +596,8 @@ export function Header() {
 
                     {/* Sidebar */}
                     <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-[var(--background-secondary)] border-l border-[var(--border)] z-50 shadow-2xl">
-                        <div className="flex items-center justify-between p-3 border-b border-[var(--border)]">
-                            <h2 className="font-bold text-sm flex items-center gap-2">
-                                <Eye className="w-4 h-4 text-[var(--primary)]" />
-                                Wallet Tracker
-                            </h2>
-                            <button
-                                onClick={() => setShowTrackerPanel(false)}
-                                className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <div className="h-[calc(100%-3.5rem)]">
-                            <TrackerPanel />
+                        <div className="h-full">
+                            <TrackerPanel onClose={() => setShowTrackerPanel(false)} />
                         </div>
                     </div>
                 </>
@@ -662,22 +709,23 @@ export function BottomTabNav() {
     }, []);
 
     // Only show main navigation items in bottom nav (not Docs, not external, not desktopOnly)
+    // Removed slice constraint to allow all items
     const mobileNavItems = navigation.filter(item =>
         item.href !== '/docs' &&
         !item.external &&
         !item.desktopOnly
-    ).slice(0, 5);
+    );
 
     const navContent = (
         <nav
             className="fixed bottom-0 left-0 right-0 z-[9999] lg:hidden bg-[var(--background-secondary)] border-t border-[var(--border)]"
             style={{
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-                touchAction: 'manipulation',
+                touchAction: 'pan-x',
                 isolation: 'isolate'
             }}
         >
-            <div className="flex items-stretch justify-around h-16">
+            <div className="flex items-stretch overflow-x-auto no-scrollbar h-16 px-2 gap-2">
                 {mobileNavItems.map((item) => {
                     const isActive = pathname === item.href ||
                         (item.href !== '/app' && pathname.startsWith(item.href));
@@ -688,7 +736,7 @@ export function BottomTabNav() {
                             type="button"
                             onClick={() => router.push(item.href)}
                             className={clsx(
-                                'flex flex-col items-center justify-center flex-1 min-w-[64px] py-2 transition-colors active:opacity-70 cursor-pointer',
+                                'flex flex-col items-center justify-center min-w-[70px] flex-shrink-0 py-2 transition-colors active:opacity-70 cursor-pointer snap-start',
                                 isActive
                                     ? 'text-[var(--primary)]'
                                     : 'text-[var(--foreground-muted)]'
@@ -699,7 +747,7 @@ export function BottomTabNav() {
                                 'w-5 h-5 mb-1 pointer-events-none',
                                 isActive && 'scale-110'
                             )} />
-                            <span className="text-[10px] font-medium pointer-events-none">{item.name}</span>
+                            <span className="text-[10px] font-medium pointer-events-none whitespace-nowrap">{item.name}</span>
                         </button>
                     );
                 })}

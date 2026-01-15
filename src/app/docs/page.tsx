@@ -29,8 +29,15 @@ import {
     Eye,
     Newspaper,
     Server,
+    Download,
+    Key,
+    Calendar,
+    Target,
+    Rocket,
+    MessageCircle
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { StepCard, WalletBackupDiagram, BackupUI, TrackerNotificationUI, WalletMockup } from './DocVisuals';
 
 // ============================================
 // DOCUMENTATION CONTENT STRUCTURE
@@ -44,11 +51,11 @@ interface DocSection {
 
 const docSections: DocSection[] = [
     { id: 'getting-started', title: 'Getting Started', icon: Zap },
+    { id: 'beta', title: 'Beta Testing', icon: Rocket },
+    { id: 'roadmap', title: 'Roadmap', icon: Target },
     { id: 'wallet', title: 'Wallet', icon: Wallet },
     { id: 'tracker', title: 'Wallet Tracker', icon: Eye },
-    { id: 'news', title: 'News Feed', icon: Newspaper },
     { id: 'trading', title: 'Trading', icon: Terminal },
-    { id: 'screener', title: 'Token Screener', icon: TrendingUp },
     { id: 'explorer', title: 'Block Explorer', icon: Layers },
     { id: 'rewards', title: 'Rewards & Referrals', icon: Trophy },
     { id: 'chains', title: 'Supported Chains', icon: Globe },
@@ -70,9 +77,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 text-[var(--foreground)] flex items-center gap-2">
-                <div className="w-1.5 h-5 bg-[var(--primary)] rounded-full" />
+        <div className="mb-10">
+            <h2 className="text-lg font-semibold mb-6 text-[var(--foreground)] flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-[var(--primary)] rounded-full" />
                 {title}
             </h2>
             <div className="text-[var(--foreground-muted)] leading-relaxed">
@@ -88,14 +95,16 @@ function Paragraph({ children }: { children: React.ReactNode }) {
 
 function FeatureList({ items }: { items: { title: string; description: string }[] }) {
     return (
-        <div className="space-y-3 my-4">
+        <div className="grid sm:grid-cols-2 gap-4 my-6">
             {items.map((item, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--background-tertiary)] border border-[var(--border)]">
-                    <Check className="w-5 h-5 text-[var(--accent-green)] mt-0.5 shrink-0" />
-                    <div>
-                        <span className="font-medium text-[var(--foreground)]">{item.title}</span>
-                        <span className="text-[var(--foreground-muted)]"> — {item.description}</span>
+                <div key={i} className="flex flex-col gap-2 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)]/50 transition-colors">
+                    <div className="flex items-center gap-2 font-bold text-[var(--foreground)]">
+                        <div className="p-1 rounded bg-[var(--accent-green)]/10">
+                            <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" />
+                        </div>
+                        {item.title}
                     </div>
+                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">{item.description}</p>
                 </div>
             ))}
         </div>
@@ -104,13 +113,13 @@ function FeatureList({ items }: { items: { title: string; description: string }[
 
 function StepList({ steps }: { steps: string[] }) {
     return (
-        <div className="space-y-3 my-4">
+        <div className="space-y-4 my-6">
             {steps.map((step, i) => (
-                <div key={i} className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-black text-sm font-bold shrink-0">
+                <div key={i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-[var(--background-secondary)] transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)] text-sm font-bold shrink-0 shadow-[0_0_10px_rgba(var(--primary-rgb),0.1)]">
                         {i + 1}
                     </div>
-                    <p className="pt-1 text-sm sm:text-base">{step}</p>
+                    <p className="pt-1 text-sm sm:text-base leading-relaxed">{step}</p>
                 </div>
             ))}
         </div>
@@ -121,31 +130,31 @@ function InfoCard({ type, children }: { type: 'info' | 'warning'; children: Reac
     const isWarning = type === 'warning';
     return (
         <div className={clsx(
-            "flex items-start gap-3 p-4 rounded-xl border my-4",
+            "flex items-start gap-4 p-5 rounded-xl border my-6 bg-gradient-to-r",
             isWarning
-                ? "bg-[var(--accent-yellow)]/10 border-[var(--accent-yellow)]/30"
-                : "bg-[var(--primary)]/10 border-[var(--primary)]/30"
+                ? "from-[var(--accent-yellow)]/5 to-transparent border-[var(--accent-yellow)]/20"
+                : "from-[var(--primary)]/5 to-transparent border-[var(--primary)]/20"
         )}>
             {isWarning
-                ? <AlertTriangle className="w-5 h-5 text-[var(--accent-yellow)] shrink-0 mt-0.5" />
-                : <Info className="w-5 h-5 text-[var(--primary)] shrink-0 mt-0.5" />
+                ? <AlertTriangle className="w-6 h-6 text-[var(--accent-yellow)] shrink-0 mt-0.5" />
+                : <Info className="w-6 h-6 text-[var(--primary)] shrink-0 mt-0.5" />
             }
-            <div className="text-sm">{children}</div>
+            <div className="text-sm leading-relaxed">{children}</div>
         </div>
     );
 }
 
 function ChainCard({ name, logo, type, speed }: { name: string; logo: string; type: string; speed: string }) {
     return (
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
-            <img src={logo} alt={name} className="w-10 h-10 rounded-full" />
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--primary)] transition-all hover:scale-[1.01]">
+            <img src={logo} alt={name} className="w-12 h-12 rounded-full shadow-lg" />
             <div className="flex-1">
-                <p className="font-semibold">{name}</p>
-                <p className="text-xs text-[var(--foreground-muted)]">{type}</p>
+                <p className="font-bold text-lg">{name}</p>
+                <p className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wide">{type}</p>
             </div>
             <div className="text-right">
-                <p className="text-sm font-mono text-[var(--primary)]">{speed}</p>
-                <p className="text-xs text-[var(--foreground-muted)]">block time</p>
+                <p className="text-lg font-mono text-[var(--primary)] font-bold">{speed}</p>
+                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider">block time</p>
             </div>
         </div>
     );
@@ -155,20 +164,22 @@ function TierCard({ name, Icon, minVolume, tradingRate, referralRate, color }: {
     name: string; Icon: any; minVolume: string; tradingRate: string; referralRate: string; color: string
 }) {
     return (
-        <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] text-center">
-            <div className="w-10 h-10 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-                <Icon className="w-5 h-5" style={{ color }} />
+        <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] text-center relative overflow-hidden group hover:-translate-y-1 transition-transform">
+            <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: color }} />
+            <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ backgroundColor: `${color}15` }}>
+                <Icon className="w-6 h-6" style={{ color }} />
             </div>
-            <p className="font-bold mt-2" style={{ color }}>{name}</p>
-            <p className="text-xs text-[var(--foreground-muted)] mt-1">{minVolume}</p>
-            <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-2 text-xs">
+            <p className="font-bold text-lg" style={{ color }}>{name}</p>
+            <p className="text-xs font-mono bg-[var(--background)] py-1 px-2 rounded-md inline-block mt-2 border border-[var(--border)] opacity-80">{minVolume}</p>
+
+            <div className="mt-4 pt-4 border-t border-[var(--border)] grid grid-cols-2 gap-2 text-xs">
                 <div>
-                    <p className="text-[var(--foreground-muted)]">Trading</p>
-                    <p className="font-bold text-[var(--primary)]">{tradingRate}%</p>
+                    <p className="text-[var(--foreground-muted)] mb-1">Trading</p>
+                    <p className="font-bold text-base text-[var(--primary)]">{tradingRate}%</p>
                 </div>
                 <div>
-                    <p className="text-[var(--foreground-muted)]">Referral</p>
-                    <p className="font-bold text-[var(--accent-purple)]">{referralRate}%</p>
+                    <p className="text-[var(--foreground-muted)] mb-1">Referral</p>
+                    <p className="font-bold text-base text-[var(--accent-purple)]">{referralRate}%</p>
                 </div>
             </div>
         </div>
@@ -185,15 +196,15 @@ function GettingStartedContent() {
             <SectionTitle>Getting Started</SectionTitle>
             <Paragraph>
                 Welcome to Incubator Protocol — your unified gateway for trading across multiple blockchains.
-                Trade tokens on Solana, Ethereum, Base, and Arbitrum all from one interface.
+                Trade tokens on Solana, Ethereum, Base, and Arbitrum all from one professional interface.
             </Paragraph>
 
-            <SubSection title="Quick Start">
+            <SubSection title="Quick Start Guide">
                 <StepList steps={[
-                    "Click the wallet icon in the navigation to create or unlock your embedded wallet",
-                    "Select your preferred chain from the sidebar (Solana, Ethereum, Base, or Arbitrum)",
-                    "Use the Screener to discover trending tokens or paste a token address in the Trade page",
-                    "Enter your swap amount, review the quote, and confirm your transaction"
+                    "Connect your wallet using the button in the top right",
+                    "Select a network (Solana, Ethereum, Base, or Arbitrum)",
+                    "Find a token using the search bar or trending list",
+                    "Enter an amount to swap and confirm the transaction"
                 ]} />
             </SubSection>
 
@@ -201,7 +212,6 @@ function GettingStartedContent() {
                 <FeatureList items={[
                     { title: "Multi-Chain Trading", description: "Swap tokens across 4 major networks from one dashboard" },
                     { title: "Wallet Tracker", description: "Monitor activity for any wallet address in real-time" },
-                    { title: "News Feed", description: "Stay updated with breaking crypto news and price alerts" },
                     { title: "Embedded Wallet", description: "Built-in non-custodial wallet — no browser extension needed" },
                     { title: "Real-Time Data", description: "Live charts, prices, and on-chain data powered by DexScreener" },
                     { title: "Rewards Program", description: "Earn XP and unlock tiers based on your trading volume" }
@@ -215,62 +225,36 @@ function WalletTrackerContent() {
     return (
         <>
             <SectionTitle>Wallet Tracker</SectionTitle>
-            <Paragraph>
-                The Wallet Tracker allows you to monitor any wallet address on Ethereum, Solana, Base, or Arbitrum.
-                Get notified instantly when monitored wallets perform trades.
-            </Paragraph>
+            <div className="flex flex-col-reverse lg:flex-row gap-8 items-center mb-8">
+                <div className="flex-1">
+                    <Paragraph>
+                        The Wallet Tracker allows you to monitor any wallet address on Ethereum, Solana, Base, or Arbitrum.
+                        Get notified instantly when monitored wallets perform trades.
+                    </Paragraph>
+                </div>
+                {/* Visual Preview */}
+                <div className="w-full max-w-sm">
+                    <div className="text-center mb-2 text-xs font-semibold text-[var(--foreground-muted)] tracking-wider uppercase">Preview Notification</div>
+                    <TrackerNotificationUI />
+                </div>
+            </div>
 
             <SubSection title="How to Track a Wallet">
                 <StepList steps={[
                     "Click the Eye icon (👁️) in the header or sidebar to open the tracker",
-                    "Click 'Add Wallet'",
+                    "Click 'Add Wallet' button",
                     "Paste any EVM (0x...) or Solana (Base58) address",
-                    "Give it a nickname (optional)",
-                    "Toggle notifications on/off"
+                    "Give it a nickname to easily identify who it belongs to",
+                    "Toggle notifications on to receive desktop alerts"
                 ]} />
             </SubSection>
 
-            <SubSection title="Features">
+            <SubSection title="Smart Features">
                 <FeatureList items={[
-                    { title: "Auto-Chain Detection", description: "Automatically detects if an address is EVM or Solana" },
-                    { title: "Smart Notifications", description: "Browser notifications trigger only on major activity (Swaps/Trades)" },
-                    { title: "Activity Feed", description: "View recent activity for all your tracked wallets in one place" },
-                    { title: "Privacy", description: "Your tracked wallets are private and only visible to you" }
-                ]} />
-            </SubSection>
-        </>
-    );
-}
-
-function NewsFeedContent() {
-    return (
-        <>
-            <SectionTitle>News Feed & Alerts</SectionTitle>
-            <Paragraph>
-                Stay ahead of the market with our integrated real-time news feed and smart price alerting system.
-            </Paragraph>
-
-            <SubSection title="Crypto News">
-                <Paragraph>
-                    Access the latest breaking news from top crypto sources directly in the app.
-                    The feed updates automatically every minute.
-                </Paragraph>
-                <FeatureList items={[
-                    { title: "Sidebar Access", description: "Quick slide-out panel via the newspaper icon in the header" },
-                    { title: "Dedicated Page", description: "Full-screen reading view at /app/news" },
-                    { title: "Notifications", description: "Get browser alerts for breaking stories" }
-                ]} />
-            </SubSection>
-
-            <SubSection title="Price Alerts">
-                <Paragraph>
-                    Set custom price targets on any token to receive instant browser notifications when they hit.
-                </Paragraph>
-                <StepList steps={[
-                    "Go to the Trade page or Screener",
-                    "Click the Bell icon on any token",
-                    "Set your target price or percentage change",
-                    "Receive a notification even if the tab is in the background"
+                    { title: "Auto-Chain Detection", description: "Our system automatically detects if an address is EVM or Solana based on format" },
+                    { title: "Smart Filtering", description: "Browser notifications only trigger on major activity (Swaps/Trades), ignoring spam" },
+                    { title: "Unified Feed", description: "View recent activity for all your tracked wallets in one scrolling timeline" },
+                    { title: "Local Privacy", description: "Your tracked wallets are stored locally on your device and are never shared" }
                 ]} />
             </SubSection>
         </>
@@ -286,36 +270,36 @@ function ProvidersContent() {
             </Paragraph>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
-                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                <div className="p-6 border border-[var(--border)] rounded-2xl bg-[var(--background-tertiary)] hover:border-[var(--primary)] transition-colors">
+                    <h3 className="font-bold flex items-center gap-2 mb-2 text-lg">
                         DexScreener
                     </h3>
-                    <p className="text-sm text-[var(--foreground-muted)]">
+                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
                         Primary source for real-time token prices, charts, and market data across all chains.
                     </p>
                 </div>
-                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
-                    <h3 className="font-bold flex items-center gap-2 mb-2">
+                <div className="p-6 border border-[var(--border)] rounded-2xl bg-[var(--background-tertiary)] hover:border-[var(--primary)] transition-colors">
+                    <h3 className="font-bold flex items-center gap-2 mb-2 text-lg">
                         CoinGecko
                     </h3>
-                    <p className="text-sm text-[var(--foreground-muted)]">
+                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
                         Trusted source for global cryptocurrency market data, metadata, and token info.
                     </p>
                 </div>
-                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
-                    <h3 className="font-bold flex items-center gap-2 mb-2">
-                        CryptoCompare
+                <div className="p-6 border border-[var(--border)] rounded-2xl bg-[var(--background-tertiary)] hover:border-[var(--primary)] transition-colors">
+                    <h3 className="font-bold flex items-center gap-2 mb-2 text-lg">
+                        0x Protocol
                     </h3>
-                    <p className="text-sm text-[var(--foreground-muted)]">
-                        Powering our global news feed and historical market data analysis.
+                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
+                        Industry standard aggregation API for the best prices on Ethereum, Base, and Arbitrum.
                     </p>
                 </div>
-                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-tertiary)]">
-                    <h3 className="font-bold flex items-center gap-2 mb-2">
-                        Lightspeed
+                <div className="p-6 border border-[var(--border)] rounded-2xl bg-[var(--background-tertiary)] hover:border-[var(--primary)] transition-colors">
+                    <h3 className="font-bold flex items-center gap-2 mb-2 text-lg">
+                        Jupiter
                     </h3>
-                    <p className="text-sm text-[var(--foreground-muted)]">
-                        Our exclusive partner for cross-chain swap execution and routing.
+                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
+                        The #1 liquidity aggregator for Solana, ensuring the best swap rates across the ecosystem.
                     </p>
                 </div>
             </div>
@@ -326,34 +310,46 @@ function ProvidersContent() {
 function WalletContent() {
     return (
         <>
-            <SectionTitle>Wallet</SectionTitle>
+            <SectionTitle>Embedded Wallet</SectionTitle>
             <Paragraph>
-                Incubator Protocol includes a built-in embedded wallet that lets you trade without installing any browser extensions.
-                Create separate wallets for EVM chains and Solana, all secured by a single password.
+                Incubator Protocol features a state-of-the-art embedded wallet. It allows you to trade on any chain without installing browser extensions like Metamask or Phantom.
             </Paragraph>
 
-            <SubSection title="Creating a Wallet">
-                <StepList steps={[
-                    "Click the wallet icon in the top navigation bar",
-                    "Choose 'Create Wallet' and select the wallet type (EVM or Solana)",
-                    "Set a secure password — this encrypts your private keys locally",
-                    "Your wallet is now ready to use. Fund it by sending tokens to your address."
-                ]} />
+            <WalletMockup />
+
+            <div className="mt-12"></div>
+
+            <SubSection title="Security & Architecture">
+                <Paragraph>
+                    Your wallet is <strong>non-custodial</strong>. This means your private keys are generated on your device and encrypted with your password.
+                    We do not store your password or private keys on our servers. You are the only person who can access your funds.
+                </Paragraph>
+
+                <WalletBackupDiagram />
             </SubSection>
 
-            <SubSection title="Wallet Features">
-                <FeatureList items={[
-                    { title: "Assets View", description: "See all your token holdings with USD values" },
-                    { title: "Send & Receive", description: "Transfer tokens to any address on supported chains" },
-                    { title: "Swap", description: "Quick access to swap tokens without leaving the wallet" },
-                    { title: "Transaction History", description: "View all your past transactions" },
-                    { title: "Multi-Wallet Support", description: "Create and switch between multiple wallets" }
-                ]} />
-            </SubSection>
+            <div className="grid lg:grid-cols-2 gap-8 my-8">
+                <div>
+                    <SubSection title="How to Back Up">
+                        <Paragraph>
+                            Since we cannot recover your password, it is critical that you back up your wallet immediately after creation.
+                        </Paragraph>
+                        <StepList steps={[
+                            "Open the wallet menu (top right)",
+                            "Navigate to Settings > Security",
+                            "Click 'Reveal Private Key' or 'Export Wallet'",
+                            "Enter your password to decrypt",
+                            "Save the private key or JSON file safely"
+                        ]} />
+                    </SubSection>
+                </div>
+                <div className="flex flex-col justify-center">
+                    <BackupUI />
+                </div>
+            </div>
 
             <InfoCard type="warning">
-                Your private keys are encrypted and stored locally in your browser.
-                Never share your password, and always back up your recovery phrase if prompted.
+                <strong>Important:</strong> If you clear your browser cache or switch devices, you will need your Private Key or Recovery Phrase to restore your wallet. Always keep a backup.
             </InfoCard>
         </>
     );
@@ -377,59 +373,42 @@ function TradingContent() {
                 ]} />
             </SubSection>
 
-            <SectionTitle>Lightspeed Integration</SectionTitle>
+            <SectionTitle>Routing Engine</SectionTitle>
             <Paragraph>
-                Incubator Protocol exclusively uses <strong>Lightspeed</strong> for all token swaps.
-                Lightspeed provides high-performance cross-chain capabilities, allowing you to swap assets seamlessly between networks.
+                We utilize the most powerful aggregators in the industry to ensure you get the absolute best price for every trade, regardless of the chain.
             </Paragraph>
 
-            <SubSection title="Why Lightspeed?">
-                <FeatureList items={[
-                    { title: "Cross-Chain Swaps", description: "Swap native tokens between Solana, Ethereum, Base, and Arbitrum" },
-                    { title: "Best Rates", description: "Aggregates liquidity to ensure minimal slippage" },
-                    { title: "Fast Execution", description: "Optimized routing for rapid transaction confirmation" },
-                    { title: "Secure", description: "Non-custodial architecture keeps your assets safe" }
-                ]} />
+            <SubSection title="Our Providers">
+                <div className="grid gap-4 sm:grid-cols-2 my-4">
+                    <div className="p-5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <h4 className="font-bold text-lg mb-1 flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                            EVM Swaps
+                        </h4>
+                        <p className="text-sm text-[var(--foreground-muted)] mb-3">Powered by <strong>0x API</strong></p>
+                        <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                            Aggregates liquidity from Uniswap, Sushiswap, Curve, and 100+ other DEXs on Ethereum, Base, and Arbitrum.
+                        </p>
+                    </div>
+                    <div className="p-5 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <h4 className="font-bold text-lg mb-1 flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            Solana Swaps
+                        </h4>
+                        <p className="text-sm text-[var(--foreground-muted)] mb-3">Powered by <strong>Jupiter</strong></p>
+                        <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                            The gold standard for Solana routing. Splits trades across Raydium, Orca, Meteora, and more for minimal price impact.
+                        </p>
+                    </div>
+                </div>
             </SubSection>
 
-            <SubSection title="How it Works">
-                <StepList steps={[
-                    "We request a quote via the Lightspeed API for your desired swap",
-                    "You approve the transaction in your wallet",
-                    "Lightspeed executes the swap and delivers the tokens to your destination chart/wallet"
-                ]} />
-            </SubSection>
-
-            <div className="mt-6">
-                <a
-                    href="https://lightspeed-9288f.web.app/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black font-bold hover:opacity-90 transition-opacity"
-                >
-                    View Official Lightspeed Docs
-                    <ExternalLink className="w-4 h-4" />
-                </a>
-            </div>
-        </>
-    );
-}
-
-function ScreenerContent() {
-    return (
-        <>
-            <SectionTitle>Token Screener</SectionTitle>
-            <Paragraph>
-                Discover trending tokens, track gainers, and find new trading opportunities
-                across all supported chains with our real-time token screener.
-            </Paragraph>
-
-            <SubSection title="Screener Tabs">
-                <FeatureList items={[
-                    { title: "Trending", description: "Top tokens ranked by social momentum and trading volume" },
-                    { title: "Top Pairs", description: "Highest volume trading pairs across all chains" },
-                    { title: "Search", description: "Find any token by name, symbol, or contract address" }
-                ]} />
+            <SubSection title="How Execution Works">
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <StepCard number={1} title="Quote" description="We query 0x or Jupiter for the best route." />
+                    <StepCard number={2} title="Approve" description="You confirm the transaction in your embedded wallet." />
+                    <StepCard number={3} title="Swap" description="The transaction is submitted directly to the blockchain." />
+                </div>
             </SubSection>
         </>
     );
@@ -466,7 +445,7 @@ function RewardsContent() {
             </Paragraph>
 
             <SubSection title="Tier System">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 my-6">
                     <TierCard name="Bronze" Icon={Medal} minVolume="$0+" tradingRate="0.1" referralRate="0.5" color="#CD7F32" />
                     <TierCard name="Silver" Icon={Medal} minVolume="$10K+" tradingRate="0.15" referralRate="0.75" color="#C0C0C0" />
                     <TierCard name="Gold" Icon={Award} minVolume="$50K+" tradingRate="0.2" referralRate="1.0" color="#FFD700" />
@@ -481,12 +460,18 @@ function RewardsContent() {
                     you earn a percentage of their trading volume as rewards. Your earnings
                     accumulate in your claimable balance.
                 </Paragraph>
-                <StepList steps={[
-                    "Go to the Rewards page and create your custom referral code",
-                    "Share your link with friends",
-                    "Earn up to 1.5% of your referrals' trading volume (based on your tier)",
-                    "Claim your accumulated rewards anytime from the Rewards page"
-                ]} />
+                <div className="grid gap-4 sm:grid-cols-2 my-6">
+                    <div className="p-6 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <Users className="w-8 h-8 text-[var(--accent-purple)] mb-4" />
+                        <h3 className="font-bold text-lg mb-2">Invite Friends</h3>
+                        <p className="text-sm text-[var(--foreground-muted)]">Share your unique link. You earn reliable commissions on every swap they make.</p>
+                    </div>
+                    <div className="p-6 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <Trophy className="w-8 h-8 text-[var(--accent-yellow)] mb-4" />
+                        <h3 className="font-bold text-lg mb-2">Earn Together</h3>
+                        <p className="text-sm text-[var(--foreground-muted)]">Users who sign up with your code get a 5% discount on fees permanently.</p>
+                    </div>
+                </div>
             </SubSection>
         </>
     );
@@ -501,7 +486,7 @@ function ChainsContent() {
                 unique characteristics optimized for different use cases.
             </Paragraph>
 
-            <div className="space-y-3 my-6">
+            <div className="space-y-4 my-8">
                 <ChainCard
                     name="Solana"
                     logo="https://i.imgur.com/xp7PYKk.png"
@@ -549,6 +534,10 @@ function SecurityContent() {
                 ]} />
             </SubSection>
 
+            <div className="mt-8 flex justify-center">
+                <Shield className="w-24 h-24 text-[var(--accent-green)] opacity-20" />
+            </div>
+
             <InfoCard type="warning">
                 Incubator Protocol is a trading interface. Always do your own research (DYOR) before
                 trading any token. We do not provide financial advice.
@@ -557,9 +546,194 @@ function SecurityContent() {
     );
 }
 
-// ============================================
-// MAIN DOCS PAGE COMPONENT
-// ============================================
+function BetaTestingContent() {
+    return (
+        <>
+            <SectionTitle>Beta Testing</SectionTitle>
+            <Paragraph>
+                Incubator Protocol Beta launches <strong>January 26th, 2026</strong>. This three-week phase
+                is the final step before our public release. We're opening the doors to a select group of
+                traders to stress-test the infrastructure and refine the user experience.
+            </Paragraph>
+
+            <InfoCard type="warning">
+                <strong>Important:</strong> This is a beta. While our wallet infrastructure has been heavily
+                tested internally, do not deposit life-changing sums. Use amounts you are comfortable testing with.
+            </InfoCard>
+
+            <SubSection title="How to Participate">
+                <StepList steps={[
+                    "Join our Discord server at discord.gg/366nqwwz",
+                    "Wait for the beta access link on January 26th",
+                    "Connect your wallet and start trading",
+                    "Report bugs and feedback in #beta-testing channel"
+                ]} />
+            </SubSection>
+
+            <SubSection title="Beta Rewards">
+                <Paragraph>
+                    Active beta participants will secure permanent, lifetime benefits:
+                </Paragraph>
+                <FeatureList items={[
+                    { title: "Lifetime Diamond Tier", description: "Permanently whitelisted for the lowest trading fee tier. This status stays with your wallet forever." },
+                    { title: "Unlocked Analytics Suite", description: "Post-beta, advanced tools like Market Heatmap, Wallet Tracking, News Terminal, and dApp Analytics move behind a paywall. Beta users retain lifetime free access." },
+                    { title: "Season 1 Rewards", description: "Early access to the $INC points system and enhanced airdrop multipliers." },
+                    { title: "Priority Support", description: "Direct line to the development team for any issues or feature requests." }
+                ]} />
+            </SubSection>
+
+            <SubSection title="Submitting Feedback">
+                <Paragraph>
+                    Please use the following format when reporting issues in Discord:
+                </Paragraph>
+                <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)] font-mono text-sm my-4">
+                    <p className="text-[var(--foreground-muted)]"><strong>Type:</strong> Bug / Feedback / Request</p>
+                    <p className="text-[var(--foreground-muted)]"><strong>Description:</strong> Brief explanation of the issue</p>
+                    <p className="text-[var(--foreground-muted)]"><strong>Device:</strong> Desktop / Mobile (iOS/Android)</p>
+                    <p className="text-[var(--foreground-muted)]"><strong>Screenshot:</strong> (Optional but helpful)</p>
+                </div>
+            </SubSection>
+
+            <SubSection title="Bug Bounty">
+                <Paragraph>
+                    We are confident in our security. If you can break our wallet or extract funds from
+                    the protocol during this beta, we will pay a bounty. Report any security vulnerabilities
+                    directly via Discord DM to the founder.
+                </Paragraph>
+            </SubSection>
+        </>
+    );
+}
+
+function RoadmapContent() {
+    const phases = [
+        {
+            title: "Phase 1: Beta Testing",
+            date: "Jan 26 - Feb 16, 2026",
+            status: "upcoming",
+            items: [
+                "Infrastructure hardening on Solana, Ethereum, Base, Arbitrum",
+                "Bug bounty program active",
+                "Direct feedback loop with engineering",
+                "Beta participants earn lifetime rewards"
+            ]
+        },
+        {
+            title: "Phase 2: Strategic Funding",
+            date: "Feb 17 - Feb 28, 2026",
+            status: "planned",
+            items: [
+                "Fundraising for marketing and liquidity",
+                "Security audit finalization",
+                "Partnership closures with market makers",
+                "Final preparations for TGE"
+            ]
+        },
+        {
+            title: "Phase 3: Token Generation Event",
+            date: "Early March 2026",
+            status: "planned",
+            items: [
+                "$INC token goes live on major DEXs",
+                "Initial liquidity injection",
+                "$INC single-sided staking opens",
+                "Revenue share participation begins"
+            ]
+        },
+        {
+            title: "Phase 4: Season 1",
+            date: "March - June 2026",
+            status: "planned",
+            items: [
+                "Incubator Points System launches",
+                "Trading volume rewards",
+                "Referral system with tiered commissions",
+                "Daily streaks and whale bonuses"
+            ]
+        },
+        {
+            title: "Phase 5: Season 2 & Expansion",
+            date: "June 2026+",
+            status: "planned",
+            items: [
+                "Copy trading marketplace",
+                "Expansion to Tron / BNB Chain",
+                "New scoring mechanisms",
+                "Advanced trading features"
+            ]
+        }
+    ];
+
+    return (
+        <>
+            <SectionTitle>Roadmap</SectionTitle>
+            <Paragraph>
+                We are building an on-chain everything app. Here's what's ahead for Incubator Protocol.
+            </Paragraph>
+
+            <div className="space-y-6 my-8">
+                {phases.map((phase, i) => (
+                    <div key={phase.title} className="relative pl-8 border-l-2 border-[var(--border)]">
+                        <div className={`absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full border-2 ${phase.status === 'upcoming'
+                            ? 'bg-[var(--primary)] border-[var(--primary)]'
+                            : 'bg-[var(--background)] border-[var(--border)]'
+                            }`} />
+                        <div className="mb-2">
+                            <h3 className="text-lg font-bold text-white">{phase.title}</h3>
+                            <p className="text-sm text-[var(--foreground-muted)]">{phase.date}</p>
+                        </div>
+                        <ul className="space-y-2">
+                            {phase.items.map((item, j) => (
+                                <li key={j} className="flex items-start gap-2 text-sm text-[var(--foreground-muted)]">
+                                    <Check className="w-4 h-4 text-[var(--accent-green)] shrink-0 mt-0.5" />
+                                    {item}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+
+            <SubSection title="$INC Tokenomics">
+                <FeatureList items={[
+                    { title: "Real Yield", description: "Protocol uses fees to buy back $INC and pay stakers" },
+                    { title: "Deflation", description: "Unstaking penalties and listing fees are permanently burned" },
+                    { title: "Governance", description: "Stakers vote on Season 2 reward allocations" }
+                ]} />
+            </SubSection>
+
+            <SubSection title="Season 1 Points System">
+                <Paragraph>
+                    All users earn points which convert to $INC airdrops at the end of Season 1.
+                </Paragraph>
+                <div className="grid gap-4 sm:grid-cols-2 my-4">
+                    <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <h4 className="font-bold mb-2 flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
+                            Trading Volume
+                        </h4>
+                        <ul className="text-sm text-[var(--foreground-muted)] space-y-1">
+                            <li>• Earn points for every $1000 traded</li>
+                            <li>• Multi-chain bonus (trade on 3+ chains)</li>
+                            <li>• Whale bonus for trades over $1k</li>
+                        </ul>
+                    </div>
+                    <div className="p-4 rounded-xl bg-[var(--background-tertiary)] border border-[var(--border)]">
+                        <h4 className="font-bold mb-2 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-[var(--accent-purple)]" />
+                            Referrals
+                        </h4>
+                        <ul className="text-sm text-[var(--foreground-muted)] space-y-1">
+                            <li>• 10% of direct referral points</li>
+                            <li>• 5% of secondary tier points</li>
+                            <li>• Unlock higher tiers with more referrals</li>
+                        </ul>
+                    </div>
+                </div>
+            </SubSection>
+        </>
+    );
+}
 
 export default function DocsPage() {
     const [activeSection, setActiveSection] = useState('getting-started');
@@ -570,15 +744,17 @@ export default function DocsPage() {
         (section) => section.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const activeSectionTitle = docSections.find(s => s.id === activeSection)?.title || 'Documentation';
+
     const renderContent = () => {
         switch (activeSection) {
             case 'getting-started': return <GettingStartedContent />;
+            case 'beta': return <BetaTestingContent />;
+            case 'roadmap': return <RoadmapContent />;
             case 'wallet': return <WalletContent />;
             case 'tracker': return <WalletTrackerContent />;
-            case 'news': return <NewsFeedContent />;
             case 'providers': return <ProvidersContent />;
             case 'trading': return <TradingContent />;
-            case 'screener': return <ScreenerContent />;
             case 'explorer': return <ExplorerContent />;
             case 'rewards': return <RewardsContent />;
             case 'chains': return <ChainsContent />;
@@ -595,7 +771,7 @@ export default function DocsPage() {
                 mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 {/* Sidebar Header */}
-                <div className="p-6 border-b border-[var(--border)]">
+                <div className="px-6 py-3 border-b border-[var(--border)]">
                     <Link href="/" className="flex items-center gap-2">
                         <img src="https://i.imgur.com/8UIQt03.png" alt="Incubator Protocol" className="w-8 h-8" />
                         <span className="font-bold text-lg">Documentation</span>
@@ -685,8 +861,59 @@ export default function DocsPage() {
 
             {/* Main Content */}
             <main className="flex-1 min-h-screen">
-                <div className="max-w-4xl mx-auto px-6 py-12 lg:px-12">
-                    {renderContent()}
+                <div className="max-w-7xl mx-auto px-6 py-8 lg:px-12 flex items-start gap-12">
+
+                    {/* Center Column */}
+                    <div className="flex-1 min-w-0">
+                        {/* Breadcrumbs */}
+                        <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] mb-8">
+                            <Link href="/app/dashboard" className="hover:text-[var(--foreground)] transition-colors">App</Link>
+                            <ChevronRight className="w-3 h-3" />
+                            <span>Documentation</span>
+                            <ChevronRight className="w-3 h-3" />
+                            <span className="text-[var(--primary)] font-medium">{activeSectionTitle}</span>
+                        </div>
+
+                        {renderContent()}
+                    </div>
+
+                    {/* Right Sidebar (Table of Contents / Links) */}
+                    <div className="hidden xl:block w-64 sticky top-8 space-y-8">
+                        <div>
+                            <p className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-4">
+                                On This Page
+                            </p>
+                            <ul className="space-y-3 border-l border-[var(--border)] pl-4">
+                                <li>
+                                    <a href="#" className="text-sm font-medium text-[var(--primary)] border-l-2 border-[var(--primary)] -ml-[17px] pl-3 block">
+                                        {activeSectionTitle}
+                                    </a>
+                                </li>
+                                {/* In a real app we'd map subsections here */}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <p className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-4">
+                                Community
+                            </p>
+                            <div className="space-y-3">
+                                <a href="mailto:incubatorprotocol@gmail.com" className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                                    <Info className="w-4 h-4" />
+                                    Contact Support
+                                </a>
+                                <a href="mailto:incubatorprotocol@gmail.com" className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Report a Bug
+                                </a>
+                                <a href="https://discord.gg/366nqwwz" className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                                    <ExternalLink className="w-4 h-4" />
+                                    Discord Community
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </main>
         </div>

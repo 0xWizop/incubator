@@ -4,9 +4,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/store';
+import { useWalletTracker } from '@/hooks/useWalletTracker';
+import { AddWalletModal } from '@/components/tracker/AddWalletModal';
 import { Block, Transaction, ChainId } from '@/types';
 import * as alchemyService from '@/lib/services/alchemy';
 import { Breadcrumb } from '@/components/explorer';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { formatCurrency } from '@/lib/utils/format';
 import {
     Box,
     Hash,
@@ -29,6 +33,7 @@ import {
     Coins,
     Activity,
     ArrowLeft,
+    Eye,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -82,6 +87,7 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedChain, setSelectedChain] = useState<ChainId>(initialChain || selectedChains[0] || 'ethereum');
+    const { getPriceForChain } = useCryptoPrices();
 
     useEffect(() => {
         async function fetchBlock() {
@@ -155,10 +161,10 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Link href={`/app/explorer/detail/?type=block&id=${block.number - 1}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
+                        <Link href={`/app/explorer/detail/?type=block&id=${block.number - 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
                             <ChevronLeft className="w-3.5 h-3.5" /> Prev
                         </Link>
-                        <Link href={`/app/explorer/detail/?type=block&id=${block.number + 1}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
+                        <Link href={`/app/explorer/detail/?type=block&id=${block.number + 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
                             Next <ChevronRight className="w-3.5 h-3.5" />
                         </Link>
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
@@ -218,7 +224,7 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                         {block.miner && (
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Miner</span>
-                                <Link href={`/app/explorer/detail/?type=address&id=${block.miner}`} className="text-xs font-mono text-[var(--primary)] hover:underline truncate">{block.miner}</Link>
+                                <Link href={`/app/explorer/detail/?type=address&id=${block.miner}&chain=${selectedChain}`} className="text-xs font-mono text-[var(--primary)] hover:underline truncate">{block.miner}</Link>
                             </div>
                         )}
                     </div>
@@ -251,7 +257,16 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                                         <p className="text-xs text-[var(--foreground-muted)]">From: {tx.from.slice(0, 10)}...</p>
                                     </div>
                                 </div>
-                                <p className="font-mono text-sm flex-shrink-0">{parseFloat(tx.value).toFixed(4)} ETH</p>
+                                <div className="font-mono text-sm flex-shrink-0 text-right">
+                                    <span>
+                                        {parseFloat(tx.value).toFixed(4)} ETH
+                                        {(() => {
+                                            const price = getPriceForChain(selectedChain);
+                                            const val = parseFloat(tx.value);
+                                            return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(val * price)})</span> : null;
+                                        })()}
+                                    </span>
+                                </div>
                             </Link>
                         ))}
                     </div>
@@ -268,6 +283,7 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
     const [receipt, setReceipt] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedChain, setSelectedChain] = useState<ChainId>(initialChain || selectedChains[0] || 'ethereum');
+    const { getPriceForChain } = useCryptoPrices();
 
     useEffect(() => {
         async function fetchTx() {
@@ -376,13 +392,13 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                         <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
                             <p className="text-xs text-[var(--foreground-muted)] mb-1">From</p>
-                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.from}</Link>
+                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}&chain=${transaction.chainId}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.from}</Link>
                         </div>
                         <ArrowRight className="w-5 h-5 text-[var(--foreground-muted)] hidden sm:block" />
                         <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
                             <p className="text-xs text-[var(--foreground-muted)] mb-1">To</p>
                             {transaction.to ? (
-                                <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.to}</Link>
+                                <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}&chain=${transaction.chainId}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.to}</Link>
                             ) : <span className="text-sm text-[var(--foreground-muted)]">Contract Creation</span>}
                         </div>
                     </div>
@@ -391,15 +407,22 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="card p-4">
                         <p className="text-xs text-[var(--foreground-muted)] mb-1">Value</p>
-                        <p className="font-bold text-lg">{parseFloat(transaction.value).toFixed(6)} ETH</p>
+                        <p className="font-medium text-lg">{parseFloat(transaction.value).toFixed(6)} ETH</p>
+                        <p className="text-sm text-[var(--foreground-muted)]">
+                            {(() => {
+                                const price = getPriceForChain(transaction.chainId);
+                                const val = parseFloat(transaction.value);
+                                return price && !isNaN(val) ? `≈ ${formatCurrency(val * price)}` : '';
+                            })()}
+                        </p>
                     </div>
                     <div className="card p-4">
                         <p className="text-xs text-[var(--foreground-muted)] mb-1">Block</p>
-                        <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}`} className="font-bold text-lg text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
+                        <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}&chain=${transaction.chainId}`} className="font-medium text-lg text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
                     </div>
                     <div className="card p-4">
                         <p className="text-xs text-[var(--foreground-muted)] mb-1">Fee</p>
-                        <p className="font-bold text-lg">{txFee.toFixed(6)} ETH</p>
+                        <p className="font-medium text-lg">{txFee.toFixed(6)} ETH</p>
                     </div>
                 </div>
 
@@ -421,7 +444,14 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
     const { selectedChains } = useAppStore();
     const [balance, setBalance] = useState<string>('0');
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [pageKeys, setPageKeys] = useState<{ fromKey?: string; toKey?: string }>({});
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const { getPriceForChain } = useCryptoPrices();
+
+    // Tracker state
+    const { addWallet } = useWalletTracker();
+    const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
 
     // Determine default chain based on address format
     const isEvmAddress = address.startsWith('0x');
@@ -459,8 +489,9 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
             try {
                 const balanceData = await alchemyService.getBalance(selectedChain, address);
                 setBalance(balanceData);
-                const txs = await alchemyService.getAddressTransactions(selectedChain, address);
+                const { transactions: txs, pageKeys: keys } = await alchemyService.getAddressTransactions(selectedChain, address);
                 setTransactions(txs);
+                setPageKeys(keys);
             } catch (error) {
                 console.error('Error fetching address:', error);
             } finally {
@@ -469,6 +500,27 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
         }
         fetchData();
     }, [address, selectedChain, isEvmAddress]);
+
+    const loadMore = async () => {
+        if (!pageKeys.fromKey && !pageKeys.toKey) return;
+
+        setLoadingMore(true);
+        try {
+            const { transactions: newTxs, pageKeys: newKeys } = await alchemyService.getAddressTransactions(
+                selectedChain,
+                address,
+                25,
+                pageKeys
+            );
+
+            setTransactions(prev => [...prev, ...newTxs]);
+            setPageKeys(newKeys);
+        } catch (error) {
+            console.error('Error loading more:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     const chainLogos: Record<ChainId, string> = {
         ethereum: 'https://i.imgur.com/NKQlhQj.png',
@@ -497,11 +549,20 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                         <div>
                             <h1 className="text-xl sm:text-2xl font-bold mb-1">Address</h1>
                             <div className="flex items-center gap-2">
-                                <code className="font-mono text-sm text-[var(--foreground-muted)] break-all">{address}</code>
+                                <code className="text-sm text-[var(--foreground-muted)] break-all">{address}</code>
                                 <CopyButton text={address} />
                             </div>
                         </div>
                     </div>
+                </div>
+                {/* Actions & Chain Selector */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                        onClick={() => setIsTrackModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-semibold hover:opacity-90 transition-opacity"
+                    >
+                        <Eye className="w-4 h-4" /> Track Wallet
+                    </button>
                     {/* Chain Selector */}
                     {initialChain ? (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
@@ -531,38 +592,55 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                             <div className="h-12 w-48 bg-[var(--background-tertiary)] rounded animate-pulse" />
                         ) : (
                             <>
-                                <p className="text-3xl sm:text-4xl font-bold font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
+                                <p className="text-3xl sm:text-4xl font-medium font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
                                 <p className="text-lg text-[var(--foreground-muted)]">≈ ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                             </>
                         )}
                     </div>
 
                     {/* Consolidated Stats Card */}
-                    <div className="lg:col-span-2 card p-6 bg-[var(--background-secondary)] flex flex-col justify-center min-h-[140px]">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-xs font-medium uppercase tracking-wider">
-                                    <ArrowRightLeft className="w-4 h-4" /> Transactions
-                                </div>
-                                <p className="text-xl sm:text-2xl font-bold font-mono">{transactions.length}</p>
+                    <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {/* Transactions Stat */}
+                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
+                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
+                                <ArrowRightLeft className="w-4 h-4" />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-xs font-medium uppercase tracking-wider">
-                                    <ArrowUpRight className="w-4 h-4 text-[var(--accent-red)]" /> Sent
-                                </div>
-                                <p className="text-xl sm:text-2xl font-bold font-mono text-[var(--accent-red)]">{sentCount}</p>
+                            <div>
+                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Transactions</p>
+                                <p className="text-xl font-medium">{transactions.length}</p>
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-xs font-medium uppercase tracking-wider">
-                                    <ArrowDownLeft className="w-4 h-4 text-[var(--accent-green)]" /> Received
-                                </div>
-                                <p className="text-xl sm:text-2xl font-bold font-mono text-[var(--accent-green)]">{recvCount}</p>
+                        </div>
+
+                        {/* Sent Stat */}
+                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
+                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
+                                <ArrowUpRight className="w-4 h-4" />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-xs font-medium uppercase tracking-wider">
-                                    <Coins className="w-4 h-4 text-[var(--accent-yellow)]" /> Tokens
-                                </div>
-                                <p className="text-xl sm:text-2xl font-bold font-mono text-[var(--foreground-muted)]">—</p>
+                            <div>
+                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Sent</p>
+                                <p className="text-xl font-medium">{sentCount}</p>
+                            </div>
+                        </div>
+
+                        {/* Received Stat */}
+                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
+                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
+                                <ArrowDownLeft className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Received</p>
+                                <p className="text-xl font-medium">{recvCount}</p>
+                            </div>
+                        </div>
+
+                        {/* Tokens Stat */}
+                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
+                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
+                                <Coins className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Tokens</p>
+                                <p className="text-xl font-medium text-[var(--foreground-muted)]">—</p>
                             </div>
                         </div>
                     </div>
@@ -589,26 +667,54 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                         {transactions.map((tx) => {
                             const isSent = tx.from.toLowerCase() === address.toLowerCase();
                             return (
-                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}`} className="flex items-center gap-4 p-4 hover:bg-[var(--background-tertiary)] transition-colors">
-                                    <div className={clsx('p-2 rounded-full flex-shrink-0', isSent ? 'bg-[var(--accent-red)]/10' : 'bg-[var(--accent-green)]/10')}>
+                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${tx.chainId}`} className="flex items-center gap-4 p-4 hover:bg-[var(--background-tertiary)] transition-colors group">
+                                    <div className={clsx('p-2 rounded-full flex-shrink-0 transition-colors', isSent ? 'bg-[var(--accent-red)]/10 group-hover:bg-[var(--accent-red)]/20' : 'bg-[var(--accent-green)]/10 group-hover:bg-[var(--accent-green)]/20')}>
                                         {isSent ? <ArrowUpRight className="w-5 h-5 text-[var(--accent-red)]" /> : <ArrowDownLeft className="w-5 h-5 text-[var(--accent-green)]" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="font-medium text-sm">{isSent ? 'Sent' : 'Received'}</span>
-                                            <span className={clsx('font-mono text-sm font-medium', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>{isSent ? '-' : '+'}{parseFloat(tx.value).toFixed(4)} ETH</span>
+                                            {/* UI Fix: Removed font-mono, simplified text styles */}
+                                            <span className={clsx('text-sm font-medium block', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>
+                                                {isSent ? '-' : '+'}{parseFloat(tx.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.asset || nativeSymbol}
+                                                {(() => {
+                                                    const price = getPriceForChain(tx.chainId);
+                                                    const val = parseFloat(tx.value);
+                                                    return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] ml-1.5 text-xs font-normal">(≈{formatCurrency(val * price)})</span> : null;
+                                                })()}
+                                            </span>
                                         </div>
                                         <div className="flex items-center justify-between text-xs text-[var(--foreground-muted)]">
-                                            <span className="font-mono truncate">{isSent ? `To: ${tx.to?.slice(0, 12)}...` : `From: ${tx.from.slice(0, 12)}...`}</span>
+                                            <span className="truncate opacity-70 hover:opacity-100 transition-opacity">{isSent ? `To: ${tx.to?.slice(0, 8)}...` : `From: ${tx.from.slice(0, 8)}...`}</span>
                                             <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3 h-3" />{formatDistanceToNow(tx.timestamp * 1000, { addSuffix: true })}</span>
                                         </div>
                                     </div>
                                 </Link>
                             );
                         })}
+
+                        {/* Load More Button */}
+                        {(pageKeys.fromKey || pageKeys.toKey) && (
+                            <div className="p-4 text-center">
+                                <button
+                                    onClick={loadMore}
+                                    disabled={loadingMore}
+                                    className="btn btn-secondary w-full py-2 text-sm disabled:opacity-50"
+                                >
+                                    {loadingMore ? 'Loading...' : 'Load More Transactions'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
+
+            <AddWalletModal
+                isOpen={isTrackModalOpen}
+                onClose={() => setIsTrackModalOpen(false)}
+                onAdd={addWallet}
+                initialAddress={address}
+            />
         </div>
     );
 }

@@ -319,8 +319,102 @@ export async function getSolanaBalance(address: string): Promise<string> {
     }
 }
 
-// Get balance for any chain
-export async function getBalance(address: string, walletType: 'evm' | 'solana', chainId?: ChainType): Promise<string> {
+// Minimal ERC20 ABI for balance checking
+const ERC20_ABI = [
+    {
+        name: 'balanceOf',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256' }],
+    },
+    {
+        name: 'decimals',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [],
+        outputs: [{ name: '', type: 'uint8' }],
+    },
+] as const;
+
+// Get EVM Token Balance
+export async function getErc20Balance(address: string, tokenAddress: string, chainId: ChainType = 'ethereum'): Promise<string> {
+    const chainConfig = CHAINS[chainId];
+    if (!('chain' in chainConfig)) return '0';
+
+    try {
+        const client = createPublicClient({
+            chain: chainConfig.chain,
+            transport: http(chainConfig.rpcUrl),
+        });
+
+        const [balance, decimals] = await Promise.all([
+            client.readContract({
+                address: tokenAddress as `0x${string}`,
+                abi: ERC20_ABI,
+                functionName: 'balanceOf',
+                args: [address as `0x${string}`],
+            }),
+            client.readContract({
+                address: tokenAddress as `0x${string}`,
+                abi: ERC20_ABI,
+                functionName: 'decimals',
+            }).catch(() => 18), // Default to 18 if fails
+        ]);
+
+        // Simple formatting without large libraries
+        const balanceStr = balance.toString();
+        const whole = balanceStr.substring(0, balanceStr.length - decimals) || '0';
+        const fraction = balanceStr.substring(balanceStr.length - decimals);
+        // Pad fraction if needed? No, formatEther handles simple cases, but for custom decimals manual generic format:
+        // Actually, just use basic math for MVP display
+        return (Number(balance) / Math.pow(10, decimals)).toFixed(4);
+    } catch (error) {
+        console.error('Failed to fetch ERC20 balance:', error);
+        return '0';
+    }
+}
+
+// Get Solana Token Balance
+export async function getSolanaTokenBalance(address: string, mintAddress: string): Promise<string> {
+    try {
+        const connection = new Connection(CHAINS.solana.rpcUrl, 'confirmed');
+        const pubKey = new PublicKey(address);
+
+        // This finds all token accounts for the wallet for this specific mint
+        // Standard Token Program ID: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+        const response = await connection.getParsedTokenAccountsByOwner(pubKey, {
+            mint: new PublicKey(mintAddress),
+        });
+
+        let totalBalance = 0;
+        for (const account of response.value) {
+            const tokenAmount = account.account.data.parsed.info.tokenAmount;
+            totalBalance += tokenAmount.uiAmount || 0;
+        }
+
+        return totalBalance.toFixed(4);
+    } catch (error) {
+        console.error('Failed to fetch SPL token balance:', error);
+        return '0';
+    }
+}
+
+// Get balance for any chain (Native or Token)
+export async function getBalance(
+    address: string,
+    walletType: 'evm' | 'solana',
+    chainId?: ChainType,
+    tokenAddress?: string
+): Promise<string> {
+    if (tokenAddress) {
+        if (walletType === 'solana') {
+            return getSolanaTokenBalance(address, tokenAddress);
+        }
+        return getErc20Balance(address, tokenAddress, chainId || 'ethereum');
+    }
+
+    // Native balance
     if (walletType === 'solana') {
         return getSolanaBalance(address);
     }

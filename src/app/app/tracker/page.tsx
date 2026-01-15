@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, Plus, Search, Filter, Copy, Settings, X, ChevronDown } from 'lucide-react';
+import { Eye, Plus, Search, Filter, Copy, Settings, X, ChevronDown, BellRing, BellOff, Lock, Sparkles } from 'lucide-react';
 import { useWalletTracker } from '@/hooks/useWalletTracker';
 import { AddWalletModal } from '@/components/tracker';
 import { TrackedWallet, ChainId, CopySettings } from '@/types';
@@ -9,6 +9,8 @@ import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import * as firebase from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import Link from 'next/link';
 
 const CHAIN_LOGOS: Record<string, string> = {
     ethereum: 'https://i.imgur.com/NKQlhQj.png',
@@ -22,10 +24,22 @@ export default function TrackerPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedChain, setSelectedChain] = useState<ChainId | 'all'>('all');
     const [copySettingsWallet, setCopySettingsWallet] = useState<TrackedWallet | null>(null);
+    const { maxTrackedWallets, isPro, isBetaTester, isAdmin } = useSubscription();
+
+    const hasFullAccess = isPro || isBetaTester || isAdmin;
+    const walletsAtLimit = !hasFullAccess && wallets.length >= maxTrackedWallets;
 
     const filteredWallets = selectedChain === 'all'
         ? wallets
         : wallets.filter(w => w.chainId === selectedChain);
+
+    const handleAddClick = () => {
+        if (walletsAtLimit) {
+            // Don't open modal, they need to upgrade
+            return;
+        }
+        setShowAddModal(true);
+    };
 
     return (
         <div className="h-full flex flex-col">
@@ -37,8 +51,18 @@ export default function TrackerPage() {
                             <Eye className="w-5 h-5 text-[var(--primary)]" />
                             Wallet Tracker
                         </h1>
-                        <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
+                        <p className="text-xs text-[var(--foreground-muted)] mt-0.5 flex items-center gap-2">
                             Monitor & copy wallet trades
+                            {!hasFullAccess && (
+                                <span className={clsx(
+                                    "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                    walletsAtLimit
+                                        ? "bg-[var(--accent-red)]/20 text-[var(--accent-red)]"
+                                        : "bg-[var(--background-tertiary)] text-[var(--foreground-muted)]"
+                                )}>
+                                    {wallets.length}/{maxTrackedWallets} wallets
+                                </span>
+                            )}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -57,15 +81,44 @@ export default function TrackerPage() {
                             </select>
                             <Filter className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--foreground-muted)] pointer-events-none" />
                         </div>
-                        <button
-                            onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-black text-xs font-medium rounded-lg hover:opacity-90 transition-colors"
-                        >
-                            <Plus className="w-3.5 h-3.5" />
-                            Add
-                        </button>
+
+                        {walletsAtLimit ? (
+                            <Link
+                                href="/#pricing"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-black text-xs font-medium rounded-lg hover:opacity-90 transition-colors"
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Upgrade
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={handleAddClick}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-black text-xs font-medium rounded-lg hover:opacity-90 transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Add
+                            </button>
+                        )}
                     </div>
                 </div>
+
+                {/* Upgrade banner when at limit */}
+                {walletsAtLimit && (
+                    <div className="mt-3 p-3 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Lock className="w-4 h-4 text-[var(--primary)]" />
+                            <p className="text-xs text-[var(--foreground)]">
+                                You've reached your limit of {maxTrackedWallets} tracked wallets.
+                            </p>
+                        </div>
+                        <Link
+                            href="/#pricing"
+                            className="px-3 py-1.5 bg-[var(--primary)] text-black text-xs font-bold rounded-lg hover:opacity-90"
+                        >
+                            Upgrade to Pro
+                        </Link>
+                    </div>
+                )}
             </div>
 
             {/* Content */}
@@ -194,14 +247,18 @@ function WalletCard({
                 <button
                     onClick={onToggleNotify}
                     className={clsx(
-                        'px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                        'px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center',
                         wallet.notifyOnActivity
                             ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
-                            : 'bg-[var(--background-tertiary)]'
+                            : 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)]'
                     )}
                     title={wallet.notifyOnActivity ? 'Notifications On' : 'Notifications Off'}
                 >
-                    {wallet.notifyOnActivity ? '🔔' : '🔕'}
+                    {wallet.notifyOnActivity ? (
+                        <BellRing className="w-3.5 h-3.5" />
+                    ) : (
+                        <BellOff className="w-3.5 h-3.5" />
+                    )}
                 </button>
             </div>
 

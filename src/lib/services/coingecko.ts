@@ -85,6 +85,37 @@ export async function getOHLC(
 }
 
 /**
+ * Get Top Crypto Categories (Sectors)
+ */
+export async function getCategories() {
+    try {
+        const response = await fetch(`${COINGECKO_API}/coins/categories`);
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        // Return top 15 categories by mcap, excluding "Smart Contract Platform" duplicates etc if needed
+        return data.slice(0, 20);
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+    }
+}
+
+/**
+ * Get Coins for a specific category
+ */
+export async function getCategoryCoins(categoryId: string) {
+    try {
+        const response = await fetch(`${COINGECKO_API}/coins/markets?vs_currency=usd&category=${categoryId}&order=market_cap_desc&per_page=20&page=1&sparkline=false&price_change_percentage=24h`);
+        if (!response.ok) return [];
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching category coins for ${categoryId}:`, error);
+        return [];
+    }
+}
+
+/**
  * Convert OHLC data to lightweight-charts format
  */
 export function toChartData(ohlcData: OHLCData[]): CandlestickData<Time>[] {

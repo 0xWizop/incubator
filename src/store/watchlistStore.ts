@@ -44,6 +44,7 @@ interface WatchlistState {
     isInitialized: boolean;
     activeWatchlistId: string;
     isPanelOpen: boolean;
+    currentUserId: string | undefined;
     activeTab: 'favorites' | 'watchlists' | 'alerts';
 
     // Actions
@@ -86,15 +87,22 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
     followedWatchlists: [],
     isLoading: false,
     isInitialized: false,
+    currentUserId: undefined,
     activeWatchlistId: DEFAULT_FAVORITES_ID,
     isPanelOpen: false,
     activeTab: 'favorites',
 
     // Initialize from Firebase or LocalStorage
     initialize: async (userId?: string) => {
-        // Always allow re-initialization if switching from guest to user or vice versa, 
-        // but simple check:
-        // if (get().isInitialized && userId) return; 
+        const state = get();
+
+        // Prevent re-initialization if loading
+        if (state.isLoading) return;
+
+        // Prevent re-initialization if already initialized for the same user
+        if (state.isInitialized && state.currentUserId === userId) {
+            return;
+        }
 
         set({ isLoading: true });
         try {
@@ -109,6 +117,7 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
                     alerts,
                     isInitialized: true,
                     isLoading: false,
+                    currentUserId: userId,
                 });
             } else {
                 // Load from local storage
@@ -139,7 +148,10 @@ export const useWatchlistStore = create<WatchlistState>()((set, get) => ({
                         alerts: [], // Alerts only work with auth for now
                         isInitialized: true,
                         isLoading: false,
+                        currentUserId: undefined,
                     });
+                } else {
+                    set({ isLoading: false });
                 }
             }
         } catch (error) {

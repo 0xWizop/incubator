@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { WalletProvider } from '@/context/WalletProvider';
 import { AuthProvider } from '@/context/AuthContext';
+import { Toaster } from 'sonner';
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
@@ -16,6 +17,7 @@ export function Providers({ children }: ProvidersProps) {
             <AuthProvider>
                 <WalletProvider>
                     {children}
+                    <Toaster richColors position="bottom-right" theme="dark" />
                 </WalletProvider>
             </AuthProvider>
         </NextThemesProvider>

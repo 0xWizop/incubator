@@ -82,6 +82,7 @@ export interface Transaction {
     nonce?: number;
     status: 'success' | 'failed' | 'pending';
     type?: string;
+    asset?: string; // Symbol of the transferred asset (e.g., 'ETH', 'USDC')
     input?: string;
     logs?: TransactionLog[];
     // For swap transactions
@@ -137,6 +138,28 @@ export interface UserPreferences {
     };
 }
 
+// Subscription & Access Control types
+export type SubscriptionTier = 'free' | 'pro' | 'beta' | 'lifetime';
+export type UserRole = 'user' | 'beta_tester' | 'admin';
+export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing' | 'none';
+
+export interface Subscription {
+    tier: SubscriptionTier;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    status: SubscriptionStatus;
+    currentPeriodEnd?: Date;
+    cancelAtPeriodEnd?: boolean;
+}
+
+export interface UserFlags {
+    isBetaTester: boolean;        // Participated in beta (Jan 26 - Feb 16)
+    hasLifetimeDiamond: boolean;  // Permanent lowest trading fees
+    hasLifetimeProTools: boolean; // Permanent pro analytics access
+    isWhitelisted: boolean;       // Allowed to use platform
+    isBlacklisted: boolean;       // Blocked from platform
+}
+
 // User types
 export interface User {
     address: string;
@@ -150,6 +173,10 @@ export interface User {
     displayName?: string;
     photoURL?: string;
     preferences?: UserPreferences;
+    // Subscription & Access Control
+    subscription?: Subscription;
+    flags?: UserFlags;
+    role?: UserRole;
 }
 
 // Trade types
@@ -487,3 +514,15 @@ export interface EnhancedPriceAlert {
     createdAt: Date;
 }
 
+// === ADDRESS BOOK TYPES ===
+
+export interface AddressBookEntry {
+    id: string;
+    userId: string;
+    address: string;
+    name: string;
+    chain: ChainId | 'all'; // 'all' for EVM addresses that work on all chains
+    createdAt: Date;
+    lastUsed?: Date;
+    isFavorite?: boolean;
+}

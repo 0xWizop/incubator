@@ -16,39 +16,35 @@ export function NewsItem({ article }: NewsItemProps) {
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block p-3 hover:bg-[var(--background-tertiary)] transition-colors border-b border-[var(--border)] last:border-b-0 group"
+            className="group block border-b border-[var(--border)] p-3 hover:bg-[var(--primary)]/5 transition-colors relative pl-4 font-mono"
         >
-            <div className="flex gap-2.5">
-                {/* Image thumbnail */}
-                {article.imageUrl && (
-                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--background-tertiary)]">
-                        <img
-                            src={article.imageUrl}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                        />
-                    </div>
-                )}
+            {/* Active Indicator on Hover */}
+            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--primary)] opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            <div className="flex items-start gap-3">
+                {/* Terminal Prefix */}
+                <span className="text-[var(--primary)] text-xs mt-0.5 shrink-0 opacity-50 group-hover:opacity-100 select-none">{`>`}</span>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-[10px] text-[var(--primary)] border border-[var(--primary)]/30 px-1.5 py-0.5 rounded-sm uppercase tracking-wider bg-[var(--primary)]/5">
+                            {article.source.name}
+                        </span>
+                        <span className="text-[10px] text-[var(--foreground-muted)]">
+                            {timeAgo}
+                        </span>
+                    </div>
+
+                    <h3 className="text-sm leading-snug text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors line-clamp-2 mb-1">
                         {article.title}
                     </h3>
 
                     {article.description && (
-                        <p className="text-xs text-[var(--foreground-muted)] line-clamp-2 mb-1.5">
+                        <p className="text-xs text-[var(--foreground-muted)] line-clamp-1 opacity-70 group-hover:opacity-100 transition-opacity">
                             {article.description}
                         </p>
                     )}
-
-                    <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-muted)]">
-                        <span className="font-medium">{article.source.name}</span>
-                        <span>•</span>
-                        <span>{timeAgo}</span>
-                        <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
                 </div>
             </div>
         </a>

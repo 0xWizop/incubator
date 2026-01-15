@@ -28,9 +28,13 @@ import { TransactionHistory } from '@/components/tax';
 
 import { Suspense } from 'react';
 
+import { LoadingSpinner } from '@/components/ui/Loading';
+import { PnLCalculator } from '@/components/dashboard/PnLCalculator';
+import { ChainFlowWidget } from '@/components/dashboard/ChainFlowWidget';
+
 export default function DashboardPage() {
     return (
-        <Suspense fallback={<div className="p-6 flex justify-center"><div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>}>
+        <Suspense fallback={<LoadingSpinner fullHeight size="lg" text="Loading dashboard..." />}>
             <DashboardContent />
         </Suspense>
     );
@@ -79,157 +83,155 @@ function DashboardContent() {
     // Mock PnL since we don't track exit price yet fully
     const totalPnL = 0;
 
-
+    if (loading) {
+        return <LoadingSpinner fullHeight size="lg" text="Syncing portfolio data..." />;
+    }
 
     return (
         <div className="h-full overflow-y-auto overscroll-contain">
-            <div className="px-3 py-3 sm:p-6 max-w-7xl mx-auto pb-24 lg:pb-6 overflow-x-hidden w-full">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-8">
+            <div className="px-4 py-4 sm:px-6 sm:py-6 max-w-7xl mx-auto pb-24 lg:pb-6">
+                {/* Header - Clean and minimal */}
+                <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-lg sm:text-xl font-semibold">Trading Dashboard</h1>
-                        <p className="text-xs sm:text-sm text-[var(--foreground-muted)]">
-                            Performance analytics for {address?.slice(0, 6)}...{address?.slice(-4)}
+                        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Dashboard</h1>
+                        <p className="text-sm text-[var(--foreground-muted)] mt-0.5">
+                            {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connect wallet to view stats'}
                         </p>
                     </div>
-
-                    <div className="flex items-center gap-1 bg-[var(--background-secondary)] p-0.5 sm:p-1 rounded-lg border border-[var(--border)] overflow-x-auto">
+                    <div className="flex items-center gap-1 text-xs sm:text-sm">
                         {(['24h', '7d', '30d', 'all'] as const).map((range) => (
                             <button
                                 key={range}
                                 onClick={() => setTimeRange(range)}
                                 className={clsx(
-                                    'px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap',
+                                    'px-3 py-1.5 rounded-md font-medium transition-all',
                                     timeRange === range
-                                        ? 'bg-[var(--primary)] text-white shadow-sm'
-                                        : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                                        ? 'bg-[var(--foreground)] text-[var(--background)]'
+                                        : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
                                 )}
                             >
-                                {range === 'all' ? 'All' : range.toUpperCase()}
+                                {range === 'all' ? 'All' : range}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                    <div className="card p-2.5 sm:p-4">
-                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Total P&L</span>
-                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-green)]/10">
-                                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--accent-green)]" />
+                {/* Stats Grid - Clean cards */}
+                <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="p-1.5 rounded-lg bg-[var(--accent-green)]/10">
+                                <TrendingUp className="w-4 h-4 text-[var(--accent-green)]" />
                             </div>
+                            <span className="text-xs sm:text-sm text-[var(--foreground-muted)]">Total P&L</span>
                         </div>
-                        <p className="text-sm sm:text-lg font-bold text-[var(--accent-green)]">
+                        <p className="text-lg sm:text-2xl font-semibold text-[var(--accent-green)]">
                             +${totalPnL.toFixed(2)}
                         </p>
-                        <div className="mt-1 text-[0.6rem] sm:text-xs hidden sm:block">
-                            <span className="text-[var(--accent-green)] font-medium">+0.0%</span>
-                            <span className="text-[var(--foreground-muted)] ml-1">vs last</span>
-                        </div>
+                        <p className="text-xs text-[var(--foreground-muted)] mt-1 hidden sm:block">
+                            <span className="text-[var(--accent-green)]">+0.0%</span> vs last period
+                        </p>
                     </div>
 
-                    <div className="card p-2.5 sm:p-4">
-                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Volume</span>
-                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--primary)]/10">
-                                <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--primary)]" />
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="p-1.5 rounded-lg bg-[var(--primary)]/10">
+                                <Activity className="w-4 h-4 text-[var(--primary)]" />
                             </div>
+                            <span className="text-xs sm:text-sm text-[var(--foreground-muted)]">Volume</span>
                         </div>
-                        <p className="text-sm sm:text-lg font-bold">
+                        <p className="text-lg sm:text-2xl font-semibold">
                             ${totalVolume.toLocaleString()}
                         </p>
-                        <div className="mt-1 text-[0.6rem] sm:text-xs text-[var(--foreground-muted)] hidden sm:block">
-                            Across {totalTrades} trades
-                        </div>
+                        <p className="text-xs text-[var(--foreground-muted)] mt-1 hidden sm:block">
+                            {totalTrades} trades
+                        </p>
                     </div>
 
-                    <div className="card p-2.5 sm:p-4">
-                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <span className="text-[0.65rem] sm:text-sm text-[var(--foreground-muted)]">Avg Trade</span>
-                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-purple)]/10">
-                                <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--accent-purple)]" />
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="p-1.5 rounded-lg bg-[var(--accent-purple)]/10">
+                                <BarChart3 className="w-4 h-4 text-[var(--accent-purple)]" />
                             </div>
+                            <span className="text-xs sm:text-sm text-[var(--foreground-muted)]">Avg Trade</span>
                         </div>
-                        <p className="text-sm sm:text-lg font-bold">
-                            ${totalTrades > 0 ? (totalVolume / totalTrades).toFixed(2) : '0.00'}
+                        <p className="text-lg sm:text-2xl font-semibold">
+                            ${totalTrades > 0 ? (totalVolume / totalTrades).toFixed(0) : '0'}
                         </p>
                     </div>
                 </div>
 
-                {/* Tax Reports - Subtle */}
-                <div className="flex items-center justify-between p-3 sm:p-4 mb-4 sm:mb-6 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg hover:border-[var(--border)]/60 transition-colors">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                {/* Tax Export - Inline minimal */}
+                <div className="flex items-center justify-between py-3 px-4 mb-6 bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl">
+                    <div className="flex items-center gap-3">
                         <FileText className="w-4 h-4 text-[var(--foreground-muted)]" />
                         <div>
-                            <p className="text-xs sm:text-sm font-medium">Export for Taxes</p>
-                            <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">
-                                Download transaction history
-                            </p>
+                            <p className="text-sm font-medium">Tax Reports</p>
+                            <p className="text-xs text-[var(--foreground-muted)]">Export transaction history</p>
                         </div>
                     </div>
                     <button
-                        onClick={() => {
-                            if (!isConnected) {
-                                connect();
-                            } else {
-                                setShowTaxModal(true);
-                            }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-[var(--background-tertiary)] border border-[var(--border)] text-xs sm:text-sm font-medium rounded-lg hover:bg-[var(--background)] transition-all"
+                        onClick={() => isConnected ? setShowTaxModal(true) : connect()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[var(--background-tertiary)] hover:bg-[var(--background)] border border-[var(--border)] transition-all"
                     >
                         <Download className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">{isConnected ? 'Export' : 'Connect'}</span>
                     </button>
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
-                    {/* Recent Trades Table */}
-                    <div className="lg:col-span-2 bg-transparent sm:card p-0 sm:p-6 overflow-hidden">
-                        <div className="flex items-center justify-between mb-2 sm:mb-6">
-                            <h2 className="font-semibold text-sm sm:text-base">Recent Swaps</h2>
-                        </div>
-                        <div className="w-full">
-                            <table className="w-full text-xs sm:text-sm">
+                {/* Main Content Grid */}
+                <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+                    {/* Recent Trades */}
+                    <div className="lg:col-span-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 sm:p-5">
+                        <h2 className="text-sm sm:text-base font-semibold mb-4">Recent Swaps</h2>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
                                 <thead>
-                                    <tr className="text-[var(--foreground-muted)] text-[10px] sm:text-xs uppercase">
-                                        <th className="text-left py-2 font-medium">Time</th>
-                                        <th className="text-left py-2 font-medium">Pair</th>
-                                        <th className="text-right py-2 font-medium">Amount In</th>
-                                        <th className="text-right py-2 font-medium">Amount Out</th>
-                                        <th className="text-right py-2 font-medium hidden sm:table-cell">Tx Hash</th>
+                                    <tr className="text-xs text-[var(--foreground-muted)]">
+                                        <th className="text-left pb-3 font-medium">Time</th>
+                                        <th className="text-left pb-3 font-medium">Pair</th>
+                                        <th className="text-right pb-3 font-medium">In</th>
+                                        <th className="text-right pb-3 font-medium">Out</th>
+                                        <th className="text-right pb-3 font-medium hidden sm:table-cell">Tx</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="text-sm">
                                     {!isConnected ? (
                                         <tr>
-                                            <td colSpan={5}>
+                                            <td colSpan={5} className="py-12">
                                                 <ConnectPrompt message="Connect wallet to see your trading history" onConnect={connect} />
                                             </td>
                                         </tr>
                                     ) : trades.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="text-center py-12 text-[var(--foreground-muted)]">
-                                                No trades found yet. Start trading!
+                                                No trades yet. Start trading!
                                             </td>
                                         </tr>
                                     ) : (
-                                        trades.map((trade) => (
-                                            <tr key={trade.id} className="border-b border-[var(--border)]/30">
-                                                <td className="py-2 text-[var(--foreground-muted)] text-[10px] sm:text-xs">
+                                        trades.slice(0, 10).map((trade, i) => (
+                                            <tr
+                                                key={trade.id}
+                                                className={clsx(
+                                                    "hover:bg-[var(--background-tertiary)] transition-colors",
+                                                    i < trades.length - 1 && "border-b border-[var(--border)]/50"
+                                                )}
+                                            >
+                                                <td className="py-3 text-[var(--foreground-muted)] text-xs">
                                                     {new Date(trade.timestamp).toLocaleDateString()}
                                                 </td>
-                                                <td className="py-2 font-medium text-[10px] sm:text-xs">
+                                                <td className="py-3 font-medium text-xs">
                                                     {trade.tokenIn.slice(0, 4)} → {trade.tokenOut.slice(0, 4)}
                                                 </td>
-                                                <td className="py-2 text-right font-mono text-[10px] sm:text-xs">
+                                                <td className="py-3 text-right font-mono text-xs">
                                                     {parseFloat(trade.amountIn).toFixed(2)}
                                                 </td>
-                                                <td className="py-2 text-right font-mono text-[10px] sm:text-xs">
+                                                <td className="py-3 text-right font-mono text-xs">
                                                     {parseFloat(trade.amountOut).toFixed(2)}
                                                 </td>
-                                                <td className="py-2 text-right hidden sm:table-cell">
-                                                    <a href="#" className="text-[var(--primary)] hover:underline text-xs">
+                                                <td className="py-3 text-right hidden sm:table-cell">
+                                                    <a href="#" className="text-[var(--primary)] hover:underline text-xs font-mono">
                                                         {trade.txHash.slice(0, 6)}...
                                                     </a>
                                                 </td>
@@ -241,15 +243,12 @@ function DashboardContent() {
                         </div>
                     </div>
 
-                    {/* Chain Breakdown */}
-                    <div className="card p-3 sm:p-6">
-                        <h2 className="font-bold text-sm sm:text-lg mb-3 sm:mb-6 flex items-center gap-2">
-                            <PieChart className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--foreground-muted)]" />
-                            Volume by Chain
-                        </h2>
-                        <div className="flex items-center justify-center h-24 sm:h-40 text-[var(--foreground-muted)] italic text-xs sm:text-sm">
-                            Chart coming soon
+                    {/* Right Sidebar */}
+                    <div className="lg:col-span-1 flex flex-col gap-4">
+                        <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl overflow-hidden">
+                            <PnLCalculator />
                         </div>
+                        <ChainFlowWidget />
                     </div>
                 </div>
             </div>

@@ -12,22 +12,42 @@ if (!API_KEY || API_KEY === 'demo') {
 const NETWORK_URLS: Record<string, string> = {
     // Use public CORS-friendly RPCs for browser requests
     // Alchemy requires domain whitelisting which may not be configured
-    ethereum: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
-    base: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-    arbitrum: process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc',
-    solana: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+    // Use Alchemy RPCs if key is present, otherwise fallback to public
+    ethereum: API_KEY && API_KEY !== 'demo'
+        ? `https://eth-mainnet.g.alchemy.com/v2/${API_KEY}`
+        : (process.env.ETH_RPC_URL || 'https://eth.llamarpc.com'),
+
+    base: API_KEY && API_KEY !== 'demo'
+        ? `https://base-mainnet.g.alchemy.com/v2/${API_KEY}`
+        : (process.env.BASE_RPC_URL || 'https://mainnet.base.org'),
+
+    arbitrum: API_KEY && API_KEY !== 'demo'
+        ? `https://arb-mainnet.g.alchemy.com/v2/${API_KEY}`
+        : (process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc'),
+
+    solana: API_KEY && API_KEY !== 'demo'
+        ? `https://solana-mainnet.g.alchemy.com/v2/${API_KEY}`
+        : (process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'),
 };
 
-async function rpcCall(chainId: ChainId, method: string, params: any[] = []): Promise<any> {
+const PUBLIC_RPC_URLS: Record<ChainId, string> = {
+    ethereum: 'https://eth.llamarpc.com',
+    base: 'https://mainnet.base.org',
+    arbitrum: 'https://arb1.arbitrum.io/rpc',
+    solana: 'https://api.mainnet-beta.solana.com',
+};
+
+export async function rpcCall(chainId: ChainId, method: string, params: any[] = []): Promise<any> {
     // Allow Solana calls if they have a valid URL in the map
     if (!API_KEY || API_KEY === 'demo') {
         // console.warn('Alchemy API Key missing, but continuing for public RPCs');
     }
 
-    const url = NETWORK_URLS[chainId];
-    if (!url) return null;
+    const primaryUrl = NETWORK_URLS[chainId];
+    if (!primaryUrl) return null;
 
-    try {
+    // Helper to perform the actual fetch
+    const doFetch = async (url: string) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -37,17 +57,32 @@ async function rpcCall(chainId: ChainId, method: string, params: any[] = []): Pr
                 method,
                 params,
             }),
-            next: { revalidate: 10 } // Cache for 10s
+            next: { revalidate: 10 }
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
-
         return data.result;
+    };
+
+    try {
+        return await doFetch(primaryUrl);
     } catch (error) {
-        console.error(`Alchemy RPC error [${method}]:`, error);
+        // If primary fails and it's NOT the restricted public one, try the public fallback
+        // (We check strictly to avoid infinite loops if primary IS the public one)
+        const publicUrl = PUBLIC_RPC_URLS[chainId];
+        if (publicUrl && primaryUrl !== publicUrl) {
+            console.warn(`[Alchemy] Primary RPC failed for ${chainId} (${error}), trying public fallback...`);
+            try {
+                return await doFetch(publicUrl);
+            } catch (fallbackError) {
+                console.error(`[Alchemy] Fallback RPC error [${method}]:`, fallbackError);
+            }
+        } else {
+            console.error(`Alchemy RPC error [${method}]:`, error);
+        }
         return null;
     }
 }
@@ -113,7 +148,7 @@ export async function getLatestTransactions(chainId: ChainId, limit = 10): Promi
         from: tx.from,
         to: tx.to || null,
         value: (parseInt(tx.value, 16) / 1e18).toFixed(4),
-        status: 'success', // Assumed for mined
+        status: 'success' as const, // Assumed for mined
     }));
 }
 
@@ -124,6 +159,12 @@ export async function getLatestTransactions(chainId: ChainId, limit = 10): Promi
  * @param tokenAddress - Optional token contract address to filter by
  */
 export async function getRecentTrades(chainId: ChainId, limit = 20, tokenAddress?: string): Promise<RecentTrade[]> {
+    // alchemy_getAssetTransfers is only supported on Alchemy nodes
+    if (!API_KEY || API_KEY === 'demo') {
+        console.warn('[Alchemy] Skipping getRecentTrades - requires Alchemy API Key');
+        return [];
+    }
+
     const params: any = {
         fromBlock: 'latest',
         category: ['erc20'],
@@ -190,29 +231,58 @@ export async function getBlockTransactions(chainId: ChainId, blockNumber: number
 }
 
 // Get address transactions using alchemy_getAssetTransfers
-export async function getAddressTransactions(chainId: ChainId, address: string, limit = 25): Promise<Transaction[]> {
+// Response type for paginated transactions
+export interface PaginatedTransactions {
+    transactions: Transaction[];
+    pageKeys: {
+        fromKey?: string;
+        toKey?: string;
+    };
+}
+
+// Get address transactions using alchemy_getAssetTransfers with pagination
+export async function getAddressTransactions(
+    chainId: ChainId,
+    address: string,
+    limit = 25,
+    pageKeys?: { fromKey?: string; toKey?: string }
+): Promise<PaginatedTransactions> {
+    // alchemy_getAssetTransfers is only supported on Alchemy nodes
+    if (!API_KEY || API_KEY === 'demo') {
+        console.warn('[Alchemy] Skipping getAddressTransactions - requires Alchemy API Key');
+        return { transactions: [], pageKeys: {} };
+    }
+
+    // Prepare params for sent transactions
+    const sentParams: any = {
+        fromAddress: address,
+        category: ['external', 'erc20'],
+        order: 'desc',
+        maxCount: `0x${Math.floor(limit).toString(16)}`, // Ask for full limit to ensure we have enough
+        withMetadata: true,
+    };
+    if (pageKeys?.fromKey) sentParams.pageKey = pageKeys.fromKey;
+
+    // Prepare params for received transactions
+    const recvParams: any = {
+        toAddress: address,
+        category: ['external', 'erc20'],
+        order: 'desc',
+        maxCount: `0x${Math.floor(limit).toString(16)}`,
+        withMetadata: true,
+    };
+    if (pageKeys?.toKey) recvParams.pageKey = pageKeys.toKey;
+
     // Get both sent and received transactions
     const [sentResult, receivedResult] = await Promise.all([
-        rpcCall(chainId, 'alchemy_getAssetTransfers', [{
-            fromAddress: address,
-            category: ['external', 'erc20'],
-            order: 'desc',
-            maxCount: `0x${Math.floor(limit / 2).toString(16)}`,
-            withMetadata: true,
-        }]),
-        rpcCall(chainId, 'alchemy_getAssetTransfers', [{
-            toAddress: address,
-            category: ['external', 'erc20'],
-            order: 'desc',
-            maxCount: `0x${Math.floor(limit / 2).toString(16)}`,
-            withMetadata: true,
-        }])
+        rpcCall(chainId, 'alchemy_getAssetTransfers', [sentParams]),
+        rpcCall(chainId, 'alchemy_getAssetTransfers', [recvParams])
     ]);
 
-    const transfers = [
-        ...(sentResult?.transfers || []),
-        ...(receivedResult?.transfers || [])
-    ];
+    const sentTransfers = sentResult?.transfers || [];
+    const recvTransfers = receivedResult?.transfers || [];
+
+    const transfers = [...sentTransfers, ...recvTransfers];
 
     // Sort by timestamp desc
     transfers.sort((a: any, b: any) => {
@@ -221,7 +291,7 @@ export async function getAddressTransactions(chainId: ChainId, address: string, 
         return timeB - timeA;
     });
 
-    return transfers.slice(0, limit).map((t: any) => ({
+    const formattedTxs = transfers.slice(0, limit).map((t: any) => ({
         hash: t.hash,
         chainId,
         blockNumber: parseInt(t.blockNum, 16) || 0,
@@ -229,7 +299,44 @@ export async function getAddressTransactions(chainId: ChainId, address: string, 
         from: t.from,
         to: t.to || null,
         value: (t.value || 0).toString(),
-        status: 'success',
+        status: 'success' as const,
+        asset: t.asset || null,
     }));
+
+    return {
+        transactions: formattedTxs,
+        pageKeys: {
+            fromKey: sentResult?.pageKey,
+            toKey: receivedResult?.pageKey,
+        }
+    };
+}
+
+// Get token balances for an address
+export async function getTokenBalances(chainId: ChainId, address: string): Promise<{ contractAddress: string; tokenBalance: string }[]> {
+    try {
+        const result = await rpcCall(chainId, 'alchemy_getTokenBalances', [address, 'DEFAULT_TOKENS']);
+        return result?.tokenBalances || [];
+    } catch (error) {
+        // This method fails on public RPCs or invalid keys.
+        // Return empty array to trigger fallback logic in UI.
+        return [];
+    }
+}
+
+// Get token metadata
+export async function getTokenMetadata(chainId: ChainId, contractAddress: string): Promise<{ name: string; symbol: string; decimals: number; logo?: string } | null> {
+    try {
+        const result = await rpcCall(chainId, 'alchemy_getTokenMetadata', [contractAddress]);
+        if (!result) return null;
+        return {
+            name: result.name,
+            symbol: result.symbol,
+            decimals: result.decimals,
+            logo: result.logo,
+        };
+    } catch (error) {
+        return null;
+    }
 }
 

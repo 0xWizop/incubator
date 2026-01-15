@@ -68,11 +68,11 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                 <div className="space-y-2">
                     {/* Current Wallets */}
                     {wallets.map((wallet) => (
-                        <button
+                        <div
                             key={wallet.address}
                             onClick={() => setActiveWallet(wallet.address)}
                             className={clsx(
-                                'w-full flex items-center gap-3 p-3 rounded-xl transition-all',
+                                'w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer',
                                 wallet.address === activeWallet?.address
                                     ? 'bg-[var(--background-tertiary)] border border-[var(--border-hover)]'
                                     : 'bg-[var(--background-tertiary)] border border-[var(--border)] hover:border-[var(--border-hover)]/50'
@@ -139,7 +139,7 @@ export function SettingsTab({ onLock }: SettingsTabProps) {
                             {wallet.address === activeWallet?.address && (
                                 <Check className="w-5 h-5 text-[var(--primary)] flex-shrink-0" />
                             )}
-                        </button>
+                        </div>
                     ))}
 
                     {/* Add Wallet */}

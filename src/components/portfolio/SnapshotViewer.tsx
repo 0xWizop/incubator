@@ -8,6 +8,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { usePreferences } from '@/hooks/usePreferences';
 import { format } from 'date-fns';
 import type { PortfolioSnapshot } from '@/types';
+import { LoadingSpinner } from '@/components/ui/Loading';
 
 interface SnapshotViewerProps {
     userId: string;
@@ -118,11 +119,8 @@ export function SnapshotViewer({ userId, onClose }: SnapshotViewerProps) {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
                 {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                        <RefreshCw className="w-8 h-8 animate-spin text-[var(--primary)]" />
-                        <p className="text-sm text-[var(--foreground-muted)] mt-3">
-                            Loading snapshots...
-                        </p>
+                    <div className="py-12">
+                        <LoadingSpinner size="lg" text="Loading snapshots..." />
                     </div>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-12">

@@ -32,3 +32,8 @@ ts-debug.log*
 
 # infrastructure
 /scripts/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.log.*

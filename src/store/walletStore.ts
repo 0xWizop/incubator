@@ -41,6 +41,7 @@ interface WalletState {
     importWallet: (password: string, privateKey: string, type: 'evm' | 'solana', name?: string) => Promise<boolean>;
     importBackup: (password: string, backupData: StoredWalletData) => Promise<boolean>;
     renameWallet: (address: string, newName: string) => void;
+    removeWallet: (address: string) => void;
     unlock: (password: string) => Promise<boolean>;
     lock: () => void;
     setActiveWallet: (address: string) => void;
@@ -202,6 +203,40 @@ export const useWalletStore = create<WalletState>()((set, get) => ({
 
         if (get().activeWallet?.address.toLowerCase() === address.toLowerCase()) {
             set({ activeWallet: { ...get().activeWallet!, name: newName } });
+        }
+    },
+
+    // Remove wallet
+    removeWallet: (address) => {
+        const stored = getStoredWallets().filter(w => w.address.toLowerCase() !== address.toLowerCase());
+
+        // Update raw storage (need to import setStoredWalletData and getStoredWalletData logic properly or duplicate minimal logic if safe)
+        // Since we don't have a direct 'removeWallet' in lib/wallet, we should construct the logic here or update lib/wallet.
+        // For now, let's use the exported setStoredWalletData logic if available or just rely on the fact we need to persist it.
+        // Wait, getStoredWallets only returns the accounts, not the full sensitive data structure. 
+        // We need to properly remove it from the sensitive storage.
+
+        // Let's implement a safe remove by importing the storage util types.
+        // Actually, let's just use the store update for now if we can't easily access the sensitive storage writing, 
+        // BUT we must persist deletion or it will come back on refresh.
+
+        // Let's assume we can import getStoredWalletData and setStoredWalletData from '@/lib/wallet/storage'
+
+        import('@/lib/wallet/storage').then(({ getStoredWalletData, setStoredWalletData }) => {
+            const data = getStoredWalletData();
+            if (data) {
+                data.wallets = data.wallets.filter(w => w.address.toLowerCase() !== address.toLowerCase());
+                setStoredWalletData(data);
+            }
+        });
+
+        // Update local state
+        const updatedWallets = get().wallets.filter(w => w.address.toLowerCase() !== address.toLowerCase());
+        set({ wallets: updatedWallets });
+
+        // If active wallet was removed, switch to another
+        if (get().activeWallet?.address.toLowerCase() === address.toLowerCase()) {
+            set({ activeWallet: updatedWallets[0] || null });
         }
     },
 

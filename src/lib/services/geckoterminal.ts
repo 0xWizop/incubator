@@ -153,7 +153,7 @@ export async function getPoolTrades(
             headers: {
                 'Accept': 'application/json',
             },
-            next: { revalidate: 5 } // Cache for 5 seconds for live data
+            next: { revalidate: 2 } // Cache for 2 seconds for live data
         });
 
         if (!response.ok) {

@@ -34,6 +34,7 @@ interface TokenData {
     balance: string;
     usd: number;
     contractAddress?: string;
+    isNative?: boolean;
 }
 
 export function WalletButton() {
@@ -55,6 +56,36 @@ export function WalletButton() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showWalletSwitcher, setShowWalletSwitcher] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+
+    // Custom Token State
+    const [showAddToken, setShowAddToken] = useState(false);
+    const [newTokenAddress, setNewTokenAddress] = useState('');
+    const [addingToken, setAddingToken] = useState(false);
+    const [customTokens, setCustomTokens] = useState<string[]>([]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('custom_tokens');
+        if (saved) setCustomTokens(JSON.parse(saved));
+    }, []);
+
+    const addCustomToken = async () => {
+        if (!newTokenAddress || addingToken) return;
+        setAddingToken(true);
+        try {
+            const { getErc20Balance } = await import('@/lib/wallet');
+            // Validate
+            await getErc20Balance(activeWallet!.address, newTokenAddress, activeChain as any);
+            const newCustom = [...customTokens, newTokenAddress];
+            setCustomTokens(newCustom);
+            localStorage.setItem('custom_tokens', JSON.stringify(newCustom));
+            setNewTokenAddress('');
+            setShowAddToken(false);
+        } catch (e) {
+            console.error('Invalid token', e);
+        } finally {
+            setAddingToken(false);
+        }
+    };
 
     // Send state
     const [sendAmount, setSendAmount] = useState('');
@@ -108,32 +139,93 @@ export function WalletButton() {
     const price = activeWallet?.type === 'solana' ? 180 : 3500;
     const usdValue = parseFloat(currentBalance) * price;
 
-    // Tokens - only native token has real balance, others show $0
-    const tokens: TokenData[] = [
-        {
-            symbol: chainConfig.symbol,
-            name: chainConfig.name,
-            balance: currentBalance,
-            usd: usdValue,
-            logo: chainConfig.logo,
-        },
-        {
-            symbol: 'USDC',
-            name: 'USD Coin',
-            balance: '0',
-            usd: 0,
-            logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-            contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        },
-        {
-            symbol: 'USDT',
-            name: 'Tether',
-            balance: '0',
-            usd: 0,
-            logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-            contractAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-        },
-    ];
+    const [tokens, setTokens] = useState<TokenData[]>([]);
+
+    // Define native token
+    const nativeToken: TokenData = {
+        symbol: chainConfig.symbol,
+        name: chainConfig.name,
+        logo: chainConfig.logo,
+        balance: currentBalance,
+        usd: usdValue,
+        isNative: true,
+    };
+
+    // Fetch token balances
+    useEffect(() => {
+        if (!activeWallet || !isUnlocked) return;
+
+        const fetchBalances = async () => {
+            let discoveredTokens: TokenData[] = [];
+
+            try {
+                if (activeWallet.type === 'solana') {
+                    const { getAllSplTokens } = await import('@/lib/services/solana');
+                    const splTokens = await getAllSplTokens(activeWallet.address);
+
+                    // For MVP, we map known SPL mints to metadata or just show symbol if available
+                    // A proper implementation would use a token list provider
+                    const KNOWN_MINTS: Record<string, any> = {
+                        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': { symbol: 'USDC', name: 'USD Coin', logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png' },
+                        'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': { symbol: 'USDT', name: 'Tether', logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+                    };
+
+                    discoveredTokens = splTokens.map(t => {
+                        const meta = KNOWN_MINTS[t.mint];
+                        return {
+                            symbol: meta?.symbol || 'Unknown',
+                            name: meta?.name || `Token ${t.mint.slice(0, 4)}...`,
+                            logo: meta?.logo || '/placeholder-token.png',
+                            balance: t.amount.toString(),
+                            usd: t.amount * (meta ? 1 : 0), // Mock price
+                            contractAddress: t.mint,
+                        };
+                    });
+
+                } else {
+                    // EVM Discovery via Alchemy
+                    const { getTokenBalances, getTokenMetadata } = await import('@/lib/services/alchemy');
+                    const rawBalances = await getTokenBalances(activeChain as any, activeWallet.address);
+
+                    // Filter 0 balances immediately
+                    const nonZero = rawBalances.filter(b => {
+                        // hex balance to BigInt check
+                        return b.tokenBalance !== '0x' && b.tokenBalance !== '0x0' && BigInt(b.tokenBalance) > BigInt(0);
+                    });
+
+                    // Fetch metadata in parallel
+                    const tokenPromises = nonZero.map(async (b) => {
+                        const meta = await getTokenMetadata(activeChain as any, b.contractAddress);
+                        if (!meta) return null;
+
+                        const balance = parseInt(b.tokenBalance, 16) / Math.pow(10, meta.decimals);
+
+                        return {
+                            symbol: meta.symbol,
+                            name: meta.name,
+                            logo: meta.logo || 'https://via.placeholder.com/32',
+                            balance: balance.toFixed(4),
+                            usd: balance * 1, // Mock price $1 for now
+                            isNative: false,
+                        } as TokenData;
+                    });
+
+                    const results = await Promise.all(tokenPromises);
+                    discoveredTokens = results.filter((t): t is TokenData => t !== null);
+                }
+            } catch (e) {
+                console.error("Discovery failed", e);
+            }
+
+            // Always include native token if balance > 0 or it's the main chain token
+            setTokens([nativeToken, ...discoveredTokens]);
+        };
+
+        fetchBalances();
+        // Refresh every 60s
+        const interval = setInterval(fetchBalances, 60000);
+        return () => clearInterval(interval);
+    }, [activeWallet, isUnlocked, activeChain, currentBalance]);
 
     const filteredTokens = tokens.filter(t =>
         t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -182,59 +274,83 @@ export function WalletButton() {
                     <div className="absolute right-0 top-full mt-2 w-[360px] bg-[var(--background-secondary)] border border-[var(--border)] rounded-2xl shadow-2xl z-[70] overflow-hidden animate-fade-in flex flex-col" style={{ height: '480px' }}>
 
                         {/* Header */}
-                        <div className="p-3 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
+                        <div className="p-3 flex items-center justify-between flex-shrink-0 bg-[var(--background-secondary)]/50">
                             <button
                                 onClick={() => setShowWalletSwitcher(!showWalletSwitcher)}
-                                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors -ml-1"
                             >
-                                <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center">
+                                <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center shadow-sm">
                                     <Wallet className="w-3.5 h-3.5 text-black" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="text-xs font-medium">{activeWallet.name}</p>
-                                    <p className="text-[10px] text-[var(--foreground-muted)] font-mono">
+                                    <p className="text-xs font-bold leading-tight">{activeWallet.name}</p>
+                                    <p className="text-[10px] text-[var(--foreground-muted)] font-mono opacity-80">
                                         {activeWallet.address.slice(0, 6)}...{activeWallet.address.slice(-4)}
                                     </p>
                                 </div>
-                                <ChevronDown className={clsx("w-3 h-3 text-[var(--foreground-muted)]", showWalletSwitcher && "rotate-180")} />
+                                <ChevronDown className={clsx("w-3 h-3 text-[var(--foreground-muted)] transition-transform duration-200", showWalletSwitcher && "rotate-180")} />
                             </button>
                             <div className="flex items-center gap-1">
-                                <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)]">
-                                    {copied ? <Check className="w-4 h-4 text-[var(--accent-green)]" /> : <Copy className="w-4 h-4 text-[var(--foreground-muted)]" />}
+                                <button onClick={handleCopy} className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
+                                    {copied ? <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
-                                <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)]">
-                                    <Settings className="w-4 h-4 text-[var(--foreground-muted)]" />
+                                <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
+                                    <Settings className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => { lock(); closeDropdown(); }} className="p-1.5 rounded-lg hover:bg-[var(--accent-red)]/10">
-                                    <Lock className="w-4 h-4 text-[var(--accent-red)]" />
+                                <button onClick={() => { lock(); closeDropdown(); }} className="p-1.5 rounded-lg hover:bg-[var(--accent-red)]/5 text-[var(--foreground-muted)] hover:text-[var(--accent-red)] transition-colors">
+                                    <Lock className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
 
                         {/* Wallet Switcher Dropdown */}
                         {showWalletSwitcher && wallets.length > 0 && (
-                            <div className="p-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50 max-h-[120px] overflow-y-auto flex-shrink-0">
-                                {wallets.map((wallet) => (
-                                    <button
-                                        key={wallet.address}
-                                        onClick={() => { setActiveWallet(wallet.address); setShowWalletSwitcher(false); }}
-                                        className={clsx(
-                                            'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs',
-                                            wallet.address === activeWallet.address ? 'bg-[var(--background-tertiary)]' : 'hover:bg-[var(--background)]'
-                                        )}
-                                    >
-                                        <Wallet className="w-3.5 h-3.5" />
-                                        <span className="flex-1 truncate">{wallet.name}</span>
-                                        {wallet.address === activeWallet.address && <Check className="w-3 h-3 text-[var(--primary)]" />}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => { openModal('create'); closeDropdown(); }}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[var(--primary)] hover:bg-[var(--primary)]/5 mt-1"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Add Wallet
-                                </button>
+                            <div className="absolute top-[60px] left-0 right-0 z-50 border-b border-[var(--border)] bg-[var(--background-secondary)] shadow-xl animate-in slide-in-from-top-2 duration-200">
+                                <div className="p-2 pb-0">
+                                    <p className="text-[9px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider px-2 mb-1.5">Your Wallets</p>
+                                    <div className="space-y-0.5 overflow-y-auto max-h-[90px]">
+                                        {wallets.map((wallet) => (
+                                            <button
+                                                key={wallet.address}
+                                                onClick={() => { setActiveWallet(wallet.address); setShowWalletSwitcher(false); }}
+                                                className={clsx(
+                                                    'w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left text-xs transition-all',
+                                                    wallet.address === activeWallet.address
+                                                        ? 'bg-[var(--background-secondary)] shadow-sm border border-[var(--border)]'
+                                                        : 'hover:bg-[var(--background-secondary)] hover:shadow-sm border border-transparent hover:border-[var(--border)]'
+                                                )}
+                                            >
+                                                <div className={clsx(
+                                                    "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                                                    wallet.address === activeWallet.address ? "bg-[var(--primary)]" : "bg-[var(--foreground-muted)]/30"
+                                                )} />
+                                                <span className={clsx(
+                                                    "flex-1 truncate font-medium",
+                                                    wallet.address === activeWallet.address ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"
+                                                )}>{wallet.name}</span>
+                                                {wallet.address === activeWallet.address && <Check className="w-3 h-3 text-[var(--primary)]" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="p-2 pt-2">
+                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border)]/50">
+                                        <button
+                                            onClick={() => { openModal('create'); closeDropdown(); }}
+                                            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition-colors"
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                            Create New
+                                        </button>
+                                        <button
+                                            onClick={() => { openModal('import'); closeDropdown(); }}
+                                            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-semibold text-[var(--accent-yellow)] bg-[var(--accent-yellow)]/10 hover:bg-[var(--accent-yellow)]/20 transition-colors"
+                                        >
+                                            <ArrowDownLeft className="w-3 h-3" />
+                                            Import
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -246,7 +362,14 @@ export function WalletButton() {
                                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--background)] text-xs"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
-                                    Add Wallet
+                                    Create New Wallet
+                                </button>
+                                <button
+                                    onClick={() => { openModal('import'); closeDropdown(); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--background)] text-xs"
+                                >
+                                    <ArrowDownLeft className="w-3.5 h-3.5" />
+                                    Import Wallet
                                 </button>
                                 <a
                                     href="/app/settings/"
@@ -300,7 +423,7 @@ export function WalletButton() {
 
                                     {/* Tokens / Activity Tab Selector */}
                                     <div className="-mx-4">
-                                        <div className="flex border-b border-[var(--border)]">
+                                        <div className="flex border-b border-[var(--border)] relative">
                                             <button
                                                 onClick={() => setHomeSubTab('tokens')}
                                                 className={clsx(
@@ -319,15 +442,57 @@ export function WalletButton() {
                                             >
                                                 Activity
                                             </button>
+
+                                            {/* Top Right Add Token Trigger */}
+                                            {homeSubTab === 'tokens' && activeWallet.type !== 'solana' && (
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                                    <button
+                                                        onClick={() => setShowAddToken(!showAddToken)}
+                                                        className="p-1 text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Tab Content - full width separators */}
                                         <div>
                                             {homeSubTab === 'tokens' ? (
                                                 <div className="divide-y divide-[var(--border)]">
+                                                    {/* Add Token Input Form (Top of List) */}
+                                                    {showAddToken && (
+                                                        <div className="p-3 bg-[var(--background-tertiary)]/30">
+                                                            <div className="bg-[var(--background-tertiary)] p-2 rounded-xl border border-[var(--border)]">
+                                                                <p className="text-xs text-[var(--foreground-muted)] mb-1">Add Token Address</p>
+                                                                <div className="flex gap-2">
+                                                                    <input
+                                                                        value={newTokenAddress}
+                                                                        onChange={(e) => setNewTokenAddress(e.target.value)}
+                                                                        placeholder="0x..."
+                                                                        className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs min-w-0"
+                                                                    />
+                                                                    <button
+                                                                        onClick={addCustomToken}
+                                                                        disabled={addingToken || !newTokenAddress}
+                                                                        className="bg-[var(--primary)] text-black rounded-lg px-2 py-1 text-xs font-bold disabled:opacity-50"
+                                                                    >
+                                                                        {addingToken ? '...' : 'Add'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setShowAddToken(false)}
+                                                                        className="p-1 hover:text-[var(--accent-red)] transition-colors"
+                                                                    >
+                                                                        <X className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {tokens.map((token, index) => (
                                                         <div
-                                                            key={token.symbol}
+                                                            key={token.symbol + index}
                                                             onClick={() => {
                                                                 setSelectedToken(token);
                                                                 setActiveTab('tokenDetail');
@@ -729,7 +894,8 @@ export function WalletButton() {
                         </div>
                     </div>
                 </>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

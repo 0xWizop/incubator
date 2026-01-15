@@ -223,3 +223,27 @@ export function isValidSolanaAddress(address: string): boolean {
         return false;
     }
 }
+// Get all SPL tokens for an address
+export async function getAllSplTokens(address: string): Promise<{ mint: string; amount: number; decimals: number }[]> {
+    try {
+        const connection = getConnection();
+        if (!connection) return [];
+        const pubkey = new PublicKey(address);
+
+        const response = await connection.getParsedTokenAccountsByOwner(pubkey, {
+            programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token Program
+        });
+
+        return response.value.map((item) => {
+            const info = item.account.data.parsed.info;
+            return {
+                mint: info.mint,
+                amount: info.tokenAmount.uiAmount,
+                decimals: info.tokenAmount.decimals,
+            };
+        }).filter(t => t.amount > 0);
+    } catch (error) {
+        console.error('Error fetching SPL tokens:', error);
+        return [];
+    }
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore, useWatchlistStore } from '@/store';
 import { useAuth } from '@/context/AuthContext';
 import { TokenPair, ChainId } from '@/types';
@@ -58,7 +58,20 @@ function ScreenerContent() {
     const { watchlists, toggleFavorite, isFavorited, initialize, isInitialized, createList, deleteList, activeWatchlistId, setActiveWatchlist } = useWatchlistStore();
     const [tokens, setTokens] = useState<TokenPair[]>([]);
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<'trending' | 'gainers' | 'losers' | 'volume' | 'watchlist'>('trending');
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const [tab, setTab] = useState<'trending' | 'gainers' | 'losers' | 'volume' | 'watchlist'>((searchParams.get('tab') as any) || 'trending');
+
+    // Sync URL when tab changes - Protected against loops
+    useEffect(() => {
+        const currentTab = searchParams.get('tab');
+        if (currentTab !== tab) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('tab', tab);
+            router.replace(`?${params.toString()}`, { scroll: false });
+        }
+    }, [tab, searchParams, router]);
+
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<SortField>('volume');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -84,6 +97,9 @@ function ScreenerContent() {
             setSortDir('desc');
         }
     };
+
+    // Deep compare safe chain dependency
+    const chainsKey = Array.from(selectedChains).sort().join(',');
 
     const fetchTokens = useCallback(async () => {
         setLoading(true);
@@ -119,7 +135,7 @@ function ScreenerContent() {
         } finally {
             setLoading(false);
         }
-    }, [selectedChains, tab]);
+    }, [chainsKey, tab]); // Stable dependency using string key
 
     useEffect(() => {
         fetchTokens();
@@ -321,6 +337,9 @@ function ScreenerContent() {
                         </div>
                     </div>
                 )}
+
+
+
 
                 {/* Chain Filter */}
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-4 px-3 sm:px-0 overflow-x-auto scrollbar-thin">

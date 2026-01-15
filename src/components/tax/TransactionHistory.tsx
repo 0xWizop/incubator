@@ -48,7 +48,7 @@ export function TransactionHistory({ onClose }: TransactionHistoryProps) {
             }
             // Fetch from EVM chains
             else {
-                const alchemyTxs = await alchemy.getAddressTransactions(activeChain, activeWallet.address, 100);
+                const { transactions: alchemyTxs } = await alchemy.getAddressTransactions(activeChain, activeWallet.address, 100);
                 txs = [...txs, ...alchemyTxs];
             }
 

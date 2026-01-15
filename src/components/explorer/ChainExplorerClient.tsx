@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { ChainId, Block, Transaction } from '@/types';
 import * as alchemyService from '@/lib/services/alchemy';
 import * as solanaService from '@/lib/services/solana';
+import { useCryptoPrices } from '@/hooks/useCryptoPrices';
+import { formatCurrency } from '@/lib/utils/format';
 import {
     Box,
     ArrowRightLeft,
@@ -38,6 +40,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
     const router = useRouter();
     const chainId = VALID_CHAINS.includes(chain) ? (chain as ChainId) : null;
     const chainConfig = chainId ? CHAIN_CONFIG[chainId] : null;
+    const { getPriceForChain } = useCryptoPrices();
 
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -348,9 +351,17 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                                                 <ArrowRight className="w-2.5 h-2.5" />
                                                 <span>{tx.to ? tx.to.slice(0, 6) + '...' : 'Contract'}</span>
                                             </div>
-                                            <span className="font-mono text-[var(--foreground)]">
-                                                {parseFloat(tx.value).toFixed(4)} {chainConfig.nativeSymbol}
-                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-mono text-[var(--foreground)]">
+                                                    {parseFloat(tx.value).toFixed(4)} {chainConfig.nativeSymbol}
+                                                    {(() => {
+                                                        const price = getPriceForChain(chainId);
+                                                        const value = parseFloat(tx.value);
+                                                        if (!price || isNaN(value)) return null;
+                                                        return <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(value * price)})</span>;
+                                                    })()}
+                                                </span>
+                                            </div>
                                         </div>
                                     </Link>
                                 ))}

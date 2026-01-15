@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, Plus, X, Trash2, Bell, BellOff, ExternalLink } from 'lucide-react';
+import { Eye, Plus, X, Trash2, Zap, ZapOff, ExternalLink, BellRing, BellOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useWalletTracker } from '@/hooks/useWalletTracker';
@@ -15,7 +15,7 @@ const CHAIN_LOGOS: Record<string, string> = {
     solana: 'https://i.imgur.com/xp7PYKk.png',
 };
 
-export function TrackerPanel() {
+export function TrackerPanel({ onClose }: { onClose?: () => void }) {
     const { wallets, activities, isLoading, addWallet, removeWallet, updateWallet } = useWalletTracker();
     const [showAddModal, setShowAddModal] = useState(false);
 
@@ -28,12 +28,24 @@ export function TrackerPanel() {
                     <span className="text-sm font-bold">Wallet Tracker</span>
                     <span className="text-xs text-[var(--foreground-muted)]">({wallets.length}/10)</span>
                 </div>
-                <button
-                    onClick={() => setShowAddModal(true)}
-                    className="p-1.5 rounded-lg bg-[var(--primary)] text-black hover:opacity-90 transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowAddModal(true)}
+                        className="p-1.5 rounded-lg bg-[var(--primary)] text-black hover:opacity-90 transition-colors"
+                        title="Add Wallet"
+                    >
+                        <Plus className="w-4 h-4" />
+                    </button>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+                            title="Close"
+                        >
+                            <X className="w-4 h-4 text-[var(--foreground-muted)]" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Content */}
@@ -113,9 +125,9 @@ function WalletCard({
                     <div className="flex items-center gap-2">
                         <span className="font-medium text-sm truncate">{wallet.name}</span>
                         {wallet.notifyOnActivity ? (
-                            <Bell className="w-3 h-3 text-[var(--primary)]" />
+                            <BellRing className="w-3.5 h-3.5 text-[var(--primary)]" />
                         ) : (
-                            <BellOff className="w-3 h-3 text-[var(--foreground-muted)]" />
+                            <BellOff className="w-3.5 h-3.5 text-[var(--foreground-muted)]/50" />
                         )}
                     </div>
                     <p className="text-xs font-mono text-[var(--foreground-muted)]">
@@ -141,7 +153,7 @@ function WalletCard({
                         {wallet.notifyOnActivity ? (
                             <BellOff className="w-4 h-4 text-[var(--foreground-muted)]" />
                         ) : (
-                            <Bell className="w-4 h-4 text-[var(--foreground-muted)]" />
+                            <BellRing className="w-4 h-4 text-[var(--foreground-muted)]" />
                         )}
                     </button>
                     <a

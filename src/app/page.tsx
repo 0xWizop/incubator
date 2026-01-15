@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Zap, Shield, Globe, BarChart3, Layers, Wallet, ExternalLink, Play, ChevronDown } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Globe, BarChart3, Layers, Wallet, ExternalLink, Play, ChevronDown, Eye, Newspaper, Sparkles, TrendingUp, Star } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 
 // Animated counter hook
@@ -26,6 +26,9 @@ function useCountUp(end: number, duration: number = 2000) {
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [showCryptoModal, setShowCryptoModal] = useState(false);
   const volumeStat = useCountUp(847, 2000);
   const usersStat = useCountUp(12400, 2000);
   const tradesStat = useCountUp(2100000, 2000);
@@ -39,6 +42,38 @@ export default function HomePage() {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Handle Stripe checkout
+  const handleCheckout = async (interval: 'monthly' | 'yearly' = 'monthly') => {
+    setCheckoutLoading(true);
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'guest_' + Date.now(), // Guest checkout - will be linked later
+          plan: 'pro',
+          interval,
+        }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Error starting checkout. Please try again.');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Error starting checkout. Please try again.');
+    }
+    setCheckoutLoading(false);
+  };
+
+  // Copy address to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('Address copied to clipboard!');
+  };
 
   const chains = [
     { name: 'Solana', logo: 'https://i.imgur.com/xp7PYKk.png', color: '#9945FF' },
@@ -230,7 +265,325 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FINAL CTA */}
+      {/* PRO FEATURES SHOWCASE */}
+      <section className="relative z-10 py-24 px-6 overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#F7931A]/30 bg-[#F7931A]/10 backdrop-blur-sm mb-6">
+              <Sparkles className="w-4 h-4 text-[#F7931A]" />
+              <span className="text-sm text-[#F7931A] font-medium">Pro Features</span>
+            </div>
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight mb-4">
+              <span className="text-white">Professional Tools for </span>
+              <span className="bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">Serious Traders</span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg">
+              Unlock advanced analytics, real-time tracking, and institutional-grade market data.
+            </p>
+          </div>
+
+          {/* Feature Cards - Consistent Orange Theme */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* News Terminal */}
+            <div className="group relative p-6 rounded-2xl bg-[#0A0A0A] border border-white/5 hover:border-[#F7931A]/40 transition-all duration-300">
+              <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#F7931A]/10 border border-[#F7931A]/20">
+                <span className="text-[10px] font-bold text-[#F7931A] uppercase">Pro</span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center mb-4 group-hover:border-[#F7931A]/30 transition-colors">
+                <Newspaper className="w-6 h-6 text-gray-400 group-hover:text-[#F7931A] transition-colors" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#F7931A] transition-colors">News Terminal</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Bloomberg-style crypto news aggregator with real-time feeds from 50+ sources and push notifications.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-400">
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Real-time news from 50+ sources
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Push notifications for breaking news
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Filter by chain, token, or sentiment
+                </li>
+              </ul>
+            </div>
+
+            {/* Wallet Tracker */}
+            <div className="group relative p-6 rounded-2xl bg-[#0A0A0A] border border-white/5 hover:border-[#F7931A]/40 transition-all duration-300">
+              <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#F7931A]/10 border border-[#F7931A]/20">
+                <span className="text-[10px] font-bold text-[#F7931A] uppercase">Pro</span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center mb-4 group-hover:border-[#F7931A]/30 transition-colors">
+                <Eye className="w-6 h-6 text-gray-400 group-hover:text-[#F7931A] transition-colors" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#F7931A] transition-colors">Wallet Tracker</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Monitor any wallet in real-time. Track whale movements and get instant notifications on activity.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-400">
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Unlimited tracked wallets
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Real-time trade notifications
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Cross-chain activity monitoring
+                </li>
+              </ul>
+            </div>
+
+            {/* Market Heatmap */}
+            <div className="group relative p-6 rounded-2xl bg-[#0A0A0A] border border-white/5 hover:border-[#F7931A]/40 transition-all duration-300">
+              <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#F7931A]/10 border border-[#F7931A]/20">
+                <span className="text-[10px] font-bold text-[#F7931A] uppercase">Pro</span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center mb-4 group-hover:border-[#F7931A]/30 transition-colors">
+                <TrendingUp className="w-6 h-6 text-gray-400 group-hover:text-[#F7931A] transition-colors" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#F7931A] transition-colors">Market Heatmap</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Visualize the entire crypto market at a glance. Identify hot sectors and trending tokens instantly.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-400">
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Real-time market visualization
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Sector performance tracking
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Multi-timeframe analysis
+                </li>
+              </ul>
+            </div>
+
+            {/* Priority Execution */}
+            <div className="group relative p-6 rounded-2xl bg-[#0A0A0A] border border-white/5 hover:border-[#F7931A]/40 transition-all duration-300">
+              <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#F7931A]/10 border border-[#F7931A]/20">
+                <span className="text-[10px] font-bold text-[#F7931A] uppercase">Pro</span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center mb-4 group-hover:border-[#F7931A]/30 transition-colors">
+                <Zap className="w-6 h-6 text-gray-400 group-hover:text-[#F7931A] transition-colors" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#F7931A] transition-colors">Priority Execution</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                Get your trades executed faster with priority routing, lower latency, and MEV protection.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-400">
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Faster trade execution
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  MEV protection enabled
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#F7931A]"></span>
+                  Optimized routing algorithms
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center mt-12">
+            <Link
+              href="#pricing"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[#F7931A] text-black font-bold hover:scale-105 hover:shadow-[0_0_40px_rgba(247,147,26,0.3)] transition-all"
+            >
+              <Sparkles className="w-5 h-5" />
+              Upgrade to Pro — $9.99/mo
+            </Link>
+          </div>
+        </div>
+      </section>
+      {/* PRICING SECTION */}
+      <section id="pricing" className="relative z-10 py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-6">
+              <span className="text-sm text-gray-300">Simple Pricing</span>
+            </div>
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight mb-4">
+              <span className="text-white">Choose Your </span>
+              <span className="bg-gradient-to-r from-[#F7931A] to-amber-400 bg-clip-text text-transparent">Trading Tier</span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg">
+              Start free and upgrade when you need more power. Beta testers get lifetime access.
+            </p>
+          </div>
+
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Free Tier */}
+            <div className="relative p-6 rounded-2xl bg-[#0A0A0A]/80 border border-white/10 backdrop-blur-sm">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-white mb-2">Free</h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-white">$0</span>
+                  <span className="text-gray-500">/forever</span>
+                </div>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Multi-chain trading',
+                  'Basic charts & token info',
+                  '2 tracked wallets',
+                  '5 news articles/day',
+                  'Standard swap execution',
+                ].map((feature) => (
+                  <li key={feature} className="flex items-center gap-3 text-sm text-gray-300">
+                    <div className="w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/app"
+                className="block w-full py-3 px-6 rounded-full border border-white/20 text-center text-white font-medium hover:bg-white/5 transition-colors"
+              >
+                Get Started
+              </Link>
+            </div>
+
+            {/* Pro Tier - Featured */}
+            <div className="relative p-6 rounded-2xl bg-gradient-to-b from-[#F7931A]/10 to-[#0A0A0A]/80 border border-[#F7931A]/30 backdrop-blur-sm shadow-[0_0_60px_rgba(247,147,26,0.15)]">
+              {/* Popular Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#F7931A] text-black text-xs font-bold uppercase tracking-wider">
+                Most Popular
+              </div>
+              <div className="mb-6 mt-2">
+                <h3 className="text-xl font-bold text-white mb-2">Pro</h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-[#F7931A]">$9.99</span>
+                  <span className="text-gray-500">/month</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">or $79.99/year (save 2 months)</p>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Everything in Free, plus:',
+                  'Unlimited wallet tracking',
+                  'Full news terminal access',
+                  'Market heatmap',
+                  'dApp analytics (coming soon)',
+                  'Priority swap execution',
+                ].map((feature, i) => (
+                  <li key={feature} className={`flex items-center gap-3 text-sm ${i === 0 ? 'text-[#F7931A] font-medium' : 'text-gray-300'}`}>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${i === 0 ? 'bg-[#F7931A]/20' : 'bg-[#F7931A]/10'}`}>
+                      <svg className="w-3 h-3 text-[#F7931A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleCheckout('monthly')}
+                disabled={checkoutLoading}
+                className="block w-full py-3 px-6 rounded-full bg-[#F7931A] text-black text-center font-bold hover:scale-105 hover:shadow-[0_0_40px_rgba(247,147,26,0.3)] transition-all disabled:opacity-50 disabled:cursor-wait"
+              >
+                {checkoutLoading ? 'Loading...' : 'Upgrade to Pro'}
+              </button>
+              <button
+                onClick={() => handleCheckout('yearly')}
+                disabled={checkoutLoading}
+                className="block w-full mt-2 py-2 px-6 rounded-full border border-[#F7931A]/30 text-center text-[#F7931A] text-sm font-medium hover:bg-[#F7931A]/10 transition-all disabled:opacity-50"
+              >
+                Or pay $79.99/year (save 2 months)
+              </button>
+
+              {/* Crypto Payment Option */}
+              <div className="relative mt-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-[#0A0A0A] px-2 text-gray-500">or</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCryptoModal(true)}
+                className="flex flex-col items-center gap-2 w-full mt-4 py-3 px-6 rounded-xl border border-white/10 text-center hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <img src="https://i.imgur.com/NKQlhQj.png" alt="ETH" className="w-4 h-4 rounded-full" />
+                  <img src="https://i.imgur.com/xp7PYKk.png" alt="SOL" className="w-4 h-4 rounded-full" />
+                  <img src="https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=040" alt="USDC" className="w-4 h-4 rounded-full" />
+                </div>
+                <span className="text-gray-400 text-xs font-medium hover:text-white">
+                  Pay with Crypto (ETH, SOL, USDC)
+                </span>
+              </button>
+            </div>
+
+            {/* Lifetime / Beta Tier */}
+            <div className="relative p-6 rounded-2xl bg-gradient-to-b from-[#B9F2FF]/5 to-[#0A0A0A]/80 border border-[#B9F2FF]/20 backdrop-blur-sm">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                  Lifetime
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#B9F2FF]/20 text-[#B9F2FF] font-medium">Beta Only</span>
+                </h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-[#B9F2FF]">FREE</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">For beta testers only</p>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {[
+                  'All Pro features forever',
+                  'Lifetime Diamond tier',
+                  'Lowest trading fees',
+                  'Priority support',
+                  'Early access to features',
+                  '$INC Season 1 rewards',
+                ].map((feature) => (
+                  <li key={feature} className="flex items-center gap-3 text-sm text-gray-300">
+                    <div className="w-5 h-5 rounded-full bg-[#B9F2FF]/10 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-[#B9F2FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="https://discord.gg/366nqwwz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 px-6 rounded-full border border-[#B9F2FF]/30 text-center text-[#B9F2FF] font-medium hover:bg-[#B9F2FF]/5 transition-colors"
+              >
+                Join Beta (Jan 26)
+              </a>
+            </div>
+          </div>
+
+          {/* Bottom Note */}
+          <p className="text-center text-gray-500 text-sm mt-8">
+            Beta testing starts January 26th. All beta participants receive lifetime rewards.
+          </p>
+        </div>
+      </section>
       <section className="relative z-10 py-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl md:text-4xl font-bold mb-4">
@@ -262,7 +615,7 @@ export default function HomePage() {
               Twitter <ExternalLink className="w-3 h-3" />
             </a>
           </div>
-          <p className="text-sm text-gray-600">© 2024 Incubator Protocol</p>
+          <p className="text-sm text-gray-600">© 2026 Incubator Protocol</p>
         </div>
       </footer>
 
@@ -292,6 +645,87 @@ export default function HomePage() {
           animation: gradient-shift 3s ease infinite;
         }
       `}</style>
+
+      {/* Crypto Payment Modal */}
+      {showCryptoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowCryptoModal(false)}>
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-6 border-b border-white/10 text-center">
+              <h3 className="text-xl font-bold text-white mb-2">Pay with Crypto</h3>
+              <p className="text-sm text-gray-400">Send payment to one of the addresses below</p>
+            </div>
+
+            {/* Payment Options */}
+            <div className="p-6 space-y-4">
+              {/* ETH / Base / USDC */}
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex -space-x-2">
+                    <img src="https://i.imgur.com/NKQlhQj.png" alt="ETH" className="w-6 h-6 rounded-full border-2 border-[#0a0a0a]" />
+                    <img src="https://i.imgur.com/zn5hpMs.png" alt="Base" className="w-6 h-6 rounded-full border-2 border-[#0a0a0a]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">ETH / USDC (Base or Ethereum)</p>
+                    <p className="text-xs text-gray-500">$10 monthly or $80 yearly</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-black rounded-lg text-xs text-gray-300 font-mono truncate">
+                    0x05267817d402D34Fe6C0f79DF0eAB774dEd8e4E3
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard('0x05267817d402D34Fe6C0f79DF0eAB774dEd8e4E3')}
+                    className="px-3 py-2 bg-[#F7931A] text-black rounded-lg text-xs font-bold hover:opacity-90"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Solana */}
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3 mb-3">
+                  <img src="https://i.imgur.com/xp7PYKk.png" alt="SOL" className="w-6 h-6 rounded-full" />
+                  <div>
+                    <p className="text-sm font-bold text-white">SOL / USDC (Solana)</p>
+                    <p className="text-xs text-gray-500">$10 monthly or $80 yearly</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-black rounded-lg text-xs text-gray-300 font-mono truncate">
+                    Coming soon - contact us on Discord
+                  </code>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="p-4 rounded-xl bg-[#F7931A]/10 border border-[#F7931A]/20">
+                <p className="text-xs text-[#F7931A] leading-relaxed">
+                  <strong>After sending:</strong> Join our Discord and open a ticket with your wallet address and transaction hash. We'll activate Pro within 24 hours.
+                </p>
+              </div>
+
+              <a
+                href="https://discord.gg/incubatorxyz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 bg-[#5865F2] text-white text-center text-sm font-bold rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Join Discord to Confirm Payment
+              </a>
+            </div>
+
+            {/* Close */}
+            <button
+              onClick={() => setShowCryptoModal(false)}
+              className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

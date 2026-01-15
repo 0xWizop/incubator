@@ -14,13 +14,79 @@ const orbitron = Orbitron({
   weight: ['400', '500', '600', '700'],
 });
 
+const baseUrl = 'https://incubatorprotocol-c31de.web.app';
+
 export const metadata: Metadata = {
-  title: 'Incubator Protocol',
-  description: 'Unified multichain trading terminal, explorer, and analytics hub for Solana, Ethereum, Base, and Arbitrum.',
-  keywords: ['crypto', 'trading', 'defi', 'multichain', 'solana', 'ethereum', 'base', 'arbitrum', 'dex', 'swap'],
-  icons: {
-    icon: 'https://i.imgur.com/8UIQt03.png',
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: 'Incubator Protocol - Trade Crypto Across All Chains',
+    template: '%s | Incubator Protocol',
   },
+  description: 'Trade crypto across Solana, Ethereum, Base & Arbitrum in one terminal. Real-time charts, instant swaps, portfolio tracking & price alerts. The #1 multichain DeFi trading app.',
+  keywords: [
+    'crypto trading',
+    'defi',
+    'multichain',
+    'solana trading',
+    'ethereum trading',
+    'base chain',
+    'arbitrum',
+    'dex aggregator',
+    'crypto swap',
+    'trading terminal',
+    'crypto charts',
+    'portfolio tracker',
+    'price alerts',
+    'token screener',
+  ],
+  authors: [{ name: 'Incubator Protocol' }],
+  creator: 'Incubator Protocol',
+  publisher: 'Incubator Protocol',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: baseUrl,
+    siteName: 'Incubator Protocol',
+    title: 'Incubator Protocol - Trade Crypto Across All Chains',
+    description: 'Trade crypto across Solana, Ethereum, Base & Arbitrum in one terminal. Real-time charts, instant swaps, portfolio tracking & price alerts.',
+    images: [
+      {
+        url: 'https://i.imgur.com/8UIQt03.png',
+        width: 1200,
+        height: 630,
+        alt: 'Incubator Protocol - Multichain Trading Terminal',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Incubator Protocol - Trade Crypto Across All Chains',
+    description: 'Trade crypto across Solana, Ethereum, Base & Arbitrum in one terminal. Real-time charts, instant swaps, portfolio tracking.',
+    images: ['https://i.imgur.com/8UIQt03.png'],
+    creator: '@IncubatorProto',
+  },
+  verification: {
+    // Add these when you have them
+    // google: 'google-site-verification-code',
+    // yandex: 'yandex-verification-code',
+  },
+  category: 'finance',
 };
 
 export default function RootLayout({
