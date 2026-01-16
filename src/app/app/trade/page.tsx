@@ -776,7 +776,7 @@ function TradePageContent() {
     const timeframes = ['1M', '5M', '15M', '1H', '4H', '1D'];
 
     return (
-        <div className="h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden relative">
+        <div className="h-full max-h-full flex flex-col lg:flex-row bg-[var(--background)] overflow-hidden relative">
             {/* Initial Load Overlay - Solid Background */}
             {loading && !tokenData && (
                 <div className="absolute inset-0 z-50 bg-[var(--background)] flex items-center justify-center">
@@ -1445,7 +1445,7 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
                             />
 
                             {/* Time */}
-                            <span className="relative z-10 text-[var(--foreground-muted)] font-mono tabular-nums text-left">
+                            <span className="relative z-10 text-[var(--foreground-muted)] tabular-nums text-left">
                                 {(() => {
                                     const seconds = Math.floor((Date.now() - trade.timestamp) / 1000);
                                     if (seconds < 60) return `${seconds}s`;
@@ -1466,7 +1466,7 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
 
                             {/* USD Value */}
                             <span className={clsx(
-                                'relative z-10 text-center font-semibold font-mono tabular-nums',
+                                'relative z-10 text-center font-semibold tabular-nums',
                                 isBuy ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'
                             )}>
                                 ${trade.totalUsd >= 1000
@@ -1475,23 +1475,23 @@ const RecentTradesFeed = React.memo(function RecentTradesFeed({ chainId, tokenDa
                             </span>
 
                             {/* Quote Value (NEW) */}
-                            <span className="relative z-10 text-center text-[var(--foreground-muted)] font-mono tabular-nums">
+                            <span className="relative z-10 text-center text-[var(--foreground-muted)] tabular-nums">
                                 {trade.amountQuote >= 1000
                                     ? (trade.amountQuote / 1000).toFixed(1) + 'K'
                                     : trade.amountQuote.toFixed(trade.amountQuote < 1 ? 4 : 2)}
                             </span>
 
                             {/* Token amount */}
-                            <span className="relative z-10 text-right text-[var(--foreground)] font-mono tabular-nums whitespace-nowrap">
+                            <span className="relative z-10 text-right text-[var(--foreground)] tabular-nums whitespace-nowrap">
                                 {formatNumber(trade.amountBase)}
                             </span>
 
                             {/* Maker address */}
                             <Link
                                 href={`/app/explorer/detail/?type=address&id=${trade.maker}&chain=${tokenData?.chainId || 'ethereum'}`}
-                                className="relative z-10 text-right text-[var(--foreground-muted)] font-mono tabular-nums text-[10px] hover:text-[var(--primary)] transition-colors"
+                                className="relative z-10 text-right text-[var(--foreground-muted)] tabular-nums text-[10px] hover:text-[var(--primary)] transition-colors truncate max-w-[70px]"
                             >
-                                {trade.maker.slice(0, 6)}...{trade.maker.slice(-4)}
+                                {trade.maker.slice(0, 4)}...{trade.maker.slice(-3)}
                             </Link>
                         </div>
                     );

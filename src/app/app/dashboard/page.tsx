@@ -30,7 +30,6 @@ import { Suspense } from 'react';
 
 import { LoadingSpinner } from '@/components/ui/Loading';
 import { PnLCalculator } from '@/components/dashboard/PnLCalculator';
-import { ChainFlowWidget } from '@/components/dashboard/ChainFlowWidget';
 
 export default function DashboardPage() {
     return (
@@ -106,7 +105,7 @@ function DashboardContent() {
                                 className={clsx(
                                     'px-3 py-1.5 rounded-md font-medium transition-all',
                                     timeRange === range
-                                        ? 'bg-[var(--foreground)] text-[var(--background)]'
+                                        ? 'bg-[var(--primary)] text-white'
                                         : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
                                 )}
                             >
@@ -248,7 +247,6 @@ function DashboardContent() {
                         <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl overflow-hidden">
                             <PnLCalculator />
                         </div>
-                        <ChainFlowWidget />
                     </div>
                 </div>
             </div>

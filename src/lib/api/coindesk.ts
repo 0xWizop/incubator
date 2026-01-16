@@ -1,5 +1,8 @@
 const CRYPTOCOMPARE_API = 'https://min-api.cryptocompare.com/data/v2';
 
+import { getSentiment } from '@/lib/utils/sentiment';
+import { SentimentType } from '@/types';
+
 export interface NewsArticle {
     id: string;
     title: string;
@@ -12,6 +15,7 @@ export interface NewsArticle {
         logo?: string;
     };
     categories?: string[];
+    sentiment?: SentimentType;
 }
 
 export async function getLatestNews(limit = 20): Promise<NewsArticle[]> {
@@ -27,19 +31,25 @@ export async function getLatestNews(limit = 20): Promise<NewsArticle[]> {
         const data = await response.json();
 
         // Transform API response to our format
-        const articles = data.Data?.slice(0, limit).map((article: any) => ({
-            id: article.id || article.guid,
-            title: article.title,
-            description: article.body || '',
-            url: article.url || article.guid,
-            imageUrl: article.imageurl,
-            publishedAt: new Date(article.published_on * 1000).toISOString(),
-            source: {
-                name: article.source_info?.name || article.source || 'CryptoCompare',
-                logo: article.source_info?.img,
-            },
-            categories: article.categories?.split('|') || [],
-        })) || [];
+        const articles = data.Data?.slice(0, limit).map((article: any) => {
+            const title = article.title;
+            const description = article.body || '';
+
+            return {
+                id: article.id || article.guid,
+                title,
+                description,
+                url: article.url || article.guid,
+                imageUrl: article.imageurl,
+                publishedAt: new Date(article.published_on * 1000).toISOString(),
+                source: {
+                    name: article.source_info?.name || article.source || 'CryptoCompare',
+                    logo: article.source_info?.img,
+                },
+                categories: article.categories?.split('|') || [],
+                sentiment: getSentiment(title, description),
+            };
+        }) || [];
 
         return articles;
     } catch (error) {

@@ -12,14 +12,11 @@ interface AddWalletModalProps {
     initialAddress?: string;
 }
 
-// Auto-detect chain from address format
+// Auto-detect chain from address format (EVM only)
 function detectChain(address: string): ChainId {
+    // All EVM addresses start with 0x and are 42 chars
     if (address.startsWith('0x') && address.length === 42) {
         return 'ethereum'; // EVM address - works across ETH, Base, Arbitrum
-    }
-    // Solana addresses are base58, typically 32-44 chars, no 0x prefix
-    if (!address.startsWith('0x') && address.length >= 32 && address.length <= 44) {
-        return 'solana';
     }
     return 'ethereum'; // Default to EVM
 }

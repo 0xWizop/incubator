@@ -236,57 +236,57 @@ function RewardsContent() {
                 )}
 
                 {/* Stats Grid - Clean cards matching Dashboard */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-[var(--accent-green)]/10">
-                                <Coins className="w-4 h-4 text-[var(--accent-green)]" />
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-3 sm:p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-green)]/10">
+                                <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-green)]" />
                             </div>
-                            <span className="text-xs text-[var(--foreground-muted)]">Claimable</span>
+                            <span className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">Claimable</span>
                         </div>
-                        <p className="text-xl font-semibold text-[var(--accent-green)] mb-3">
+                        <p className="text-lg sm:text-xl font-semibold text-[var(--accent-green)] mb-2 sm:mb-3">
                             ${claimable.toFixed(2)}
                         </p>
                         <button
                             onClick={handleClaim}
                             disabled={claimable <= 0 || isClaiming}
-                            className="w-full py-2 text-xs font-semibold rounded-lg bg-[var(--accent-green)] text-black hover:bg-[var(--accent-green)]/90 disabled:opacity-50 transition-all"
+                            className="w-full py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold rounded-lg bg-[var(--accent-green)] text-black hover:bg-[var(--accent-green)]/90 disabled:opacity-50 transition-all"
                         >
                             {isClaiming ? 'Claiming...' : 'Claim'}
                         </button>
                     </div>
 
-                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-[var(--primary)]/10">
-                                <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-3 sm:p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--primary)]/10">
+                                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary)]" />
                             </div>
-                            <span className="text-xs text-[var(--foreground-muted)]">Trading</span>
+                            <span className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">Trading</span>
                         </div>
-                        <p className="text-xl font-semibold">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
-                        <p className="text-xs text-[var(--foreground-muted)] mt-1">Lifetime earned</p>
+                        <p className="text-lg sm:text-xl font-semibold">${rewards?.tradingRewards.toFixed(2) || '0.00'}</p>
+                        <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">Lifetime earned</p>
                     </div>
 
-                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-[var(--accent-purple)]/10">
-                                <Users className="w-4 h-4 text-[var(--accent-purple)]" />
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-3 sm:p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-purple)]/10">
+                                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-purple)]" />
                             </div>
-                            <span className="text-xs text-[var(--foreground-muted)]">Referral</span>
+                            <span className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">Referral</span>
                         </div>
-                        <p className="text-xl font-semibold">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
-                        <p className="text-xs text-[var(--foreground-muted)] mt-1">{referral?.referredUsers.length || 0} referrals</p>
+                        <p className="text-lg sm:text-xl font-semibold">${rewards?.referralRewards.toFixed(2) || '0.00'}</p>
+                        <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">{referral?.referredUsers.length || 0} referrals</p>
                     </div>
 
-                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-[var(--accent-yellow)]/10">
-                                <Trophy className="w-4 h-4 text-[var(--accent-yellow)]" />
+                    <div className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl p-3 sm:p-4 hover:border-[var(--border-hover)] transition-colors">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                            <div className="p-1 sm:p-1.5 rounded-lg bg-[var(--accent-yellow)]/10">
+                                <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--accent-yellow)]" />
                             </div>
-                            <span className="text-xs text-[var(--foreground-muted)]">Ref Volume</span>
+                            <span className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">Ref Volume</span>
                         </div>
-                        <p className="text-xl font-semibold">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
-                        <p className="text-xs text-[var(--foreground-muted)] mt-1">Total</p>
+                        <p className="text-lg sm:text-xl font-semibold">${referral?.totalReferralVolume.toLocaleString() || '0'}</p>
+                        <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">Total</p>
                     </div>
                 </div>
 
@@ -412,7 +412,7 @@ function RewardsContent() {
                             className={clsx(
                                 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all',
                                 activeTab === tab.id
-                                    ? 'bg-[var(--foreground)] text-[var(--background)]'
+                                    ? 'bg-[var(--primary)] text-white'
                                     : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
                             )}
                         >

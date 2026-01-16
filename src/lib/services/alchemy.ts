@@ -340,3 +340,110 @@ export async function getTokenMetadata(chainId: ChainId, contractAddress: string
     }
 }
 
+// === WALLET TRACKER STATS ===
+
+export interface WalletStats {
+    balance: number; // Native token balance in USD (approximate)
+    activityCount: number; // Number of transactions in last 24h
+    recentTokens: string[]; // Recent token symbols traded
+    totalTransactions: number; // Total transactions found
+}
+
+/**
+ * Get wallet stats for tracker - balance and recent activity
+ */
+export async function getWalletStats(chainId: ChainId, address: string): Promise<WalletStats> {
+    // Skip Solana since it's not supported
+    if (chainId === 'solana') {
+        return { balance: 0, activityCount: 0, recentTokens: [], totalTransactions: 0 };
+    }
+
+    try {
+        // Get native balance
+        const balanceWei = await rpcCall(chainId, 'eth_getBalance', [address, 'latest']);
+        const balanceEth = balanceWei ? parseInt(balanceWei, 16) / 1e18 : 0;
+
+        // Approximate USD value (rough estimate based on chain)
+        const ethPrices: Record<string, number> = {
+            ethereum: 3500, // Approximate ETH price
+            base: 3500,     // Base uses ETH
+            arbitrum: 3500, // Arbitrum uses ETH
+        };
+        const balance = balanceEth * (ethPrices[chainId] || 3500);
+
+        // Get recent transactions if Alchemy key available
+        let activityCount = 0;
+        let recentTokens: string[] = [];
+        let totalTransactions = 0;
+
+        if (API_KEY && API_KEY !== 'demo') {
+            const { transactions } = await getAddressTransactions(chainId, address, 50);
+            totalTransactions = transactions.length;
+
+            // Count transactions in last 24h
+            const oneDayAgo = Date.now() / 1000 - 86400;
+            activityCount = transactions.filter(tx => tx.timestamp > oneDayAgo).length;
+
+            // Get unique token symbols from recent transactions
+            const tokenSet = new Set<string>();
+            transactions.forEach(tx => {
+                if (tx.asset && tx.asset !== 'ETH') {
+                    tokenSet.add(tx.asset);
+                }
+            });
+            recentTokens = Array.from(tokenSet).slice(0, 4);
+        }
+
+        return {
+            balance: Math.round(balance),
+            activityCount,
+            recentTokens,
+            totalTransactions,
+        };
+    } catch (error) {
+        console.error('[Alchemy] Error getting wallet stats:', error);
+        return { balance: 0, activityCount: 0, recentTokens: [], totalTransactions: 0 };
+    }
+}
+
+/**
+ * Get recent swap/trade activity for a wallet
+ */
+export async function getWalletActivity(
+    chainId: ChainId,
+    address: string,
+    limit = 20
+): Promise<{
+    activities: Array<{
+        hash: string;
+        type: 'buy' | 'sell' | 'transfer';
+        tokenSymbol: string;
+        amount: number;
+        timestamp: number;
+    }>;
+}> {
+    if (chainId === 'solana' || !API_KEY || API_KEY === 'demo') {
+        return { activities: [] };
+    }
+
+    try {
+        const { transactions } = await getAddressTransactions(chainId, address, limit);
+
+        const activities = transactions
+            .filter(tx => tx.asset) // Only include token transfers
+            .map(tx => ({
+                hash: tx.hash,
+                type: (tx.from.toLowerCase() === address.toLowerCase() ? 'sell' : 'buy') as 'buy' | 'sell',
+                tokenSymbol: tx.asset || 'Unknown',
+                amount: parseFloat(tx.value) || 0,
+                timestamp: tx.timestamp,
+            }));
+
+        return { activities };
+    } catch (error) {
+        console.error('[Alchemy] Error getting wallet activity:', error);
+        return { activities: [] };
+    }
+}
+
+

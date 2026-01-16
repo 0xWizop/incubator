@@ -40,49 +40,53 @@ export function PaywallOverlay({
     }
 
     return (
-        <div className="relative w-full h-full min-h-[400px]">
-            {/* Blurred content preview */}
+        <div className="relative w-full h-full min-h-[300px] sm:min-h-[400px] overflow-hidden">
+            {/* Extended black base to block any edge glows from layout */}
+            <div className="absolute -inset-20 bg-black" />
+
+            {/* Uniform heatmap-style gradient - green and red only, also extended */}
+            <div className="absolute -inset-20 bg-gradient-to-br from-green-950/80 via-black to-red-950/80" />
+
+            {/* Blurred content preview - only on larger screens where it fills properly */}
             {showPreview && (
-                <div className="absolute inset-0 blur-lg pointer-events-none select-none opacity-30 overflow-hidden">
+                <div className="absolute inset-0 blur-3xl pointer-events-none select-none opacity-30 overflow-hidden hidden sm:block">
                     {children}
                 </div>
             )}
 
-            {/* Dark overlay for better contrast */}
-            <div className="absolute inset-0 bg-black/60" />
-
-            {/* Centered paywall card */}
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-center px-8 py-10 max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl">
-                    {/* Lock icon */}
-                    <div className="relative inline-flex mb-6">
-                        <div className="relative p-5 bg-gradient-to-br from-[var(--primary)]/20 to-[var(--primary)]/5 border border-[var(--primary)]/30 rounded-2xl">
-                            <Lock className="w-10 h-10 text-[var(--primary)]" />
+            {/* Centered paywall card - Compact & Glassmorphic */}
+            <div className="absolute inset-0 flex items-center justify-center z-10 p-4">
+                <div className="text-center px-5 py-6 sm:px-8 sm:py-8 max-w-[300px] sm:max-w-sm bg-[var(--background-secondary)]/80 backdrop-blur-xl border border-[var(--primary)]/20 rounded-2xl shadow-2xl shadow-black/50">
+                    {/* Lock icon - Smaller with glow */}
+                    <div className="relative inline-flex mb-4 sm:mb-5">
+                        <div className="absolute inset-0 bg-[var(--primary)]/30 blur-xl rounded-full" />
+                        <div className="relative p-3 sm:p-4 bg-gradient-to-br from-[var(--primary)]/25 to-[var(--primary)]/5 border border-[var(--primary)]/40 rounded-xl">
+                            <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--primary)]" />
                         </div>
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-2xl font-bold text-white mb-3">
+                    <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
                         Unlock {featureName}
                     </h3>
 
-                    {/* Message */}
-                    <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+                    {/* Message - Compact */}
+                    <p className="text-gray-400 text-xs sm:text-sm mb-5 sm:mb-6 leading-relaxed">
                         {message || `${featureName} is a Pro feature. Upgrade to unlock unlimited access to professional trading tools.`}
                     </p>
 
-                    {/* CTA Button */}
+                    {/* CTA Button - Smaller on mobile */}
                     <Link
                         href="/#pricing"
-                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[var(--primary)] text-black font-bold text-sm hover:scale-105 hover:shadow-[0_0_40px_rgba(247,147,26,0.4)] transition-all"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-gradient-to-r from-[var(--primary)] to-amber-500 text-black font-bold text-xs sm:text-sm hover:scale-105 hover:shadow-[0_0_30px_rgba(247,147,26,0.5)] transition-all"
                     >
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         Upgrade to Pro
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </Link>
 
                     {/* Beta tester callout */}
-                    <p className="mt-6 text-xs text-gray-500">
+                    <p className="mt-4 text-[10px] sm:text-xs text-[var(--primary)]/70">
                         Beta testers get lifetime Pro access for free!
                     </p>
                 </div>

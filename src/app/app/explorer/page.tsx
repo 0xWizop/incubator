@@ -54,6 +54,8 @@ function ExplorerContent() {
         solana: 0
     });
 
+    // Mobile tab for blocks vs transactions
+    const [mobileTab, setMobileTab] = useState<'blocks' | 'transactions'>('blocks');
     const [activeTab, setActiveTab] = useState<'blocks' | 'transactions'>('blocks');
 
     const fetchData = useCallback(async (isBackground = false) => {
@@ -235,46 +237,29 @@ function ExplorerContent() {
 
     return (
         <div className="h-full overflow-y-auto p-2 sm:p-6 max-w-7xl mx-auto overflow-x-hidden w-full pb-24 lg:pb-6">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
-                <div>
-                    <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
-                        <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" />
-                        Explorer
-                    </h1>
-                    <p className="text-xs sm:text-base text-[var(--foreground-muted)]">
-                        Live blocks and transactions
-                    </p>
-                </div>
-
-                {/* Desktop Refresh Button */}
+            {/* Header - Compact on mobile */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+                    <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" />
+                    Explorer
+                </h1>
                 <button
                     onClick={() => fetchData(false)}
-                    className="hidden lg:flex btn btn-secondary text-sm py-2"
-                    disabled={loading}
-                >
-                    <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
-                    Refresh
-                </button>
-
-                {/* Mobile Refresh Button (Icon Only) */}
-                <button
-                    onClick={() => fetchData(false)}
-                    className="lg:hidden p-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+                    className="p-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] lg:px-4 lg:py-2 lg:rounded-lg lg:bg-[var(--background-secondary)] lg:border lg:border-[var(--border)] lg:hover:border-[var(--primary)] transition-colors"
                     disabled={loading}
                 >
                     <RefreshCw className={clsx('w-5 h-5', loading && 'animate-spin')} />
                 </button>
             </div>
 
-            {/* Global Search */}
-            <div className="card mb-2 sm:mb-4 p-1 z-30 overflow-visible relative">
-                <div className="flex gap-2 p-1 relative">
+            {/* Global Search - Compact on mobile */}
+            <div className="card mb-2 p-0.5 sm:p-1 z-30 overflow-visible relative">
+                <div className="flex gap-1.5 sm:gap-2 p-0.5 sm:p-1 relative">
                     <div className="relative flex-1">
                         <input
                             type="text"
-                            placeholder="Search tx hash, block, address..."
-                            className="input input-no-icon border-0 bg-transparent focus:shadow-none text-base sm:text-sm w-full"
+                            placeholder="Search tx, block, address..."
+                            className="input input-no-icon border-0 bg-transparent focus:shadow-none text-sm w-full py-2 sm:py-2.5"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -284,9 +269,10 @@ function ExplorerContent() {
                     </div>
                     <button
                         onClick={() => handleSearch()}
-                        className="px-4 sm:px-8 py-2 sm:py-2.5 rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_15px_var(--primary-glow)]"
+                        className="px-3 sm:px-6 py-2 rounded-lg sm:rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all flex items-center gap-1.5"
                     >
-                        Search
+                        <Search className="w-4 h-4" />
+                        <span className="hidden sm:inline">Search</span>
                     </button>
                 </div>
 
@@ -339,22 +325,22 @@ function ExplorerContent() {
 
 
 
-            {/* Overview Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-2 sm:mb-4">
-                {
-                    selectedChains.map((chainId) => {
+            {/* Chain Cards - Horizontal scroll on mobile, grid on desktop */}
+            <div className="mb-2 sm:mb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
+                <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible scrollbar-hide">
+                    {selectedChains.map((chainId) => {
                         const latestBlock = blocks.find(b => b.chainId === chainId)?.number;
                         return (
                             <Link
                                 key={chainId}
                                 href={`/app/explorer/${chainId}/`}
-                                className="card relative overflow-hidden group p-2.5 sm:p-4 hover:border-[var(--primary)] transition-colors cursor-pointer"
+                                className="card relative overflow-hidden group p-2 sm:p-4 hover:border-[var(--primary)] transition-colors cursor-pointer flex-shrink-0 w-[140px] sm:w-auto"
                             >
                                 <div
                                     className="absolute top-0 right-0 w-8 sm:w-16 h-8 sm:h-16 opacity-10 rounded-bl-full transition-transform group-hover:scale-110"
                                     style={{ backgroundColor: chainColors[chainId] }}
                                 />
-                                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                                <div className="flex items-center gap-1.5 mb-1">
                                     <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full overflow-hidden bg-[var(--background-tertiary)]">
                                         <img
                                             src={
@@ -367,23 +353,54 @@ function ExplorerContent() {
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-                                    <span className="text-xs sm:text-sm font-bold capitalize tracking-wide">{chainId}</span>
+                                    <span className="text-xs font-bold capitalize">{chainId}</span>
                                 </div>
-                                <p className="text-sm sm:text-xl font-mono font-bold">
+                                <p className="text-sm sm:text-lg font-mono font-bold">
                                     {latestBlock?.toLocaleString() || '...'}
                                 </p>
-                                <p className="text-[10px] sm:text-xs text-[var(--foreground-muted)] mt-0.5 sm:mt-1">Latest Block</p>
+                                <p className="text-[9px] sm:text-xs text-[var(--foreground-muted)]">Latest Block</p>
                             </Link>
                         );
-                    })
-                }
-            </div >
+                    })}
+                </div>
+            </div>
 
-            {/* Main Content Area - Stack on mobile */}
-            <div className="grid lg:grid-cols-2 gap-3 sm:gap-6">
+            {/* Mobile Tabs - Toggle between Blocks and Transactions */}
+            <div className="flex lg:hidden mb-2 p-1 bg-[var(--background-secondary)] rounded-lg border border-[var(--border)]">
+                <button
+                    onClick={() => setMobileTab('blocks')}
+                    className={clsx(
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors',
+                        mobileTab === 'blocks'
+                            ? 'bg-[var(--primary)] text-black'
+                            : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                    )}
+                >
+                    <Box className="w-4 h-4" />
+                    Blocks
+                </button>
+                <button
+                    onClick={() => setMobileTab('transactions')}
+                    className={clsx(
+                        'flex-1 py-2 px-3 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors',
+                        mobileTab === 'transactions'
+                            ? 'bg-[var(--primary)] text-black'
+                            : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                    )}
+                >
+                    <ArrowRightLeft className="w-4 h-4" />
+                    Transactions
+                </button>
+            </div>
 
-                {/* Latest Blocks */}
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[250px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden">
+            {/* Main Content Area - Tabbed on mobile, grid on desktop */}
+            <div className="lg:grid lg:grid-cols-2 gap-3 sm:gap-6">
+
+                {/* Latest Blocks - Always visible on desktop, conditional on mobile */}
+                <div className={clsx(
+                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden',
+                    mobileTab !== 'blocks' && 'hidden lg:flex'
+                )}>
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
                         <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
                             <Box className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
@@ -461,8 +478,11 @@ function ExplorerContent() {
                     </Link>
                 </div>
 
-                {/* Latest Transactions */}
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[250px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden">
+                {/* Latest Transactions - Always visible on desktop, conditional on mobile */}
+                <div className={clsx(
+                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden',
+                    mobileTab !== 'transactions' && 'hidden lg:flex'
+                )}>
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
                         <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
                             <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
@@ -496,26 +516,27 @@ function ExplorerContent() {
                                         href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${tx.chainId}`}
                                         className="block px-2 py-2 sm:px-4 sm:py-3 hover:bg-[var(--background-tertiary)] transition-colors cursor-pointer"
                                     >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <div className="flex items-center gap-2 max-w-[70%]">
-                                                <div className="p-1.5 rounded-full bg-[var(--background-secondary)] border border-[var(--border)] shrink-0">
+                                        <div className="flex justify-between items-start mb-1 gap-2">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <div className="p-1 sm:p-1.5 rounded-full bg-[var(--background-secondary)] border border-[var(--border)] shrink-0">
                                                     <Layers className="w-3 h-3 text-[var(--foreground-muted)]" />
                                                 </div>
                                                 <span className="font-mono text-xs sm:text-sm text-[var(--primary)] truncate">
                                                     {tx.hash}
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] sm:text-xs text-[var(--foreground-muted)] whitespace-nowrap ml-2 text-right">
+                                            <div className="text-[10px] sm:text-xs text-[var(--foreground-muted)] text-right shrink-0">
                                                 <div className="font-mono text-[var(--primary)]">
-                                                    {parseFloat(tx.value).toFixed(4)} {tx.chainId === 'solana' ? 'SOL' : 'ETH'}
+                                                    {parseFloat(tx.value).toFixed(3)} {tx.chainId === 'solana' ? 'SOL' : 'ETH'}
+                                                </div>
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {(() => {
                                                         const price = getPriceForChain(tx.chainId);
                                                         const value = parseFloat(tx.value);
                                                         if (!price || isNaN(value)) return null;
-                                                        return <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(value * price)})</span>;
+                                                        return <span>~{formatCurrency(value * price)}</span>;
                                                     })()}
-                                                </div>
-                                                <div className="mt-0.5">
+                                                    <span>·</span>
                                                     <TimeAgo timestamp={tx.timestamp} />
                                                 </div>
                                             </div>

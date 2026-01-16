@@ -34,7 +34,10 @@ import {
     Calendar,
     Target,
     Rocket,
-    MessageCircle
+    MessageCircle,
+    Menu,
+    X,
+    ChevronDown
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { StepCard, WalletBackupDiagram, BackupUI, TrackerNotificationUI, WalletMockup } from './DocVisuals';
@@ -765,11 +768,8 @@ export default function DocsPage() {
 
     return (
         <div className="flex min-h-screen bg-[var(--background)]">
-            {/* Sidebar */}
-            <aside className={clsx(
-                "fixed lg:sticky top-0 left-0 h-screen w-72 bg-[var(--background-secondary)] border-r border-[var(--border)] flex flex-col z-50 transition-transform lg:translate-x-0",
-                mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-            )}>
+            {/* Desktop Sidebar - Hidden on mobile */}
+            <aside className="hidden lg:flex fixed top-0 left-0 h-screen w-72 bg-[var(--background-secondary)] border-r border-[var(--border)] flex-col z-50">
                 {/* Sidebar Header */}
                 <div className="px-6 py-3 border-b border-[var(--border)]">
                     <Link href="/" className="flex items-center gap-2">
@@ -801,10 +801,7 @@ export default function DocsPage() {
                         {filteredSections.map((section) => (
                             <button
                                 key={section.id}
-                                onClick={() => {
-                                    setActiveSection(section.id);
-                                    setMobileMenuOpen(false);
-                                }}
+                                onClick={() => setActiveSection(section.id)}
                                 className={clsx(
                                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all',
                                     activeSection === section.id
@@ -843,13 +840,97 @@ export default function DocsPage() {
                 </div>
             </aside>
 
-            {/* Mobile Menu Toggle */}
-            <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]"
-            >
-                <BookOpen className="w-5 h-5" />
-            </button>
+            {/* Mobile Sidebar Drawer */}
+            <aside className={clsx(
+                "lg:hidden fixed top-0 left-0 h-screen w-64 bg-[var(--background-secondary)] border-r border-[var(--border)] flex flex-col z-50 transition-transform duration-200",
+                mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+            )}>
+                {/* Mobile Sidebar Header */}
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)]">
+                    <Link href="/" className="flex items-center gap-2">
+                        <img src="https://i.imgur.com/8UIQt03.png" alt="Incubator Protocol" className="w-6 h-6" />
+                        <span className="font-bold text-sm">Docs</span>
+                    </Link>
+                    <button
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="p-1.5 rounded-lg hover:bg-[var(--background-tertiary)]"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Search */}
+                <div className="p-2.5 border-b border-[var(--border)]">
+                    <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--foreground-muted)]" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="w-full pl-7 pr-2 py-1.5 rounded-lg bg-[var(--background-tertiary)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Navigation - Compact list style */}
+                <nav className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-0.5">
+                        {filteredSections.map((section) => (
+                            <button
+                                key={section.id}
+                                onClick={() => {
+                                    setActiveSection(section.id);
+                                    setMobileMenuOpen(false);
+                                }}
+                                className={clsx(
+                                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all',
+                                    activeSection === section.id
+                                        ? 'bg-[var(--primary)]/10 text-[var(--primary)] font-medium'
+                                        : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-tertiary)]'
+                                )}
+                            >
+                                <section.icon className="w-3.5 h-3.5 shrink-0" />
+                                {section.title}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+
+                {/* Footer */}
+                <div className="p-2.5 border-t border-[var(--border)]">
+                    <Link
+                        href="/app/dashboard"
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-medium"
+                        onClick={() => setMobileMenuOpen(false)}
+                    >
+                        <ArrowLeft className="w-3 h-3" />
+                        Back to App
+                    </Link>
+                </div>
+            </aside>
+
+            {/* Mobile Header Bar */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[var(--background)]/95 backdrop-blur-lg border-b border-[var(--border)]">
+                <div className="flex items-center gap-2.5 px-3 py-2">
+                    <button
+                        onClick={() => setMobileMenuOpen(true)}
+                        className="p-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]"
+                    >
+                        <Menu className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {(() => {
+                            const ActiveIcon = docSections.find(s => s.id === activeSection)?.icon || BookOpen;
+                            return <ActiveIcon className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />;
+                        })()}
+                        <span className="text-xs font-medium truncate">{activeSectionTitle}</span>
+                    </div>
+                    <Link href="/app/dashboard" className="text-[10px] text-[var(--primary)] font-medium shrink-0">
+                        Exit
+                    </Link>
+                </div>
+            </div>
 
             {/* Mobile Overlay */}
             {mobileMenuOpen && (
@@ -860,13 +941,15 @@ export default function DocsPage() {
             )}
 
             {/* Main Content */}
-            <main className="flex-1 min-h-screen">
-                <div className="max-w-7xl mx-auto px-6 py-8 lg:px-12 flex items-start gap-12">
+            <main className="flex-1 min-h-screen lg:ml-72">
+                {/* Mobile top padding for fixed header */}
+                <div className="h-14 lg:hidden" />
 
+                <div className="max-w-4xl mx-auto px-4 py-4 lg:px-12 lg:py-8 flex items-start gap-12">
                     {/* Center Column */}
                     <div className="flex-1 min-w-0">
-                        {/* Breadcrumbs */}
-                        <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] mb-8">
+                        {/* Breadcrumbs - Desktop only */}
+                        <div className="hidden lg:flex items-center gap-2 text-sm text-[var(--foreground-muted)] mb-8">
                             <Link href="/app/dashboard" className="hover:text-[var(--foreground)] transition-colors">App</Link>
                             <ChevronRight className="w-3 h-3" />
                             <span>Documentation</span>
@@ -875,9 +958,12 @@ export default function DocsPage() {
                         </div>
 
                         {renderContent()}
+
+                        {/* Mobile bottom padding */}
+                        <div className="h-8 lg:hidden" />
                     </div>
 
-                    {/* Right Sidebar (Table of Contents / Links) */}
+                    {/* Right Sidebar (Table of Contents / Links) - Hidden on mobile */}
                     <div className="hidden xl:block w-64 sticky top-8 space-y-8">
                         <div>
                             <p className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-4">
@@ -889,7 +975,6 @@ export default function DocsPage() {
                                         {activeSectionTitle}
                                     </a>
                                 </li>
-                                {/* In a real app we'd map subsections here */}
                             </ul>
                         </div>
 

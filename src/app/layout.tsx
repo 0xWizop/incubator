@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Orbitron } from 'next/font/google';
+import { Inter, Orbitron, Roboto_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 
@@ -12,6 +12,11 @@ const orbitron = Orbitron({
   subsets: ['latin'],
   variable: '--font-orbitron',
   weight: ['400', '500', '600', '700'],
+});
+
+const robotoMono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-roboto-mono',
 });
 
 const baseUrl = 'https://incubatorprotocol-c31de.web.app';
@@ -96,7 +101,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className={`${inter.variable} ${orbitron.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${orbitron.variable} ${robotoMono.variable} font-sans antialiased`}>
         <Providers>
           {children}
         </Providers>

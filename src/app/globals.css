@@ -115,7 +115,7 @@
   --color-border: var(--border);
   --color-border-hover: var(--border-hover);
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-mono: var(--font-roboto-mono), 'SF Mono', 'Consolas', monospace;
 }
 
 /* === Global Styles === */
@@ -136,6 +136,14 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure mono fonts use normal zeros (not slashed) */
+.font-mono,
+[class*="font-mono"],
+code,
+pre {
+  font-feature-settings: "zero" 0;
 }
 
 /* Scrollbar styling */

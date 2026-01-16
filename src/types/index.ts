@@ -526,3 +526,21 @@ export interface AddressBookEntry {
     lastUsed?: Date;
     isFavorite?: boolean;
 }
+
+// === SAVED NEWS ARTICLE TYPES ===
+
+export type SentimentType = 'bullish' | 'bearish' | 'neutral';
+
+export interface SavedArticle {
+    id: string;
+    articleId: string;
+    userId: string;
+    title: string;
+    description: string;
+    url: string;
+    imageUrl?: string;
+    publishedAt: string;
+    sourceName: string;
+    sentiment?: SentimentType;
+    savedAt: Date;
+}

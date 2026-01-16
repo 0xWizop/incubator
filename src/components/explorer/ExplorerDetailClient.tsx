@@ -143,9 +143,8 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
     }
 
     return (
-        <div className="flex flex-col h-full p-4 sm:p-6 pb-0 max-w-7xl mx-auto w-full gap-4 overflow-hidden">
-            {/* Top Fixed Section */}
-            <div className="flex-shrink-0 space-y-4">
+        <div className="h-full overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto w-full">
+            <div className="space-y-4">
                 <Breadcrumb items={[{ label: 'Block' }, { label: `#${number}` }]} />
 
                 {/* Header Row with Nav Buttons */}
@@ -229,48 +228,53 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* Bottom Scrollable Transactions */}
-            <div className="card flex-1 min-h-0 flex flex-col overflow-hidden p-0 mb-4 sm:mb-6 bg-[var(--background-secondary)]">
-                <div className="p-4 border-b border-[var(--border)] flex-shrink-0">
-                    <h2 className="font-bold flex items-center gap-2">
-                        <Layers className="w-5 h-5 text-[var(--primary)]" /> Transactions ({transactions.length})
-                    </h2>
+                {/* Transactions Section */}
+                <div className="card p-0 bg-[var(--background-secondary)]">
+                    <div className="p-4 border-b border-[var(--border)]">
+                        <h2 className="font-bold flex items-center gap-2">
+                            <Layers className="w-5 h-5 text-[var(--primary)]" /> Transactions ({transactions.length || block.transactions})
+                        </h2>
+                    </div>
+
+                    {transactions.length === 0 ? (
+                        <div className="p-8 text-center text-[var(--foreground-muted)]">
+                            <Layers className="w-10 h-10 mb-3 opacity-50 mx-auto" />
+                            <p>{block.transactions > 0 ? 'Loading transactions...' : 'No transactions in this block'}</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-[var(--border)]">
+                            {transactions.slice(0, 50).map((tx) => (
+                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${selectedChain}`} className="flex items-center justify-between p-3 hover:bg-[var(--background-tertiary)] transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="p-2 rounded-lg bg-[var(--primary)]/10 flex-shrink-0">
+                                            <Layers className="w-4 h-4 text-[var(--primary)]" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-mono text-sm text-[var(--primary)] truncate">{tx.hash.slice(0, 16)}...</p>
+                                            <p className="text-xs text-[var(--foreground-muted)]">From: {tx.from.slice(0, 10)}...</p>
+                                        </div>
+                                    </div>
+                                    <div className="font-mono text-sm flex-shrink-0 text-right">
+                                        <span>
+                                            {parseFloat(tx.value).toFixed(4)} ETH
+                                            {(() => {
+                                                const price = getPriceForChain(selectedChain);
+                                                const val = parseFloat(tx.value);
+                                                return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(val * price)})</span> : null;
+                                            })()}
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))}
+                            {transactions.length > 50 && (
+                                <div className="p-3 text-center text-sm text-[var(--foreground-muted)]">
+                                    Showing first 50 of {transactions.length} transactions
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-
-                {transactions.length === 0 ? (
-                    <div className="p-8 text-center text-[var(--foreground-muted)] flex-1 flex flex-col items-center justify-center">
-                        <Layers className="w-10 h-10 mb-3 opacity-50" />
-                        <p>No transactions in this block</p>
-                    </div>
-                ) : (
-                    <div className="overflow-y-auto flex-1 overscroll-contain divide-y divide-[var(--border)]">
-                        {transactions.slice(0, 50).map((tx) => (
-                            <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${selectedChain}`} className="flex items-center justify-between p-3 hover:bg-[var(--background-tertiary)] transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-[var(--primary)]/10 flex-shrink-0">
-                                        <Layers className="w-4 h-4 text-[var(--primary)]" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="font-mono text-sm text-[var(--primary)] truncate">{tx.hash.slice(0, 16)}...</p>
-                                        <p className="text-xs text-[var(--foreground-muted)]">From: {tx.from.slice(0, 10)}...</p>
-                                    </div>
-                                </div>
-                                <div className="font-mono text-sm flex-shrink-0 text-right">
-                                    <span>
-                                        {parseFloat(tx.value).toFixed(4)} ETH
-                                        {(() => {
-                                            const price = getPriceForChain(selectedChain);
-                                            const val = parseFloat(tx.value);
-                                            return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] ml-1.5">(~{formatCurrency(val * price)})</span> : null;
-                                        })()}
-                                    </span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -353,85 +357,81 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
     const txFee = (gasUsed * gasPrice) / 1e18;
 
     return (
-        <div className="flex flex-col h-full p-4 sm:p-6 pb-0 max-w-6xl mx-auto w-full overflow-hidden">
-            {/* Fixed Header Section */}
-            <div className="flex-shrink-0">
+        <div className="h-full p-4 pb-20 sm:p-6 sm:pb-6 max-w-6xl mx-auto w-full overflow-y-hidden">
+            <div className="flex flex-col gap-3">
                 <Breadcrumb items={[{ label: 'Transaction' }, { label: shortHash }]} />
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={clsx('p-3 rounded-xl', isSuccess ? 'bg-[var(--accent-green)]/10' : 'bg-[var(--accent-red)]/10')}>
+                        <div className={clsx('p-2.5 rounded-xl', isSuccess ? 'bg-[var(--accent-green)]/10' : 'bg-[var(--accent-red)]/10')}>
                             {isSuccess ? <CheckCircle className="w-6 h-6 text-[var(--accent-green)]" /> : <XCircle className="w-6 h-6 text-[var(--accent-red)]" />}
                         </div>
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-bold">Transaction Details</h1>
+                            <h1 className="text-xl font-bold">Transaction</h1>
                             <p className="text-sm text-[var(--foreground-muted)]">{isSuccess ? 'Success' : 'Failed'}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
-                            <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
-                            <span className="text-sm font-medium capitalize">{selectedChain}</span>
-                        </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
+                        <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-4 h-4 rounded-full" />
+                        <span className="text-sm font-medium capitalize">{selectedChain}</span>
                     </div>
                 </div>
-            </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain pb-4 sm:pb-6 space-y-4">
-                <div className="card p-4 sm:p-6">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Hash className="w-5 h-5" /> Transaction Hash</h2>
-                    <div className="flex items-center gap-3 p-3 bg-[var(--background-tertiary)] rounded-xl">
-                        <code className="flex-1 font-mono text-sm break-all">{hash}</code>
+                {/* Main Card */}
+                <div className="card p-4 sm:p-5 bg-[var(--background-secondary)] flex flex-col gap-3">
+                    {/* Transaction Hash */}
+                    <div className="flex items-center gap-2 p-3 bg-[var(--background-tertiary)] rounded-lg">
+                        <Hash className="w-4 h-4 text-[var(--foreground-muted)] shrink-0" />
+                        <code className="flex-1 font-mono text-xs break-all text-[var(--primary)]">{hash}</code>
                         <CopyButton text={hash} />
                     </div>
-                </div>
 
-                <div className="card p-4 sm:p-6">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><User className="w-5 h-5" /> Parties</h2>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                        <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
-                            <p className="text-xs text-[var(--foreground-muted)] mb-1">From</p>
-                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}&chain=${transaction.chainId}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.from}</Link>
+                    {/* From/To */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                        <div className="p-2.5 bg-[var(--background-tertiary)] rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)] mb-1">From</p>
+                            <Link href={`/app/explorer/detail/?type=address&id=${transaction.from}&chain=${transaction.chainId}`} className="font-mono text-xs text-[var(--primary)] hover:underline break-all">{transaction.from.slice(0, 18)}...</Link>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-[var(--foreground-muted)] hidden sm:block" />
-                        <div className="flex-1 p-4 bg-[var(--background-tertiary)] rounded-xl">
-                            <p className="text-xs text-[var(--foreground-muted)] mb-1">To</p>
+                        <div className="p-2.5 bg-[var(--background-tertiary)] rounded-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)] mb-1">To</p>
                             {transaction.to ? (
-                                <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}&chain=${transaction.chainId}`} className="font-mono text-sm text-[var(--primary)] hover:underline break-all">{transaction.to}</Link>
-                            ) : <span className="text-sm text-[var(--foreground-muted)]">Contract Creation</span>}
+                                <Link href={`/app/explorer/detail/?type=address&id=${transaction.to}&chain=${transaction.chainId}`} className="font-mono text-xs text-[var(--primary)] hover:underline break-all">{transaction.to.slice(0, 18)}...</Link>
+                            ) : <span className="text-xs text-[var(--foreground-muted)]">Contract Creation</span>}
                         </div>
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="card p-4">
-                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Value</p>
-                        <p className="font-medium text-lg">{parseFloat(transaction.value).toFixed(6)} ETH</p>
-                        <p className="text-sm text-[var(--foreground-muted)]">
-                            {(() => {
-                                const price = getPriceForChain(transaction.chainId);
-                                const val = parseFloat(transaction.value);
-                                return price && !isNaN(val) ? `≈ ${formatCurrency(val * price)}` : '';
-                            })()}
-                        </p>
+                    {/* Value, Block, Fee */}
+                    <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-[var(--border)]/40">
+                        <div>
+                            <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Value</p>
+                            <p className="font-mono text-base font-semibold">{parseFloat(transaction.value).toFixed(4)}</p>
+                            <p className="text-[10px] text-[var(--foreground-muted)]">
+                                {(() => {
+                                    const price = getPriceForChain(transaction.chainId);
+                                    const val = parseFloat(transaction.value);
+                                    return price && !isNaN(val) ? `≈${formatCurrency(val * price)}` : 'ETH';
+                                })()}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Block</p>
+                            <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}&chain=${transaction.chainId}`} className="font-mono text-base font-semibold text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Fee</p>
+                            <p className="font-mono text-base font-semibold">{txFee.toFixed(5)}</p>
+                            <p className="text-[10px] text-[var(--foreground-muted)]">ETH</p>
+                        </div>
                     </div>
-                    <div className="card p-4">
-                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Block</p>
-                        <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}&chain=${transaction.chainId}`} className="font-medium text-lg text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
-                    </div>
-                    <div className="card p-4">
-                        <p className="text-xs text-[var(--foreground-muted)] mb-1">Fee</p>
-                        <p className="font-medium text-lg">{txFee.toFixed(6)} ETH</p>
-                    </div>
-                </div>
 
-                <div className="card p-4 sm:p-6">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Fuel className="w-5 h-5" /> Gas Details</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Used</p><p className="font-mono text-sm">{gasUsed.toLocaleString()}</p></div>
-                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Gas Price</p><p className="font-mono text-sm">{(gasPrice / 1e9).toFixed(2)} Gwei</p></div>
-                        <div><p className="text-xs text-[var(--foreground-muted)] mb-1">Nonce</p><p className="font-mono text-sm">{transaction.nonce || 0}</p></div>
+                    {/* Gas Details */}
+                    <div className="flex items-center gap-3 pt-3 border-t border-[var(--border)]/40 text-xs">
+                        <Fuel className="w-4 h-4 text-[var(--foreground-muted)]" />
+                        <span className="font-mono">{gasUsed.toLocaleString()}</span>
+                        <span className="text-[var(--foreground-muted)]">@</span>
+                        <span className="font-mono">{(gasPrice / 1e9).toFixed(1)} Gwei</span>
+                        <span className="text-[var(--foreground-muted)] ml-auto">Nonce: <span className="font-mono">{transaction.nonce || 0}</span></span>
                     </div>
                 </div>
             </div>

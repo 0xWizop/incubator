@@ -34,6 +34,8 @@ import {
     WatchlistFollower,
     EnhancedPriceAlert,
     AlertConditionType,
+    SavedArticle,
+    SentimentType,
 } from '@/types';
 
 // Helper to normalize IDs (lowercase addresses, keep UIDs as is)
@@ -52,6 +54,7 @@ export const alertsCollection = collection(db, 'alerts');
 export const trackedWalletsCollection = collection(db, 'trackedWallets');
 export const portfolioSnapshotsCollection = collection(db, 'portfolioSnapshots');
 export const watchlistFollowersCollection = collection(db, 'watchlistFollowers');
+export const savedArticlesCollection = collection(db, 'savedArticles');
 
 // Default user preferences
 export const defaultPreferences: UserPreferences = {
@@ -1373,3 +1376,103 @@ export async function updateCopySettings(
         return false;
     }
 }
+
+// === SAVED ARTICLES FUNCTIONS ===
+
+export interface SaveArticleInput {
+    articleId: string;
+    title: string;
+    description: string;
+    url: string;
+    imageUrl?: string;
+    publishedAt: string;
+    sourceName: string;
+    sentiment?: SentimentType;
+}
+
+export async function saveArticle(userId: string, article: SaveArticleInput): Promise<SavedArticle | null> {
+    try {
+        const docId = `${normalizeId(userId)}-${article.articleId}`;
+        const docRef = doc(savedArticlesCollection, docId);
+
+        // Check if already saved
+        const existing = await getDoc(docRef);
+        if (existing.exists()) {
+            return existing.data() as SavedArticle;
+        }
+
+        const savedArticle: Omit<SavedArticle, 'savedAt'> & { savedAt: any } = {
+            id: docId,
+            articleId: article.articleId,
+            userId: normalizeId(userId),
+            title: article.title,
+            description: article.description,
+            url: article.url,
+            imageUrl: article.imageUrl,
+            publishedAt: article.publishedAt,
+            sourceName: article.sourceName,
+            sentiment: article.sentiment,
+            savedAt: serverTimestamp(),
+        };
+
+        await setDoc(docRef, savedArticle);
+
+        return {
+            ...savedArticle,
+            savedAt: new Date(),
+        } as SavedArticle;
+    } catch (error) {
+        console.error('Error saving article:', error);
+        return null;
+    }
+}
+
+export async function unsaveArticle(userId: string, articleId: string): Promise<boolean> {
+    try {
+        const docId = `${normalizeId(userId)}-${articleId}`;
+        await deleteDoc(doc(savedArticlesCollection, docId));
+        return true;
+    } catch (error) {
+        console.error('Error unsaving article:', error);
+        return false;
+    }
+}
+
+export async function getSavedArticles(userId: string): Promise<SavedArticle[]> {
+    try {
+        const q = query(
+            savedArticlesCollection,
+            where('userId', '==', normalizeId(userId)),
+            orderBy('savedAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            ...doc.data(),
+            savedAt: doc.data().savedAt?.toDate?.() || new Date(),
+        })) as SavedArticle[];
+    } catch (error) {
+        console.error('Error getting saved articles:', error);
+        return [];
+    }
+}
+
+export async function isArticleSaved(userId: string, articleId: string): Promise<boolean> {
+    try {
+        const docId = `${normalizeId(userId)}-${articleId}`;
+        const docSnap = await getDoc(doc(savedArticlesCollection, docId));
+        return docSnap.exists();
+    } catch (error) {
+        return false;
+    }
+}
+
+export async function getSavedArticleIds(userId: string): Promise<Set<string>> {
+    try {
+        const articles = await getSavedArticles(userId);
+        return new Set(articles.map(a => a.articleId));
+    } catch (error) {
+        return new Set();
+    }
+}
+

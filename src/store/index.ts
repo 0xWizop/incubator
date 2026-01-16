@@ -31,7 +31,7 @@ export const useAppStore = create<AppState>()(
     persist(
         (set, get) => ({
             // Chain selection - default to all chains
-            selectedChains: ['solana', 'ethereum', 'base', 'arbitrum'],
+            selectedChains: ['ethereum', 'base', 'arbitrum', 'solana'],
             toggleChain: (chainId) =>
                 set((state) => ({
                     selectedChains: state.selectedChains.includes(chainId)

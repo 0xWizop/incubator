@@ -8,9 +8,12 @@ import type { NewsArticle } from '@/lib/api/coindesk';
 interface NewsFeedProps {
     articles?: NewsArticle[];
     isLoading?: boolean;
+    savedArticleIds?: Set<string>;
+    onToggleSave?: (article: NewsArticle) => void;
+    isLoggedIn?: boolean;
 }
 
-export function NewsFeed({ articles, isLoading }: NewsFeedProps) {
+export function NewsFeed({ articles, isLoading, savedArticleIds = new Set(), onToggleSave, isLoggedIn = false }: NewsFeedProps) {
     return (
         <div className="flex flex-col h-full bg-[var(--background)] overflow-hidden font-mono">
             <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -25,7 +28,14 @@ export function NewsFeed({ articles, isLoading }: NewsFeedProps) {
                     // News items
                     <div className="divide-y divide-[var(--border)]">
                         {articles.map((article) => (
-                            <NewsItem key={article.id} article={article} />
+                            <NewsItem
+                                key={article.id}
+                                article={article}
+                                isSaved={savedArticleIds.has(article.id)}
+                                onToggleSave={onToggleSave}
+                                showBookmark={true}
+                                isLoggedIn={isLoggedIn}
+                            />
                         ))}
                     </div>
                 ) : (
