@@ -44,23 +44,27 @@ export function PaywallOverlay({
             {/* Extended black base to block any edge glows from layout */}
             <div className="absolute -inset-20 bg-black" />
 
-            {/* Uniform heatmap-style gradient - green and red only, also extended */}
-            <div className="absolute -inset-20 bg-gradient-to-br from-green-950/80 via-black to-red-950/80" />
+            {/* Subtle heatmap-style gradient - reduced intensity for less color blotching on desktop */}
+            <div className="absolute -inset-20 bg-gradient-to-br from-green-950/30 via-black to-red-950/30" />
 
-            {/* Blurred content preview - only on larger screens where it fills properly */}
+            {/* Blurred content preview - renders actual heatmap behind blur */}
             {showPreview && (
-                <div className="absolute inset-0 blur-3xl pointer-events-none select-none opacity-30 overflow-hidden hidden sm:block">
-                    {children}
+                <div
+                    className="absolute top-0 left-0 right-0 bottom-0 blur-md pointer-events-none select-none opacity-40 overflow-hidden hidden sm:block"
+                    style={{ minHeight: '400px' }}
+                >
+                    <div className="w-full h-full flex flex-col" style={{ minHeight: '400px' }}>
+                        {children}
+                    </div>
                 </div>
             )}
 
             {/* Centered paywall card - Compact & Glassmorphic */}
             <div className="absolute inset-0 flex items-center justify-center z-10 p-4">
                 <div className="text-center px-5 py-6 sm:px-8 sm:py-8 max-w-[300px] sm:max-w-sm bg-[var(--background-secondary)]/80 backdrop-blur-xl border border-[var(--primary)]/20 rounded-2xl shadow-2xl shadow-black/50">
-                    {/* Lock icon - Smaller with glow */}
-                    <div className="relative inline-flex mb-4 sm:mb-5">
-                        <div className="absolute inset-0 bg-[var(--primary)]/30 blur-xl rounded-full" />
-                        <div className="relative p-3 sm:p-4 bg-gradient-to-br from-[var(--primary)]/25 to-[var(--primary)]/5 border border-[var(--primary)]/40 rounded-xl">
+                    {/* Lock icon - Clean, no glow */}
+                    <div className="inline-flex mb-4 sm:mb-5">
+                        <div className="p-3 sm:p-4 bg-gradient-to-br from-[var(--primary)]/25 to-[var(--primary)]/5 border border-[var(--primary)]/40 rounded-xl">
                             <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--primary)]" />
                         </div>
                     </div>

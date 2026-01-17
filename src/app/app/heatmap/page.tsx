@@ -9,7 +9,7 @@ export default function HeatmapPage() {
     return (
         <div className="h-full w-full overflow-hidden flex flex-col">
             <div className="flex-1 min-h-0">
-                <PaywallOverlay featureName="Market Heatmap" showPreview={true}>
+                <PaywallOverlay featureName="Market Heatmap" showPreview={false}>
                     <Suspense fallback={<LoadingSpinner text="Loading heatmap..." />}>
                         <SectorHeatmap />
                     </Suspense>

@@ -67,5 +67,11 @@ service cloud.firestore {
     match /watchlistFollowers/{followerId} {
       allow read, write: if isAuthenticated();
     }
+
+    // Saved Articles collection
+    // - Authenticated users can manage their saved articles
+    match /savedArticles/{articleId} {
+      allow read, write: if isAuthenticated();
+    }
   }
 }

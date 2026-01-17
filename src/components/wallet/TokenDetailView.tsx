@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     ArrowLeft,
     ArrowUpRight,
@@ -35,7 +35,7 @@ interface TokenDetailViewProps {
 
 type Timeframe = '1H' | '24H' | '7D' | '30D';
 
-// Generate mock sparkline data
+// Generate mock sparkline data - called only on client to avoid hydration mismatch
 const generateSparklineData = (timeframe: Timeframe, basePrice: number) => {
     const points = timeframe === '1H' ? 12 : timeframe === '24H' ? 24 : timeframe === '7D' ? 7 : 30;
     const volatility = timeframe === '1H' ? 0.01 : timeframe === '24H' ? 0.03 : timeframe === '7D' ? 0.08 : 0.15;
@@ -55,9 +55,14 @@ const generateSparklineData = (timeframe: Timeframe, basePrice: number) => {
 export function TokenDetailView({ token, onBack, onSend, onReceive, onSwap }: TokenDetailViewProps) {
     const [timeframe, setTimeframe] = useState<Timeframe>('24H');
     const [copied, setCopied] = useState(false);
+    const [sparklineData, setSparklineData] = useState<{ value: number }[]>([]);
 
     const basePrice = token.usd / Math.max(parseFloat(token.balance) || 1, 0.0001);
-    const sparklineData = generateSparklineData(timeframe, basePrice);
+
+    // Generate sparkline data only on client to avoid hydration mismatch
+    useEffect(() => {
+        setSparklineData(generateSparklineData(timeframe, basePrice));
+    }, [timeframe, basePrice]);
 
     // Calculate price change (mock)
     const priceChange = sparklineData.length > 1

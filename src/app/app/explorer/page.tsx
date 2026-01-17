@@ -252,76 +252,7 @@ function ExplorerContent() {
                 </button>
             </div>
 
-            {/* Global Search - Compact on mobile */}
-            <div className="card mb-2 p-0.5 sm:p-1 z-30 overflow-visible relative">
-                <div className="flex gap-1.5 sm:gap-2 p-0.5 sm:p-1 relative">
-                    <div className="relative flex-1">
-                        <input
-                            type="text"
-                            placeholder="Search tx, block, address..."
-                            className="input input-no-icon border-0 bg-transparent focus:shadow-none text-sm w-full py-2 sm:py-2.5"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            onFocus={() => { if (searchResults.length > 0) setShowDropdown(true); }}
-                            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                        />
-                    </div>
-                    <button
-                        onClick={() => handleSearch()}
-                        className="px-3 sm:px-6 py-2 rounded-lg sm:rounded-xl bg-[var(--primary)] text-black font-bold text-sm hover:opacity-90 transition-all flex items-center gap-1.5"
-                    >
-                        <Search className="w-4 h-4" />
-                        <span className="hidden sm:inline">Search</span>
-                    </button>
-                </div>
-
-                {/* Results Dropdown - Full width relative to card, with spacing */}
-                {showDropdown && (
-                    <div className="absolute top-full mt-3 -left-1 -right-1 bg-[var(--background-secondary)] border border-[var(--border)] rounded-xl shadow-2xl py-2 max-h-80 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="px-4 py-2 text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider flex items-center justify-between">
-                            <span>Block Results</span>
-                            <span className="text-[9px] bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--foreground-muted)]">Select to view</span>
-                        </div>
-                        <div className="h-px bg-[var(--border)] mx-2 mb-1 opacity-50" />
-                        {searchResults.map((result) => (
-                            <button
-                                key={`${result.chain}-${result.block}`}
-                                onClick={() => handleSearch(result)}
-                                className="w-full text-left px-4 py-3 hover:bg-[var(--background-tertiary)] flex items-center justify-between group transition-all duration-150 border-l-2 border-transparent hover:border-[var(--primary)]"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <img
-                                            src={chainColors[result.chain] && chainColors[result.chain].includes('http') ? chainColors[result.chain] :
-                                                result.chain === 'ethereum' ? 'https://i.imgur.com/NKQlhQj.png' :
-                                                    result.chain === 'base' ? 'https://i.imgur.com/zn5hpMs.png' :
-                                                        result.chain === 'arbitrum' ? 'https://i.imgur.com/jmOXWlA.png' :
-                                                            'https://i.imgur.com/xp7PYKk.png'
-                                            }
-                                            alt={result.chain}
-                                            className="w-6 h-6 rounded-full ring-2 ring-[var(--background-secondary)] group-hover:ring-[var(--background-tertiary)] transition-colors"
-                                        />
-                                    </div>
-                                    <div>
-                                        <span className="font-mono text-sm font-bold block leading-none mb-1">
-                                            Block #{result.block.toLocaleString()}
-                                        </span>
-                                        <span className="text-[10px] text-[var(--foreground-muted)] capitalize block leading-none">
-                                            {result.chain} Network
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 rounded-full bg-[var(--background)] border border-[var(--border)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary)] transition-colors">
-                                        <ArrowRightLeft className="w-3.5 h-3.5 text-[var(--foreground-muted)] group-hover:text-[var(--primary)]" />
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+            {/* Search functionality moved to header unified search */}
 
 
 

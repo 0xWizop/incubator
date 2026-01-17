@@ -101,10 +101,11 @@ export function NewsItem({ article, isSaved = false, onToggleSave, showBookmark 
                 {/* Bookmark Button - Always visible */}
                 {showBookmark && (
                     <button
+                        type="button"
                         onClick={handleBookmarkClick}
                         disabled={!isLoggedIn && !onToggleSave}
                         className={clsx(
-                            'p-1.5 rounded-lg transition-all shrink-0',
+                            'p-1.5 rounded-lg transition-all shrink-0 relative z-10',
                             isSaved
                                 ? 'text-[var(--primary)] bg-[var(--primary)]/10'
                                 : 'text-[var(--foreground-muted)] hover:text-[var(--primary)] hover:bg-[var(--background-tertiary)]',

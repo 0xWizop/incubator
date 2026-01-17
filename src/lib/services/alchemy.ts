@@ -7,29 +7,6 @@ if (!API_KEY || API_KEY === 'demo') {
     console.warn('[Alchemy] No valid API key found. Explorer data will not load. Set NEXT_PUBLIC_ALCHEMY_API_KEY in .env.local');
 }
 
-// Network RPC Endpoints
-// Network RPC Endpoints - Use public RPCs if env vars are missing or blocked
-const NETWORK_URLS: Record<string, string> = {
-    // Use public CORS-friendly RPCs for browser requests
-    // Alchemy requires domain whitelisting which may not be configured
-    // Use Alchemy RPCs if key is present, otherwise fallback to public
-    ethereum: API_KEY && API_KEY !== 'demo'
-        ? `https://eth-mainnet.g.alchemy.com/v2/${API_KEY}`
-        : (process.env.ETH_RPC_URL || 'https://eth.llamarpc.com'),
-
-    base: API_KEY && API_KEY !== 'demo'
-        ? `https://base-mainnet.g.alchemy.com/v2/${API_KEY}`
-        : (process.env.BASE_RPC_URL || 'https://mainnet.base.org'),
-
-    arbitrum: API_KEY && API_KEY !== 'demo'
-        ? `https://arb-mainnet.g.alchemy.com/v2/${API_KEY}`
-        : (process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc'),
-
-    solana: API_KEY && API_KEY !== 'demo'
-        ? `https://solana-mainnet.g.alchemy.com/v2/${API_KEY}`
-        : (process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'),
-};
-
 const PUBLIC_RPC_URLS: Record<ChainId, string> = {
     ethereum: 'https://eth.llamarpc.com',
     base: 'https://mainnet.base.org',
@@ -37,54 +14,77 @@ const PUBLIC_RPC_URLS: Record<ChainId, string> = {
     solana: 'https://api.mainnet-beta.solana.com',
 };
 
+// Circuit breaker: Track if Alchemy API proxy is blocked
+// Once blocked, we skip Alchemy and use public RPCs directly
+let alchemyBlocked = false;
+
+// Check if a method is Alchemy-specific (not supported by public RPCs)
+const ALCHEMY_SPECIFIC_METHODS = [
+    'alchemy_getTokenBalances',
+    'alchemy_getTokenMetadata',
+    'alchemy_getAssetTransfers',
+];
+
 export async function rpcCall(chainId: ChainId, method: string, params: any[] = []): Promise<any> {
-    // Allow Solana calls if they have a valid URL in the map
-    if (!API_KEY || API_KEY === 'demo') {
-        // console.warn('Alchemy API Key missing, but continuing for public RPCs');
-    }
-
-    const primaryUrl = NETWORK_URLS[chainId];
-    if (!primaryUrl) return null;
-
-    // Helper to perform the actual fetch
-    const doFetch = async (url: string) => {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method,
-                params,
-            }),
-            next: { revalidate: 10 }
-        });
-
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.result;
-    };
-
-    try {
-        return await doFetch(primaryUrl);
-    } catch (error) {
-        // If primary fails and it's NOT the restricted public one, try the public fallback
-        // (We check strictly to avoid infinite loops if primary IS the public one)
-        const publicUrl = PUBLIC_RPC_URLS[chainId];
-        if (publicUrl && primaryUrl !== publicUrl) {
-            console.warn(`[Alchemy] Primary RPC failed for ${chainId} (${error}), trying public fallback...`);
-            try {
-                return await doFetch(publicUrl);
-            } catch (fallbackError) {
-                console.error(`[Alchemy] Fallback RPC error [${method}]:`, fallbackError);
-            }
-        } else {
-            console.error(`Alchemy RPC error [${method}]:`, error);
-        }
+    // Skip Alchemy-specific methods if we know Alchemy is blocked
+    if (alchemyBlocked && ALCHEMY_SPECIFIC_METHODS.includes(method)) {
         return null;
     }
+
+    const publicUrl = PUBLIC_RPC_URLS[chainId];
+
+    // Try the API proxy route first (avoids browser CORS issues)
+    if (!alchemyBlocked && API_KEY && API_KEY !== 'demo') {
+        try {
+            const response = await fetch('/api/alchemy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chainId, method, params }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message || data.error);
+                return data.result;
+            }
+
+            // If 403 or 500 from proxy, mark Alchemy as blocked
+            if (response.status === 403 || response.status === 500) {
+                if (!alchemyBlocked) {
+                    alchemyBlocked = true;
+                    console.warn('[Alchemy] API proxy blocked. Switching to public RPCs.');
+                }
+            }
+        } catch (error) {
+            // Proxy call failed, will try public RPC below
+        }
+    }
+
+    // Fallback to public RPC for standard methods
+    if (publicUrl && !ALCHEMY_SPECIFIC_METHODS.includes(method)) {
+        try {
+            const response = await fetch(publicUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method,
+                    params,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+                return data.result;
+            }
+        } catch (error) {
+            // Public RPC also failed, return null
+        }
+    }
+
+    return null;
 }
 
 export async function getLatestBlockNumber(chainId: ChainId): Promise<number> {
@@ -313,13 +313,20 @@ export async function getAddressTransactions(
 }
 
 // Get token balances for an address
+// Note: alchemy_getTokenBalances only works with a valid Alchemy API key
 export async function getTokenBalances(chainId: ChainId, address: string): Promise<{ contractAddress: string; tokenBalance: string }[]> {
+    // This method is Alchemy-specific and won't work on public RPCs
+    // Skip if no valid API key to avoid console spam
+    if (!API_KEY || API_KEY === 'demo') {
+        return [];
+    }
+
     try {
         const result = await rpcCall(chainId, 'alchemy_getTokenBalances', [address, 'DEFAULT_TOKENS']);
         return result?.tokenBalances || [];
     } catch (error) {
         // This method fails on public RPCs or invalid keys.
-        // Return empty array to trigger fallback logic in UI.
+        // Return empty array silently to avoid console spam.
         return [];
     }
 }

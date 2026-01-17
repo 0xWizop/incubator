@@ -229,6 +229,7 @@ export function Header() {
     const { isTrial, daysRemaining } = useSubscription();
 
     const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [explorerResults, setExplorerResults] = useState<{ type: 'block' | 'tx' | 'address'; query: string; chains: string[] }[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -284,17 +285,62 @@ export function Header() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Detect search type for explorer queries
+    const detectSearchType = useCallback((query: string): { type: 'block' | 'tx' | 'address' | 'token'; chains: string[] } => {
+        const trimmed = query.trim();
+
+        // Block number (pure digits)
+        if (/^\d+$/.test(trimmed)) {
+            return { type: 'block', chains: ['ethereum', 'base', 'arbitrum', 'solana'] };
+        }
+
+        // EVM transaction hash (0x + 64 hex)
+        if (/^0x[a-fA-F0-9]{64}$/.test(trimmed)) {
+            return { type: 'tx', chains: ['ethereum', 'base', 'arbitrum'] };
+        }
+
+        // EVM address (0x + 40 hex)
+        if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+            return { type: 'address', chains: ['ethereum', 'base', 'arbitrum'] };
+        }
+
+        // Solana signature (base58, 87-88 chars)
+        if (trimmed.length >= 43 && trimmed.length <= 88 && !trimmed.startsWith('0x')) {
+            return { type: 'tx', chains: ['solana'] };
+        }
+
+        // Solana address (base58, 32-44 chars)
+        if (trimmed.length >= 32 && trimmed.length <= 44 && !trimmed.startsWith('0x')) {
+            return { type: 'address', chains: ['solana'] };
+        }
+
+        return { type: 'token', chains: [] };
+    }, []);
+
     // Debounced search
     const handleSearch = useCallback(async (query: string) => {
         setSearchQuery(query);
 
         if (query.length < 2) {
             setSearchResults([]);
+            setExplorerResults([]);
             setShowDropdown(false);
             return;
         }
 
-        // Debounce
+        // Check for explorer-type queries
+        const detected = detectSearchType(query);
+        if (detected.type !== 'token') {
+            setExplorerResults([{ type: detected.type, query: query.trim(), chains: detected.chains }]);
+            setSearchResults([]);
+            setShowDropdown(true);
+            return;
+        }
+
+        // Clear explorer results for token searches
+        setExplorerResults([]);
+
+        // Debounce token search
         if (debounceRef.current) clearTimeout(debounceRef.current);
 
         debounceRef.current = setTimeout(async () => {
@@ -310,7 +356,7 @@ export function Header() {
                 setIsSearching(false);
             }
         }, 300);
-    }, [setSearchQuery]);
+    }, [setSearchQuery, detectSearchType]);
 
     const handleResultClick = (pair: any) => {
         addToRecent(pair);
@@ -318,6 +364,19 @@ export function Header() {
         setSearchQuery('');
         // Navigate to trade page with chain and pair address
         window.location.href = `/app/trade?chain=${pair.chainId}&pair=${pair.pairAddress}`;
+    };
+
+    const handleExplorerClick = (type: 'block' | 'tx' | 'address', query: string, chain?: string) => {
+        setShowDropdown(false);
+        setSearchQuery('');
+        setExplorerResults([]);
+        if (type === 'block') {
+            window.location.href = `/app/explorer/detail/?type=block&id=${query}&chain=${chain || 'ethereum'}`;
+        } else if (type === 'tx') {
+            window.location.href = `/app/explorer/detail/?type=tx&id=${query}&chain=${chain || 'ethereum'}`;
+        } else {
+            window.location.href = `/app/explorer/detail/?type=address&id=${query}&chain=${chain || 'ethereum'}`;
+        }
     };
 
     const handleSignOut = async () => {
@@ -336,7 +395,7 @@ export function Header() {
         <>
             <header className="h-12 lg:h-14 bg-[var(--background-secondary)] border-b border-[var(--border)] flex items-center justify-between px-3 lg:px-6">
                 {/* Left side */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-1">
                     {/* Mobile search icon */}
                     <button
                         onClick={() => setShowMobileSearch(true)}
@@ -347,15 +406,15 @@ export function Header() {
                     </button>
 
                     {/* Search bar with dropdown */}
-                    <div className="hidden md:flex items-center flex-1 max-w-2xl" ref={searchRef}>
+                    <div className="hidden md:flex items-center flex-1 max-w-[400px]" ref={searchRef}>
                         <div className="relative w-full">
                             <input
                                 type="text"
-                                placeholder="Search any token by name, symbol, or address..."
+                                placeholder="Search tokens, blocks, transactions, addresses..."
                                 className="input input-no-icon w-full bg-[var(--background-tertiary)] text-sm focus:!outline-none focus:!border-transparent focus:!ring-0 focus:!shadow-none placeholder:text-[var(--foreground-muted)]"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                onFocus={() => (searchResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && setShowDropdown(true)}
+                                onFocus={() => (searchResults.length > 0 || explorerResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && setShowDropdown(true)}
                             />
                             {isSearching && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -364,61 +423,140 @@ export function Header() {
                             )}
 
                             {/* Search Results Dropdown */}
-                            {showDropdown && (searchResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
-                                    {searchQuery.length === 0 && recentSearches.length > 0 && (
-                                        <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider">Recent Searches</span>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setRecentSearches([]);
-                                                        localStorage.removeItem('recentSearches');
-                                                    }}
-                                                    className="text-[10px] text-[var(--primary)] hover:underline"
-                                                >
-                                                    Clear
-                                                </button>
+                            {showDropdown && (searchResults.length > 0 || explorerResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg shadow-xl z-50 max-h-[500px] overflow-y-auto">
+
+                                    {/* Explorer Results Section */}
+                                    {explorerResults.length > 0 && (
+                                        <>
+                                            <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50">
+                                                <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider flex items-center gap-2">
+                                                    <Compass className="w-3.5 h-3.5" />
+                                                    Explorer
+                                                </span>
                                             </div>
-                                        </div>
+                                            {explorerResults.map((result, i) => (
+                                                result.chains.map((chain) => (
+                                                    <button
+                                                        key={`${result.type}-${chain}-${i}`}
+                                                        onClick={() => handleExplorerClick(result.type, result.query, chain)}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                            <img src={chainLogos[chain as keyof typeof chainLogos]} alt={chain} className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium text-sm capitalize">
+                                                                    {result.type === 'block' ? `Block #${result.query}` :
+                                                                        result.type === 'tx' ? 'Transaction' : 'Address'}
+                                                                </span>
+                                                                <span className="text-xs text-[var(--foreground-muted)] capitalize">on {chain}</span>
+                                                            </div>
+                                                            {result.type !== 'block' && (
+                                                                <div className="text-xs text-[var(--foreground-muted)] font-mono truncate">
+                                                                    {result.query.slice(0, 16)}...{result.query.slice(-8)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            ))}
+                                        </>
                                     )}
 
-                                    {(searchQuery.length === 0 ? recentSearches : searchResults).map((pair, i) => (
-                                        <button
-                                            key={`${pair.chainId}-${pair.pairAddress}-${i}`}
-                                            onClick={() => handleResultClick(pair)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
-                                        >
-                                            {/* Token Logo */}
-                                            <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                {pair.baseToken?.logo || pair.logo ? (
-                                                    <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-xs font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
-                                                )}
-                                            </div>
-
-                                            {/* Token Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
-                                                    <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                                                    <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
-                                                    <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
-                                                        {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
-                                                    </span>
+                                    {/* Recent Searches Section */}
+                                    {searchQuery.length === 0 && recentSearches.length > 0 && (
+                                        <>
+                                            <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider">Recent Searches</span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setRecentSearches([]);
+                                                            localStorage.removeItem('recentSearches');
+                                                        }}
+                                                        className="text-[10px] text-[var(--primary)] hover:underline"
+                                                    >
+                                                        Clear
+                                                    </button>
                                                 </div>
                                             </div>
+                                            {recentSearches.map((pair, i) => (
+                                                <button
+                                                    key={`recent-${pair.chainId}-${pair.pairAddress}-${i}`}
+                                                    onClick={() => handleResultClick(pair)}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                        {pair.baseToken?.logo || pair.logo ? (
+                                                            <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-xs font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
+                                                            <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                                            <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                            <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                                {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+                                                        <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
 
-                                            {/* Chain Logo */}
-                                            <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
-                                                <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                    {/* Token Search Results Section */}
+                                    {searchResults.length > 0 && (
+                                        <>
+                                            <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50">
+                                                <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider flex items-center gap-2">
+                                                    <Search className="w-3.5 h-3.5" />
+                                                    Tokens
+                                                </span>
                                             </div>
-                                        </button>
-                                    ))}
+                                            {searchResults.map((pair, i) => (
+                                                <button
+                                                    key={`${pair.chainId}-${pair.pairAddress}-${i}`}
+                                                    onClick={() => handleResultClick(pair)}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left border-b border-[var(--border)] last:border-b-0"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                        {pair.baseToken?.logo || pair.logo ? (
+                                                            <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-xs font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
+                                                            <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                                                            <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                            <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                                {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+                                                        <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
