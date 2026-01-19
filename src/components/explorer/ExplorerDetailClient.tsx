@@ -50,7 +50,7 @@ export function ExplorerDetailClient() {
             <div className="p-6 max-w-6xl mx-auto">
                 <div className="card p-12 text-center">
                     <Box className="w-12 h-12 text-[var(--foreground-muted)] mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Invalid Request</h2>
+                    <h2 className="text-xl font-normal mb-2">Invalid Request</h2>
                     <p className="text-[var(--foreground-muted)] mb-4">Missing type or id parameter</p>
                     <Link href="/app/explorer/" className="btn btn-primary">Back to Explorer</Link>
                 </div>
@@ -72,7 +72,7 @@ export function ExplorerDetailClient() {
         <div className="p-6 max-w-6xl mx-auto">
             <div className="card p-12 text-center">
                 <Box className="w-12 h-12 text-[var(--foreground-muted)] mx-auto mb-4" />
-                <h2 className="text-xl font-bold mb-2">Unknown Type</h2>
+                <h2 className="text-xl font-normal mb-2">Unknown Type</h2>
                 <p className="text-[var(--foreground-muted)] mb-4">Type &quot;{type}&quot; is not supported</p>
                 <Link href="/app/explorer/" className="btn btn-primary">Back to Explorer</Link>
             </div>
@@ -88,6 +88,15 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
     const [loading, setLoading] = useState(true);
     const [selectedChain, setSelectedChain] = useState<ChainId>(initialChain || selectedChains[0] || 'ethereum');
     const { getPriceForChain } = useCryptoPrices();
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+    const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+    const paginatedTransactions = transactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [transactions]);
 
     useEffect(() => {
         async function fetchBlock() {
@@ -134,7 +143,7 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                 <Breadcrumb items={[{ label: 'Block' }, { label: number }]} />
                 <div className="card p-12 text-center">
                     <Box className="w-12 h-12 text-[var(--foreground-muted)] mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Block Not Found</h2>
+                    <h2 className="text-xl font-normal mb-2">Block Not Found</h2>
                     <p className="text-[var(--foreground-muted)] mb-4">Could not find block {number} on {selectedChain}</p>
                     <Link href="/app/explorer/" className="btn btn-primary">Back to Explorer</Link>
                 </div>
@@ -143,97 +152,100 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
     }
 
     return (
-        <div className="h-full overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto w-full">
-            <div className="space-y-4">
-                <Breadcrumb items={[{ label: 'Block' }, { label: `#${number}` }]} />
+        <div className="flex flex-col h-full overflow-hidden w-full">
+            <div className="flex flex-col h-full p-4 sm:p-6 pb-6 max-w-7xl mx-auto w-full gap-4">
+                <div>
+                    <Breadcrumb items={[{ label: 'Block' }, { label: `#${number}` }]} />
 
-                {/* Header Row with Nav Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-[var(--accent-blue)]/10">
-                            <Box className="w-5 h-5 text-[var(--accent-blue)]" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg sm:text-xl font-bold">Block #{block.number.toLocaleString()}</h1>
-                            <p className="text-xs text-[var(--foreground-muted)]">{format(block.timestamp * 1000, 'PPpp')}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Link href={`/app/explorer/detail/?type=block&id=${block.number - 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
-                            <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                        </Link>
-                        <Link href={`/app/explorer/detail/?type=block&id=${block.number + 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs font-medium hover:bg-[var(--background-secondary)] transition-colors">
-                            Next <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
-                            <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-4 h-4 rounded-full" />
-                            <span className="text-xs font-medium capitalize">{selectedChain}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Compact Block Details Card */}
-                <div className="card p-4 bg-[var(--background-secondary)]">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Hash className="w-4 h-4 text-[var(--foreground-muted)]" />
-                        <span className="text-sm font-semibold">Block Details</span>
-                    </div>
-
-                    {/* Compact Grid Layout */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Block Height</span>
-                            <span className="text-sm font-mono font-medium">{block.number.toLocaleString()}</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Timestamp</span>
-                            <span className="text-sm font-medium">{formatDistanceToNow(block.timestamp * 1000, { addSuffix: true })}</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Transactions</span>
-                            <span className="text-sm font-mono font-medium">{block.transactions}</span>
-                        </div>
-                        {block.gasUsed && (
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Gas Used</span>
-                                <span className="text-sm font-mono font-medium">{(block.gasUsed / 1e9).toFixed(4)} Gwei</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Hashes - Compact */}
-                    <div className="space-y-2 pt-3 border-t border-[var(--border)]/50">
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Block Hash</span>
-                            <div className="flex items-center gap-2">
-                                <code className="text-xs font-mono text-[var(--primary)] truncate">{block.hash}</code>
-                                <CopyButton text={block.hash} />
+                    {/* Header Row with Nav Buttons */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                            <div>
+                                <h1 className="text-base sm:text-lg font-normal">Block #{block.number.toLocaleString()}</h1>
+                                <p className="text-xs text-[var(--foreground-muted)]">{format(block.timestamp * 1000, 'PPpp')}</p>
                             </div>
                         </div>
-                        {block.parentHash && (
+
+                        <div className="flex items-center gap-2">
+                            <Link href={`/app/explorer/detail/?type=block&id=${block.number - 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs hover:bg-[var(--background-secondary)] transition-colors">
+                                <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                            </Link>
+                            <Link href={`/app/explorer/detail/?type=block&id=${block.number + 1}&chain=${selectedChain}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)] text-xs hover:bg-[var(--background-secondary)] transition-colors">
+                                Next <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
+                                <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-4 h-4 rounded-full" />
+                                <span className="text-xs capitalize">{selectedChain}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Compact Block Details Card */}
+                    <div className="card p-4 bg-[var(--background-secondary)]">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-normal">Block Details</span>
+                        </div>
+
+                        {/* Compact Grid Layout */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
                             <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Parent Hash</span>
-                                <div className="flex items-center gap-2">
-                                    <code className="text-xs font-mono text-[var(--foreground-muted)] truncate">{block.parentHash}</code>
-                                    <CopyButton text={block.parentHash} />
+                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Block Height</span>
+                                <span className="text-sm font-mono">{block.number.toLocaleString()}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Timestamp</span>
+                                <span className="text-sm">{formatDistanceToNow(block.timestamp * 1000, { addSuffix: true })}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Transactions</span>
+                                <span className="text-sm font-mono">{block.transactions}</span>
+                            </div>
+                            {block.gasUsed && (
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Gas Used</span>
+                                    <span className="text-sm font-mono">{(block.gasUsed / 1e9).toFixed(4)} Gwei</span>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Hashes - Compact */}
+                        <div className="pt-3 border-t border-[var(--border)]/50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Block Hash</span>
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono text-[var(--primary)] truncate">{block.hash}</code>
+                                            <CopyButton text={block.hash} />
+                                        </div>
+                                    </div>
+                                    {block.parentHash && (
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Parent Hash</span>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono text-[var(--foreground-muted)] truncate">{block.parentHash}</code>
+                                                <CopyButton text={block.parentHash} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {block.miner && (
+                                    <div className="flex flex-col gap-0.5 md:items-end md:text-right">
+                                        <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Miner</span>
+                                        <Link href={`/app/explorer/detail/?type=address&id=${block.miner}&chain=${selectedChain}`} className="text-xs font-mono text-[var(--primary)] hover:underline truncate max-w-full">{block.miner}</Link>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        {block.miner && (
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] uppercase tracking-wider text-[var(--foreground-muted)]">Miner</span>
-                                <Link href={`/app/explorer/detail/?type=address&id=${block.miner}&chain=${selectedChain}`} className="text-xs font-mono text-[var(--primary)] hover:underline truncate">{block.miner}</Link>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Transactions Section */}
-                <div className="card p-0 bg-[var(--background-secondary)]">
-                    <div className="p-4 border-b border-[var(--border)]">
-                        <h2 className="font-bold flex items-center gap-2">
-                            <Layers className="w-5 h-5 text-[var(--primary)]" /> Transactions ({transactions.length || block.transactions})
+                {/* Transactions Section - Fixed Flex Column */}
+                <div className="card flex-1 min-h-0 flex flex-col bg-[var(--background-secondary)] mb-12">
+                    <div className="p-4 border-b border-[var(--border)] flex-shrink-0">
+                        <h2 className="font-normal text-sm flex items-center gap-2">
+                            Transactions ({transactions.length || block.transactions})
                         </h2>
                     </div>
 
@@ -243,8 +255,8 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                             <p>{block.transactions > 0 ? 'Loading transactions...' : 'No transactions in this block'}</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-[var(--border)]">
-                            {transactions.slice(0, 50).map((tx) => (
+                        <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
+                            {paginatedTransactions.map((tx) => (
                                 <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${selectedChain}`} className="flex items-center justify-between p-3 hover:bg-[var(--background-tertiary)] transition-colors">
                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                         <div className="p-2 rounded-lg bg-[var(--primary)]/10 flex-shrink-0">
@@ -267,9 +279,27 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                                     </div>
                                 </Link>
                             ))}
-                            {transactions.length > 50 && (
-                                <div className="p-3 text-center text-sm text-[var(--foreground-muted)]">
-                                    Showing first 50 of {transactions.length} transactions
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="p-4 border-t border-[var(--border)] flex items-center justify-center gap-4 bg-[var(--background-secondary)]">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="btn btn-sm btn-secondary disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" /> Prev
+                                    </button>
+                                    <span className="text-xs text-[var(--foreground-muted)]">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="btn btn-sm btn-secondary disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                        Next <ChevronRight className="w-4 h-4" />
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -335,7 +365,7 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                 <Breadcrumb items={[{ label: 'Transaction' }, { label: shortHash }]} />
                 <div className="card p-12 text-center">
                     <ArrowRightLeft className="w-12 h-12 text-[var(--foreground-muted)] mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Transaction Not Found</h2>
+                    <h2 className="text-xl font-normal mb-2">Transaction Not Found</h2>
                     <p className="text-[var(--foreground-muted)] mb-4">Could not find on {selectedChain}. Try another chain.</p>
                     <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
                         {selectedChains.filter(c => c !== 'solana').map((chain) => (
@@ -368,13 +398,13 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                             {isSuccess ? <CheckCircle className="w-6 h-6 text-[var(--accent-green)]" /> : <XCircle className="w-6 h-6 text-[var(--accent-red)]" />}
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold">Transaction</h1>
+                            <h1 className="text-base sm:text-lg font-normal">Transaction</h1>
                             <p className="text-sm text-[var(--foreground-muted)]">{isSuccess ? 'Success' : 'Failed'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
                         <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-4 h-4 rounded-full" />
-                        <span className="text-sm font-medium capitalize">{selectedChain}</span>
+                        <span className="text-sm capitalize">{selectedChain}</span>
                     </div>
                 </div>
 
@@ -405,7 +435,7 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                     <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-[var(--border)]/40">
                         <div>
                             <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Value</p>
-                            <p className="font-mono text-base font-semibold">{parseFloat(transaction.value).toFixed(4)}</p>
+                            <p className="font-mono text-base">{parseFloat(transaction.value).toFixed(4)}</p>
                             <p className="text-[10px] text-[var(--foreground-muted)]">
                                 {(() => {
                                     const price = getPriceForChain(transaction.chainId);
@@ -416,11 +446,11 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                         </div>
                         <div>
                             <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Block</p>
-                            <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}&chain=${transaction.chainId}`} className="font-mono text-base font-semibold text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
+                            <Link href={`/app/explorer/detail/?type=block&id=${transaction.blockNumber}&chain=${transaction.chainId}`} className="font-mono text-base text-[var(--primary)] hover:underline">{transaction.blockNumber}</Link>
                         </div>
                         <div>
                             <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Fee</p>
-                            <p className="font-mono text-base font-semibold">{txFee.toFixed(5)}</p>
+                            <p className="font-mono text-base">{txFee.toFixed(5)}</p>
                             <p className="text-[10px] text-[var(--foreground-muted)]">ETH</p>
                         </div>
                     </div>
@@ -543,11 +573,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
 
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-[var(--primary)]/20 to-[var(--accent-purple)]/20">
-                            <User className="w-6 h-6 text-[var(--primary)]" />
-                        </div>
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-bold mb-1">Address</h1>
+                            <h1 className="text-base sm:text-lg font-normal mb-1">Address</h1>
                             <div className="flex items-center gap-2">
                                 <code className="text-sm text-[var(--foreground-muted)] break-all">{address}</code>
                                 <CopyButton text={address} />
@@ -559,7 +586,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                 <div className="flex items-center gap-3 flex-wrap">
                     <button
                         onClick={() => setIsTrackModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-semibold hover:opacity-90 transition-opacity"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary)] text-black text-sm hover:opacity-90 transition-opacity"
                     >
                         <Eye className="w-4 h-4" /> Track Wallet
                     </button>
@@ -567,7 +594,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                     {initialChain ? (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
                             <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
-                            <span className="text-sm font-medium capitalize">{selectedChain}</span>
+                            <span className="text-sm capitalize">{selectedChain}</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2 flex-wrap">
@@ -592,7 +619,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                             <div className="h-12 w-48 bg-[var(--background-tertiary)] rounded animate-pulse" />
                         ) : (
                             <>
-                                <p className="text-3xl sm:text-4xl font-medium font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
+                                <p className="text-3xl sm:text-4xl font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
                                 <p className="text-lg text-[var(--foreground-muted)]">≈ ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                             </>
                         )}
@@ -606,8 +633,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                                 <ArrowRightLeft className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Transactions</p>
-                                <p className="text-xl font-medium">{transactions.length}</p>
+                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Transactions</p>
+                                <p className="text-xl">{transactions.length}</p>
                             </div>
                         </div>
 
@@ -617,8 +644,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                                 <ArrowUpRight className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Sent</p>
-                                <p className="text-xl font-medium">{sentCount}</p>
+                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Sent</p>
+                                <p className="text-xl">{sentCount}</p>
                             </div>
                         </div>
 
@@ -628,8 +655,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                                 <ArrowDownLeft className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Received</p>
-                                <p className="text-xl font-medium">{recvCount}</p>
+                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Received</p>
+                                <p className="text-xl">{recvCount}</p>
                             </div>
                         </div>
 
@@ -639,8 +666,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                                 <Coins className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-medium text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Tokens</p>
-                                <p className="text-xl font-medium text-[var(--foreground-muted)]">—</p>
+                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Tokens</p>
+                                <p className="text-xl text-[var(--foreground-muted)]">—</p>
                             </div>
                         </div>
                     </div>
@@ -650,7 +677,7 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
             {/* Bottom Scrollable Transactions */}
             <div className="card flex-1 min-h-0 flex flex-col overflow-hidden p-0 mb-4 sm:mb-6 bg-[var(--background-secondary)]">
                 <div className="p-4 border-b border-[var(--border)] flex-shrink-0">
-                    <h2 className="font-bold flex items-center gap-2"><Activity className="w-5 h-5 text-[var(--accent-green)]" /> Recent Transactions</h2>
+                    <h2 className="font-normal text-sm flex items-center gap-2">Recent Transactions</h2>
                 </div>
 
                 {loading ? (
@@ -673,9 +700,9 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className="font-medium text-sm">{isSent ? 'Sent' : 'Received'}</span>
+                                            <span className="text-sm">{isSent ? 'Sent' : 'Received'}</span>
                                             {/* UI Fix: Removed font-mono, simplified text styles */}
-                                            <span className={clsx('text-sm font-medium block', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>
+                                            <span className={clsx('text-sm block', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>
                                                 {isSent ? '-' : '+'}{parseFloat(tx.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.asset || nativeSymbol}
                                                 {(() => {
                                                     const price = getPriceForChain(tx.chainId);

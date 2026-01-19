@@ -37,7 +37,7 @@ const sentimentConfig = {
     },
 };
 
-export function NewsItem({ article, isSaved = false, onToggleSave, showBookmark = true, isLoggedIn = false }: NewsItemProps) {
+export function NewsItem({ article, isSaved = false, onToggleSave, showBookmark = true, isLoggedIn = false, onClick }: NewsItemProps & { onClick?: (article: NewsArticle) => void }) {
     const timeAgo = formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true });
     const sentiment = article.sentiment || 'neutral';
     const sentimentInfo = sentimentConfig[sentiment];
@@ -51,11 +51,18 @@ export function NewsItem({ article, isSaved = false, onToggleSave, showBookmark 
         }
     };
 
+    const handleClick = () => {
+        if (onClick) {
+            onClick(article);
+        }
+    };
+
     return (
         <a
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleClick}
             className="group block border-b border-[var(--border)] p-3 hover:bg-[var(--primary)]/5 transition-colors relative pl-4 font-mono"
         >
             {/* Active Indicator on Hover */}

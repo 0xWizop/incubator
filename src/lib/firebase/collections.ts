@@ -37,6 +37,7 @@ import {
     SavedArticle,
     SentimentType,
 } from '@/types';
+import type { NewsArticle } from '@/lib/api/coindesk';
 
 // Helper to normalize IDs (lowercase addresses, keep UIDs as is)
 function normalizeId(id: string): string {
@@ -55,6 +56,7 @@ export const trackedWalletsCollection = collection(db, 'trackedWallets');
 export const portfolioSnapshotsCollection = collection(db, 'portfolioSnapshots');
 export const watchlistFollowersCollection = collection(db, 'watchlistFollowers');
 export const savedArticlesCollection = collection(db, 'savedArticles');
+export const newsStatsCollection = collection(db, 'newsStats');
 
 // Default user preferences
 export const defaultPreferences: UserPreferences = {
@@ -1475,4 +1477,83 @@ export async function getSavedArticleIds(userId: string): Promise<Set<string>> {
         return new Set();
     }
 }
+
+// === TRENDING NEWS FUNCTIONS ===
+
+const CLICK_COOLDOWN_PREFIX = 'news_click_';
+
+export async function trackArticleClick(article: NewsArticle): Promise<void> {
+    try {
+        const docRef = doc(newsStatsCollection, article.id);
+
+        // Anti-spam: Check session storage
+        if (typeof window !== 'undefined') {
+            const storageKey = `${CLICK_COOLDOWN_PREFIX}${article.id}`;
+            const hasClicked = sessionStorage.getItem(storageKey);
+
+            if (hasClicked) {
+                console.log('Already clicked this session:', article.id);
+                return;
+            }
+
+            // Mark as clicked for this session
+            sessionStorage.setItem(storageKey, 'true');
+        }
+
+        // Use setDoc with merge to create if not exists, or update if exists
+        // We update the metadata in case it changed/improved, and increment clicks
+        await setDoc(docRef, {
+            articleId: article.id,
+            title: article.title,
+            description: article.description,
+            url: article.url,
+            imageUrl: article.imageUrl,
+            sourceName: article.source.name,
+            publishedAt: article.publishedAt,
+            sentiment: article.sentiment,
+            clicks: increment(1),
+            lastClickedAt: serverTimestamp(),
+        }, { merge: true });
+
+    } catch (error) {
+        console.error('Error tracking article click:', error);
+    }
+}
+
+export async function getTrendingArticles(limitCount = 20): Promise<NewsArticle[]> {
+    try {
+        // Query articles with most clicks
+        // We filter for a minimum threshold of 3 clicks to be considered "trending"
+        // This avoids showing random articles with 1 click
+        const q = query(
+            newsStatsCollection,
+            where('clicks', '>=', 3),
+            orderBy('clicks', 'desc'),
+            limit(limitCount)
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: data.articleId,
+                title: data.title,
+                description: data.description,
+                url: data.url,
+                imageUrl: data.imageUrl,
+                publishedAt: data.publishedAt,
+                source: {
+                    name: data.sourceName,
+                    logo: undefined // We don't store logo in stats
+                },
+                categories: [], // We don't store categories in stats
+                sentiment: data.sentiment,
+            } as NewsArticle;
+        });
+    } catch (error) {
+        console.error('Error getting trending articles:', error);
+        return [];
+    }
+}
+
 

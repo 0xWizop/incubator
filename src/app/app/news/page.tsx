@@ -6,7 +6,7 @@ import { NewsFeed } from '@/components/news';
 import { NewsSearchBar } from '@/components/news/NewsSearchBar';
 import { SavedArticles } from '@/components/news/SavedArticles';
 import { clsx } from 'clsx';
-import { RefreshCw, Lock, Sparkles, Rss, Bookmark } from 'lucide-react';
+import { RefreshCw, Lock, Sparkles, Rss, Bookmark, TrendingUp } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ import type { SavedArticle } from '@/types';
 
 const FREE_ARTICLE_LIMIT = 50;
 
-type TabId = 'feed' | 'saved';
+type TabId = 'feed' | 'trending' | 'saved';
 
 export default function NewsPage() {
     const { data: articles, isLoading, isRefetching, refetch } = useLatestNews(100, false);
@@ -29,6 +29,8 @@ export default function NewsPage() {
     const [savedArticles, setSavedArticles] = useState<SavedArticle[]>([]);
     const [savedArticleIds, setSavedArticleIds] = useState<Set<string>>(new Set());
     const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+    const [trendingArticles, setTrendingArticles] = useState<NewsArticle[]>([]);
+    const [isLoadingTrending, setIsLoadingTrending] = useState(false);
 
     // Determine how many articles to show
     const hasFullAccess = canAccessFullNews || isPro || isBetaTester || isAdmin;
@@ -52,6 +54,25 @@ export default function NewsPage() {
         return result;
     }, [articles, hasFullAccess, searchQuery]);
 
+    // Filter trending articles by search query
+    const filteredTrendingArticles = useMemo(() => {
+        if (!trendingArticles) return [];
+
+        let result = trendingArticles;
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(
+                (article) =>
+                    article.title.toLowerCase().includes(query) ||
+                    article.description.toLowerCase().includes(query) ||
+                    article.source.name.toLowerCase().includes(query)
+            );
+        }
+
+        return result;
+    }, [trendingArticles, searchQuery]);
+
     const hasMoreArticles = !hasFullAccess && articles && articles.length > FREE_ARTICLE_LIMIT;
 
     // Load saved articles on mount
@@ -60,6 +81,25 @@ export default function NewsPage() {
             loadSavedArticles();
         }
     }, [firebaseUser?.uid]);
+
+    useEffect(() => {
+        if (activeTab === 'trending') {
+            loadTrendingArticles();
+        }
+    }, [activeTab]);
+
+    const loadTrendingArticles = async () => {
+        setIsLoadingTrending(true);
+        try {
+            const trending = await firebase.getTrendingArticles();
+            setTrendingArticles(trending);
+        } catch (error) {
+            console.error('Error loading trending articles:', error);
+        } finally {
+            setIsLoadingTrending(false);
+        }
+    };
+
 
     const loadSavedArticles = async () => {
         if (!firebaseUser?.uid) return;
@@ -111,8 +151,14 @@ export default function NewsPage() {
         }
     }, [firebaseUser?.uid, savedArticleIds]);
 
+    const handleArticleClick = useCallback((article: NewsArticle) => {
+        // Track the click in the background
+        firebase.trackArticleClick(article);
+    }, []);
+
     const tabs = [
         { id: 'feed' as const, label: 'FEED', icon: Rss },
+        { id: 'trending' as const, label: 'TRENDING', icon: TrendingUp },
         { id: 'saved' as const, label: 'SAVED', icon: Bookmark, count: savedArticles.length },
     ];
 
@@ -163,7 +209,7 @@ export default function NewsPage() {
                     >
                         <RefreshCw className={clsx(
                             "w-4 h-4",
-                            isRefetching && "animate-spin"
+                            (isRefetching || isLoadingTrending) && "animate-spin"
                         )} />
                     </button>
                 </div>
@@ -217,8 +263,9 @@ export default function NewsPage() {
                         savedArticleIds={savedArticleIds}
                         onToggleSave={firebaseUser ? handleToggleSave : undefined}
                         isLoggedIn={!!firebaseUser}
+                        onArticleClick={handleArticleClick}
                     />
-                ) : (
+                ) : activeTab === 'saved' ? (
                     <div className="h-full overflow-y-auto">
                         <SavedArticles
                             articles={savedArticles}
@@ -226,7 +273,16 @@ export default function NewsPage() {
                             isLoading={isLoadingSaved}
                         />
                     </div>
-                )}
+                ) : activeTab === 'trending' ? (
+                    <NewsFeed
+                        articles={filteredTrendingArticles}
+                        isLoading={isLoadingTrending}
+                        savedArticleIds={savedArticleIds}
+                        onToggleSave={firebaseUser ? handleToggleSave : undefined}
+                        isLoggedIn={!!firebaseUser}
+                        onArticleClick={handleArticleClick}
+                    />
+                ) : null}
 
                 {/* Upgrade prompt at bottom if limit reached */}
                 {activeTab === 'feed' && hasMoreArticles && (

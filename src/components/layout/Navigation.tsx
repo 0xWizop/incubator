@@ -37,12 +37,12 @@ import { TrackerPanel } from '@/components/tracker';
 
 const navigation = [
     { name: 'Trade', href: '/app/trade/', icon: LineChart },
-    { name: 'Heatmap', href: '/app/heatmap/', icon: LayoutGrid },
+    { name: 'Dashboard', href: '/app/dashboard/', icon: LayoutDashboard },
     { name: 'Screener', href: '/app/screener/', icon: Search },
     { name: 'Explorer', href: '/app/explorer/', icon: Compass },
     { name: 'News', href: '/app/news/', icon: Newspaper },
     { name: 'Tracker', href: '/app/tracker/', icon: Eye },
-    { name: 'Dashboard', href: '/app/dashboard/', icon: LayoutDashboard },
+    { name: 'Heatmap', href: '/app/heatmap/', icon: LayoutGrid },
     { name: 'Rewards', href: '/app/rewards/', icon: Gift },
     { name: 'dApps', href: 'https://dappincubator.xyz', icon: Boxes, external: true, desktopOnly: true },
     { name: 'Docs', href: '/docs/', icon: BookOpen },
@@ -103,8 +103,13 @@ export function Sidebar() {
                 <nav className="p-3 space-y-0.5">
                     {navigation.map((item) => {
                         const isExternal = (item as any).external;
-                        const isActive = !isExternal && (pathname === item.href ||
-                            (item.href !== '/app' && pathname.startsWith(item.href)));
+                        // Normalize paths by removing trailing slashes for consistent comparison
+                        const normalize = (path: string) => path.replace(/\/+$/, '');
+                        const currentPath = normalize(pathname);
+                        const targetPath = normalize(item.href);
+
+                        const isActive = !isExternal && (currentPath === targetPath ||
+                            (targetPath !== '/app' && currentPath.startsWith(targetPath)));
 
                         if (isExternal) {
                             return (
@@ -357,6 +362,53 @@ export function Header() {
             }
         }, 300);
     }, [setSearchQuery, detectSearchType]);
+
+    // Live update for search results
+    useEffect(() => {
+        if (!searchResults.length || (!showDropdown && !showMobileSearch)) return;
+
+        const interval = setInterval(async () => {
+            try {
+                // Group pairs by chain
+                const pairsByChain: Record<string, string[]> = {};
+                searchResults.forEach(p => {
+                    // Use internal chainId
+                    if (!pairsByChain[p.chainId]) pairsByChain[p.chainId] = [];
+                    pairsByChain[p.chainId].push(p.pairAddress);
+                });
+
+                // Fetch updates for each chain
+                const { getPairsBulk } = await import('@/lib/services/dexscreener');
+
+                // Fire requests in parallel
+                const promises = Object.entries(pairsByChain).map(([chainId, addresses]) =>
+                    getPairsBulk(chainId as any, addresses)
+                );
+
+                const results = await Promise.all(promises);
+                const updatedPairs = results.flat();
+
+                // Update state if we got results back
+                if (updatedPairs.length > 0) {
+                    setSearchResults(prev => {
+                        // Create a map of new data
+                        const updates = new Map(updatedPairs.map(p => [`${p.chainId}-${p.pairAddress}`, p]));
+
+                        // Map over previous results to preserve order
+                        return prev.map(p => {
+                            const updated = updates.get(`${p.chainId}-${p.pairAddress}`);
+                            return updated || p;
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating search results:', error);
+            }
+        }, 15000); // Update every 15 seconds
+
+        return () => clearInterval(interval);
+    }, [searchResults.length, showDropdown, showMobileSearch]);
+
 
     const handleResultClick = (pair: any) => {
         addToRecent(pair);
@@ -776,48 +828,160 @@ export function Header() {
 
                     {/* Search results */}
                     <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-                        {searchResults.length > 0 ? (
-                            <div className="divide-y divide-[var(--border)]">
-                                {searchResults.map((pair, i) => (
-                                    <button
-                                        key={`mobile-${pair.chainId}-${pair.pairAddress}-${i}`}
-                                        onClick={() => {
-                                            setShowMobileSearch(false);
-                                            setSearchQuery('');
-                                            setSearchResults([]);
-                                            window.location.href = `/app/trade?chain=${pair.chainId}&pair=${pair.pairAddress}`;
-                                        }}
-                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--background-tertiary)] transition-colors text-left"
-                                    >
-                                        {/* Token Logo */}
-                                        <div className="w-10 h-10 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            {pair.baseToken?.logo || pair.logo ? (
-                                                <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-sm font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
-                                            )}
-                                        </div>
+                        {(searchResults.length > 0 || explorerResults.length > 0 || (searchQuery.length === 0 && recentSearches.length > 0)) ? (
+                            <div className="divide-y divide-[var(--border)] pb-20"> {/* Add padding bottom for safe area/nav */}
 
-                                        {/* Token Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium">{pair.baseToken?.symbol}</span>
-                                                <span className="text-sm text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)]">
-                                                <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
-                                                <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
-                                                    {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                {/* Explorer Results Section */}
+                                {explorerResults.length > 0 && (
+                                    <>
+                                        <div className="px-4 py-3 bg-[var(--background-tertiary)]/50 border-y border-[var(--border)]">
+                                            <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider flex items-center gap-2">
+                                                <Compass className="w-3.5 h-3.5" />
+                                                Explorer
+                                            </span>
+                                        </div>
+                                        {explorerResults.map((result, i) => (
+                                            result.chains.map((chain: string) => (
+                                                <button
+                                                    key={`${result.type}-${chain}-${i}`}
+                                                    onClick={() => {
+                                                        setShowMobileSearch(false);
+                                                        setSearchQuery('');
+                                                        setExplorerResults([]);
+                                                        handleExplorerClick(result.type, result.query, chain);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-4 hover:bg-[var(--background-tertiary)] transition-colors text-left"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                        <img src={chainLogos[chain] || chainLogos.ethereum} alt={chain} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-base capitalize">
+                                                                {result.type === 'block' ? `Block #${result.query}` :
+                                                                    result.type === 'tx' ? 'Transaction' : 'Address'}
+                                                            </span>
+                                                            <span className="text-xs text-[var(--foreground-muted)] capitalize">on {chain}</span>
+                                                        </div>
+                                                        {result.type !== 'block' && (
+                                                            <div className="text-xs text-[var(--foreground-muted)] font-mono truncate mt-0.5">
+                                                                {result.query.slice(0, 16)}...{result.query.slice(-8)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))
+                                        ))}
+                                    </>
+                                )}
+
+                                {/* Recent Searches Section */}
+                                {searchQuery.length === 0 && recentSearches.length > 0 && (
+                                    <>
+                                        <div className="px-4 py-3 bg-[var(--background-tertiary)]/50 border-y border-[var(--border)] flex items-center justify-between">
+                                            <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider">Recent Searches</span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setRecentSearches([]);
+                                                    localStorage.removeItem('recentSearches');
+                                                }}
+                                                className="text-xs text-[var(--primary)] font-medium p-1 -mr-1"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        {recentSearches.map((pair, i) => (
+                                            <button
+                                                key={`recent-mobile-${pair.chainId}-${pair.pairAddress}-${i}`}
+                                                onClick={() => {
+                                                    setShowMobileSearch(false);
+                                                    setSearchQuery('');
+                                                    setSearchResults([]);
+                                                    handleResultClick(pair);
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--background-tertiary)] transition-colors text-left"
+                                            >
+                                                <div className="w-10 h-10 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                    {pair.baseToken?.logo || pair.logo ? (
+                                                        <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-sm font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-sm">{pair.baseToken?.symbol}</span>
+                                                        <span className="text-xs text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] mt-0.5">
+                                                        <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                        <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                            {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                                                    <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
+
+                                {/* Token Search Results Section */}
+                                {searchResults.length > 0 && (
+                                    <>
+                                        {(explorerResults.length > 0 || recentSearches.length > 0) && (
+                                            <div className="px-4 py-3 bg-[var(--background-tertiary)]/50 border-y border-[var(--border)]">
+                                                <span className="text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wider flex items-center gap-2">
+                                                    <Search className="w-3.5 h-3.5" />
+                                                    Tokens
                                                 </span>
                                             </div>
-                                        </div>
+                                        )}
+                                        {searchResults.map((pair, i) => (
+                                            <button
+                                                key={`mobile-${pair.chainId}-${pair.pairAddress}-${i}`}
+                                                onClick={() => {
+                                                    setShowMobileSearch(false);
+                                                    setSearchQuery('');
+                                                    setSearchResults([]);
+                                                    window.location.href = `/app/trade?chain=${pair.chainId}&pair=${pair.pairAddress}`;
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--background-tertiary)] transition-colors text-left"
+                                            >
+                                                {/* Token Logo */}
+                                                <div className="w-10 h-10 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                    {pair.baseToken?.logo || pair.logo ? (
+                                                        <img src={pair.baseToken?.logo || pair.logo} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-sm font-bold">{pair.baseToken?.symbol?.slice(0, 2)}</span>
+                                                    )}
+                                                </div>
 
-                                        {/* Chain Logo */}
-                                        <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
-                                            <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
-                                        </div>
-                                    </button>
-                                ))}
+                                                {/* Token Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium">{pair.baseToken?.symbol}</span>
+                                                        <span className="text-sm text-[var(--foreground-muted)] truncate">{pair.baseToken?.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] mt-0.5">
+                                                        <span className="font-mono">${pair.priceUsd?.toFixed(6)}</span>
+                                                        <span className={pair.priceChange?.h24 >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}>
+                                                            {pair.priceChange?.h24 >= 0 ? '+' : ''}{pair.priceChange?.h24?.toFixed(2)}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Chain Logo */}
+                                                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                                                    <img src={chainLogos[pair.chainId] || chainLogos.ethereum} alt={pair.chainId} className="w-full h-full object-cover" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
                             </div>
                         ) : searchQuery.length >= 2 && !isSearching ? (
                             <div className="flex flex-col items-center justify-center p-8 text-[var(--foreground-muted)]">
@@ -827,7 +991,7 @@ export function Header() {
                         ) : (
                             <div className="flex flex-col items-center justify-center p-8 text-[var(--foreground-muted)]">
                                 <Search className="w-12 h-12 mb-3 opacity-30" />
-                                <p>Search by token name, symbol, or address</p>
+                                <p>Search by token name, address, block, or tx...</p>
                             </div>
                         )}
                     </div>
@@ -865,8 +1029,13 @@ export function BottomTabNav() {
         >
             <div className="flex items-stretch overflow-x-auto no-scrollbar h-16 px-2 gap-2">
                 {mobileNavItems.map((item) => {
-                    const isActive = pathname === item.href ||
-                        (item.href !== '/app' && pathname.startsWith(item.href));
+                    // Normalize paths by removing trailing slashes for consistent comparison
+                    const normalize = (path: string) => path.replace(/\/+$/, '');
+                    const currentPath = normalize(pathname);
+                    const targetPath = normalize(item.href);
+
+                    const isActive = currentPath === targetPath ||
+                        (targetPath !== '/app' && currentPath.startsWith(targetPath));
 
                     return (
                         <button

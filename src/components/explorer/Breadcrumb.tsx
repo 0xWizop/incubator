@@ -19,7 +19,6 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                 href="/app/explorer"
                 className="flex items-center gap-1 text-[var(--foreground-muted)] hover:text-[var(--primary)] transition-colors whitespace-nowrap"
             >
-                <Home className="w-4 h-4" />
                 <span>Explorer</span>
             </Link>
 

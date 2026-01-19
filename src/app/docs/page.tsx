@@ -945,22 +945,24 @@ export default function DocsPage() {
                 {/* Mobile top padding for fixed header */}
                 <div className="h-14 lg:hidden" />
 
-                <div className="max-w-4xl mx-auto px-4 py-4 lg:px-12 lg:py-8 flex items-start gap-12">
+                <div className="w-full max-w-[1600px] mx-auto px-4 py-4 lg:px-8 xl:px-12 lg:py-8 flex items-start gap-12">
                     {/* Center Column */}
-                    <div className="flex-1 min-w-0">
-                        {/* Breadcrumbs - Desktop only */}
-                        <div className="hidden lg:flex items-center gap-2 text-sm text-[var(--foreground-muted)] mb-8">
-                            <Link href="/app/dashboard" className="hover:text-[var(--foreground)] transition-colors">App</Link>
-                            <ChevronRight className="w-3 h-3" />
-                            <span>Documentation</span>
-                            <ChevronRight className="w-3 h-3" />
-                            <span className="text-[var(--primary)] font-medium">{activeSectionTitle}</span>
+                    <div className="flex-1 min-w-0 flex justify-center">
+                        <div className="w-full max-w-3xl">
+                            {/* Breadcrumbs - Desktop only */}
+                            <div className="hidden lg:flex items-center gap-2 text-sm text-[var(--foreground-muted)] mb-8">
+                                <Link href="/app/dashboard" className="hover:text-[var(--foreground)] transition-colors">App</Link>
+                                <ChevronRight className="w-3 h-3" />
+                                <span>Documentation</span>
+                                <ChevronRight className="w-3 h-3" />
+                                <span className="text-[var(--primary)] font-medium">{activeSectionTitle}</span>
+                            </div>
+
+                            {renderContent()}
+
+                            {/* Mobile bottom padding */}
+                            <div className="h-8 lg:hidden" />
                         </div>
-
-                        {renderContent()}
-
-                        {/* Mobile bottom padding */}
-                        <div className="h-8 lg:hidden" />
                     </div>
 
                     {/* Right Sidebar (Table of Contents / Links) - Hidden on mobile */}

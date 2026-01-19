@@ -331,7 +331,7 @@ function TokenRow({ token, index, isFavorited, onToggleFavorite }: { token: Toke
                         {token.logo || token.baseToken.logo ? (
                             <img
                                 src={token.logo || token.baseToken.logo}
-                                className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] object-cover"
+                                className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] object-cover shrink-0"
                                 alt={token.baseToken.symbol}
                                 onError={(e) => {
                                     // Hide the image and show fallback
@@ -342,7 +342,7 @@ function TokenRow({ token, index, isFavorited, onToggleFavorite }: { token: Toke
                             />
                         ) : null}
                         <div
-                            className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center text-sm font-bold text-[var(--foreground)]"
+                            className="w-8 h-8 rounded-full bg-[var(--background-tertiary)] flex items-center justify-center text-sm font-bold text-[var(--foreground)] shrink-0"
                             style={{ display: token.logo || token.baseToken.logo ? 'none' : 'flex' }}
                         >
                             {token.baseToken.symbol.charAt(0).toUpperCase()}
@@ -351,18 +351,18 @@ function TokenRow({ token, index, isFavorited, onToggleFavorite }: { token: Toke
                             src={token.chainId === 'solana'
                                 ? "https://i.imgur.com/xp7PYKk.png"
                                 : "https://i.imgur.com/zn5hpMs.png"}
-                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-[var(--background-secondary)]"
+                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-[var(--background-secondary)] shrink-0"
                             alt={token.chainId}
                         />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm tracking-tight">{token.baseToken.symbol}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--background-tertiary)] text-[var(--foreground-muted)] font-mono">
+                            <span className="font-bold text-sm tracking-tight truncate">{token.baseToken.symbol}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--background-tertiary)] text-[var(--foreground-muted)] font-mono shrink-0">
                                 / {token.quoteToken.symbol}
                             </span>
                         </div>
-                        <div className="text-[10px] text-[var(--foreground-muted)] max-w-[120px] truncate">
+                        <div className="text-[10px] text-[var(--foreground-muted)] truncate">
                             {token.baseToken.name}
                         </div>
                     </div>

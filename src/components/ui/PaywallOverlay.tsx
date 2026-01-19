@@ -44,8 +44,11 @@ export function PaywallOverlay({
             {/* Extended black base to block any edge glows from layout */}
             <div className="absolute -inset-20 bg-black" />
 
-            {/* Subtle heatmap-style gradient - reduced intensity for less color blotching on desktop */}
-            <div className="absolute -inset-20 bg-gradient-to-br from-green-950/30 via-black to-red-950/30" />
+            {/* Large Green Blotch (Top Left) */}
+            <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-green-900/30 blur-[80px] rounded-full pointer-events-none" />
+
+            {/* Large Red Blotch (Bottom Right) */}
+            <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-red-900/30 blur-[80px] rounded-full pointer-events-none" />
 
             {/* Blurred content preview - renders actual heatmap behind blur */}
             {showPreview && (

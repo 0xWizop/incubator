@@ -164,7 +164,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                             </div>
                             <div className="text-left">
                                 <div className="flex items-center gap-2">
-                                    <h1 className="text-xl sm:text-2xl font-bold">{chainConfig.name} Explorer</h1>
+                                    <h1 className="text-xl sm:text-2xl font-normal">{chainConfig.name} Explorer</h1>
                                     <ChevronDown className={clsx(
                                         'w-5 h-5 text-[var(--foreground-muted)] transition-transform',
                                         isChainSelectorOpen && 'rotate-180'
@@ -209,7 +209,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                                                         className="w-5 h-5 rounded-full"
                                                     />
                                                 </div>
-                                                <span className="flex-1 text-left font-medium">{config.name}</span>
+                                                <span className="flex-1 text-left font-normal">{config.name}</span>
                                                 {isActive && (
                                                     <Check className="w-4 h-4 text-[var(--primary)]" />
                                                 )}
@@ -236,7 +236,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                 {/* Blocks Section - Takes 2 columns */}
                 <div className="lg:col-span-2 card p-0 flex flex-col overflow-hidden">
                     <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
-                        <h2 className="font-bold flex items-center gap-2">
+                        <h2 className="font-normal flex items-center gap-2">
                             <Box className="w-5 h-5 text-[var(--primary)]" />
                             Blocks
                         </h2>
@@ -314,7 +314,7 @@ export default function ChainExplorerClient({ chain }: ChainExplorerClientProps)
                 {/* Recent Transactions - Takes 1 column */}
                 <div className="card p-0 flex flex-col overflow-hidden">
                     <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
-                        <h2 className="font-bold flex items-center gap-2">
+                        <h2 className="font-normal flex items-center gap-2">
                             <ArrowRightLeft className="w-5 h-5 text-[var(--primary)]" />
                             Recent Txns
                         </h2>

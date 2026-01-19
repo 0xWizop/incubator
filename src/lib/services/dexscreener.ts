@@ -345,3 +345,37 @@ export async function getPairsByTokenAddress(chainId: ChainId, tokenAddress: str
         return [];
     }
 }
+
+export async function getPairsBulk(chainId: ChainId, pairAddresses: string[]): Promise<TokenPair[]> {
+    try {
+        if (pairAddresses.length === 0) return [];
+
+        const dexChainId = CHAIN_MAPPING[chainId];
+        if (!dexChainId) return [];
+
+        // DexScreener supports up to 30 pairs per request
+        // We'll chunk them just in case
+        const chunks = [];
+        for (let i = 0; i < pairAddresses.length; i += 30) {
+            chunks.push(pairAddresses.slice(i, i + 30));
+        }
+
+        const allPairs: TokenPair[] = [];
+
+        for (const chunk of chunks) {
+            const url = `${DEXSCREENER_API}/pairs/${dexChainId}/${chunk.join(',')}`;
+            const response = await fetch(url);
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            const pairs = data.pairs || [];
+            allPairs.push(...pairs.map(transformPair));
+        }
+
+        return allPairs;
+    } catch (error) {
+        console.error('Error fetching bulk pairs:', error);
+        return [];
+    }
+}

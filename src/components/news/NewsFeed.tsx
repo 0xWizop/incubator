@@ -11,9 +11,10 @@ interface NewsFeedProps {
     savedArticleIds?: Set<string>;
     onToggleSave?: (article: NewsArticle) => void;
     isLoggedIn?: boolean;
+    onArticleClick?: (article: NewsArticle) => void;
 }
 
-export function NewsFeed({ articles, isLoading, savedArticleIds = new Set(), onToggleSave, isLoggedIn = false }: NewsFeedProps) {
+export function NewsFeed({ articles, isLoading, savedArticleIds = new Set(), onToggleSave, isLoggedIn = false, onArticleClick }: NewsFeedProps) {
     return (
         <div className="flex flex-col h-full bg-[var(--background)] overflow-hidden font-mono">
             <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -35,6 +36,7 @@ export function NewsFeed({ articles, isLoading, savedArticleIds = new Set(), onT
                                 onToggleSave={onToggleSave}
                                 showBookmark={true}
                                 isLoggedIn={isLoggedIn}
+                                onClick={onArticleClick}
                             />
                         ))}
                     </div>

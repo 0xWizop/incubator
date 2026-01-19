@@ -239,8 +239,7 @@ function ExplorerContent() {
         <div className="h-full overflow-y-auto p-2 sm:p-6 max-w-7xl mx-auto overflow-x-hidden w-full pb-24 lg:pb-6">
             {/* Header - Compact on mobile */}
             <div className="flex items-center justify-between gap-2 mb-2">
-                <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
-                    <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" />
+                <h1 className="text-sm sm:text-lg font-normal flex items-center gap-2">
                     Explorer
                 </h1>
                 <button
@@ -284,9 +283,9 @@ function ExplorerContent() {
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-                                    <span className="text-xs font-bold capitalize">{chainId}</span>
+                                    <span className="text-xs font-normal capitalize">{chainId}</span>
                                 </div>
-                                <p className="text-sm sm:text-lg font-mono font-bold">
+                                <p className="text-sm sm:text-lg font-mono font-normal">
                                     {latestBlock?.toLocaleString() || '...'}
                                 </p>
                                 <p className="text-[9px] sm:text-xs text-[var(--foreground-muted)]">Latest Block</p>
@@ -329,12 +328,11 @@ function ExplorerContent() {
 
                 {/* Latest Blocks - Always visible on desktop, conditional on mobile */}
                 <div className={clsx(
-                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden',
+                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[650px] p-0 overflow-hidden',
                     mobileTab !== 'blocks' && 'hidden lg:flex'
                 )}>
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
-                        <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                            <Box className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
+                        <h2 className="font-normal text-xs sm:text-sm flex items-center gap-2">
                             Latest Blocks
                         </h2>
                     </div>
@@ -370,7 +368,7 @@ function ExplorerContent() {
                                                 <div className="p-1.5 rounded-full bg-[var(--background-secondary)] border border-[var(--border)]">
                                                     <Box className="w-3 h-3 text-[var(--foreground-muted)]" />
                                                 </div>
-                                                <span className="text-sm font-mono text-[var(--primary)] font-bold">
+                                                <span className="text-sm font-mono text-[var(--primary)] font-normal">
                                                     {block.number}
                                                 </span>
                                             </div>
@@ -411,12 +409,11 @@ function ExplorerContent() {
 
                 {/* Latest Transactions - Always visible on desktop, conditional on mobile */}
                 <div className={clsx(
-                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[500px] p-0 overflow-hidden',
+                    'rounded-xl border border-[var(--border)] bg-[var(--background-secondary)] flex flex-col h-[320px] sm:h-[400px] lg:h-[650px] p-0 overflow-hidden',
                     mobileTab !== 'transactions' && 'hidden lg:flex'
                 )}>
                     <div className="flex items-center justify-between p-2 sm:p-3 border-b border-[var(--border)]">
-                        <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                            <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--primary)]" />
+                        <h2 className="font-normal text-xs sm:text-sm flex items-center gap-2">
                             Latest Transactions
                         </h2>
                     </div>
