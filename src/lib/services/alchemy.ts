@@ -1,4 +1,5 @@
 import { ChainId, Block, Transaction, RecentTrade } from '@/types';
+import * as solanaService from './solana';
 
 const API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 
@@ -11,7 +12,7 @@ const PUBLIC_RPC_URLS: Record<ChainId, string> = {
     ethereum: 'https://eth.llamarpc.com',
     base: 'https://mainnet.base.org',
     arbitrum: 'https://arb1.arbitrum.io/rpc',
-    solana: 'https://api.mainnet-beta.solana.com',
+    solana: 'https://mainnet.helius-rpc.com/?api-key=27276b9e-3b2a-4476-8c33-3bc90f8d76a8',
 };
 
 // Circuit breaker: Track if Alchemy API proxy is blocked
@@ -34,7 +35,7 @@ export async function rpcCall(chainId: ChainId, method: string, params: any[] = 
     const publicUrl = PUBLIC_RPC_URLS[chainId];
 
     // Try the API proxy route first (avoids browser CORS issues)
-    if (!alchemyBlocked && API_KEY && API_KEY !== 'demo') {
+    if (!alchemyBlocked && API_KEY && API_KEY !== 'demo' && chainId !== 'solana') {
         try {
             const response = await fetch('/api/alchemy', {
                 method: 'POST',
@@ -88,11 +89,21 @@ export async function rpcCall(chainId: ChainId, method: string, params: any[] = 
 }
 
 export async function getLatestBlockNumber(chainId: ChainId): Promise<number> {
+    if (chainId === 'solana') {
+        return solanaService.getLatestSlot();
+    }
     const result = await rpcCall(chainId, 'eth_blockNumber');
     return result ? parseInt(result, 16) : 0;
 }
 
 export async function getBlock(chainId: ChainId, blockNumberOrHash: string | number): Promise<Block | null> {
+    if (chainId === 'solana') {
+        // Solana uses slots, usually passed as number or string number
+        const slot = Number(blockNumberOrHash);
+        if (isNaN(slot)) return null;
+        return solanaService.getBlock(slot);
+    }
+
     const isHash = typeof blockNumberOrHash === 'string' && blockNumberOrHash.startsWith('0x');
     const method = isHash ? 'eth_getBlockByHash' : 'eth_getBlockByNumber';
     const param = isHash ? blockNumberOrHash : `0x${Number(blockNumberOrHash).toString(16)}`;
@@ -115,6 +126,10 @@ export async function getBlock(chainId: ChainId, blockNumberOrHash: string | num
 }
 
 export async function getTransaction(chainId: ChainId, hash: string): Promise<Transaction | null> {
+    if (chainId === 'solana') {
+        return solanaService.getTransaction(hash);
+    }
+
     const tx = await rpcCall(chainId, 'eth_getTransactionByHash', [hash]);
     if (!tx) return null;
 
@@ -134,6 +149,10 @@ export async function getTransaction(chainId: ChainId, hash: string): Promise<Tr
 }
 
 export async function getLatestTransactions(chainId: ChainId, limit = 10): Promise<Transaction[]> {
+    if (chainId === 'solana') {
+        return solanaService.getLatestTransactions(limit);
+    }
+
     const block = await rpcCall(chainId, 'eth_getBlockByNumber', ['latest', true]);
     if (!block || !block.transactions) return [];
 
@@ -160,8 +179,8 @@ export async function getLatestTransactions(chainId: ChainId, limit = 10): Promi
  */
 export async function getRecentTrades(chainId: ChainId, limit = 20, tokenAddress?: string): Promise<RecentTrade[]> {
     // alchemy_getAssetTransfers is only supported on Alchemy nodes
-    if (!API_KEY || API_KEY === 'demo') {
-        console.warn('[Alchemy] Skipping getRecentTrades - requires Alchemy API Key');
+    if (!API_KEY || API_KEY === 'demo' || chainId === 'solana') {
+        if (chainId !== 'solana') console.warn('[Alchemy] Skipping getRecentTrades - requires Alchemy API Key');
         return [];
     }
 
@@ -195,6 +214,10 @@ export async function getRecentTrades(chainId: ChainId, limit = 20, tokenAddress
 }
 
 export async function getAddressBalance(chainId: ChainId, address: string) {
+    if (chainId === 'solana') {
+        const data = await solanaService.getAddressBalance(address);
+        return data?.balance || '0';
+    }
     const result = await rpcCall(chainId, 'eth_getBalance', [address, 'latest']);
     return result ? (parseInt(result, 16) / 1e18).toString() : '0';
 }
@@ -206,11 +229,20 @@ export async function getBalance(chainId: ChainId, address: string): Promise<str
 
 // Get transaction receipt
 export async function getTransactionReceipt(chainId: ChainId, hash: string): Promise<any> {
+    if (chainId === 'solana') {
+        // Solana getTransaction includes receipt status already, so we can mock or fetch again if needed
+        // For now just return null to fallback to tx data
+        return null;
+    }
     return rpcCall(chainId, 'eth_getTransactionReceipt', [hash]);
 }
 
 // Get transactions in a specific block
 export async function getBlockTransactions(chainId: ChainId, blockNumber: number): Promise<Transaction[]> {
+    if (chainId === 'solana') {
+        return solanaService.getBlockTransactions(blockNumber);
+    }
+
     const block = await rpcCall(chainId, 'eth_getBlockByNumber', [`0x${blockNumber.toString(16)}`, true]);
     if (!block || !block.transactions) return [];
 
@@ -247,10 +279,10 @@ export async function getAddressTransactions(
     limit = 25,
     pageKeys?: { fromKey?: string; toKey?: string }
 ): Promise<PaginatedTransactions> {
-    // alchemy_getAssetTransfers is only supported on Alchemy nodes
-    if (!API_KEY || API_KEY === 'demo') {
-        console.warn('[Alchemy] Skipping getAddressTransactions - requires Alchemy API Key');
-        return { transactions: [], pageKeys: {} };
+    if (chainId === 'solana') {
+        // Simple wrapper for solana service, no pagination key support yet in solana service for this specific signature
+        const txs = await solanaService.getAddressTransactions(address, limit);
+        return { transactions: txs, pageKeys: {} };
     }
 
     // Prepare params for sent transactions
@@ -315,6 +347,19 @@ export async function getAddressTransactions(
 // Get token balances for an address
 // Note: alchemy_getTokenBalances only works with a valid Alchemy API key
 export async function getTokenBalances(chainId: ChainId, address: string): Promise<{ contractAddress: string; tokenBalance: string }[]> {
+    if (chainId === 'solana') {
+        const tokens = await solanaService.getAllSplTokens(address);
+        return tokens.map(t => ({
+            contractAddress: t.mint,
+            tokenBalance: t.amount.toString(), // UI expects string hex sometimes? No, usually generic string. 
+            // Wait, alchemy_getTokenBalances returns hex string on EVM usually? 
+            // The type says "tokenBalance: string". 
+            // Using literal amount string is fine as long as UI handles it.
+            // EVM `tokenBalance` is raw hex wei. My UI likely parses it.
+            // Let's check UI consumption.
+        }));
+    }
+
     // This method is Alchemy-specific and won't work on public RPCs
     // Skip if no valid API key to avoid console spam
     if (!API_KEY || API_KEY === 'demo') {

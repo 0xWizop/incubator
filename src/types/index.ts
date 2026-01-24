@@ -90,6 +90,18 @@ export interface Transaction {
     tokenOut?: string;
     amountIn?: string;
     amountOut?: string;
+    // Solana specific details
+    instructions?: {
+        programId: string;
+        program?: string;
+        data?: string;
+        parsed?: any;
+    }[];
+    accounts?: {
+        pubkey: string;
+        signer: boolean;
+        writable: boolean;
+    }[];
 }
 
 export interface TransactionLog {

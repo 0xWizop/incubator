@@ -38,7 +38,7 @@ export const CHAINS = {
         name: 'Solana',
         symbol: 'SOL',
         logo: 'https://i.imgur.com/xp7PYKk.png',
-        rpcUrl: 'https://api.mainnet-beta.solana.com',
+        rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=27276b9e-3b2a-4476-8c33-3bc90f8d76a8',
     },
 } as const;
 

@@ -7,7 +7,7 @@ export const CHAINS: Record<ChainId, Chain> = {
         name: 'Solana',
         symbol: 'SOL',
         color: '#9945ff',
-        rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+        rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=27276b9e-3b2a-4476-8c33-3bc90f8d76a8',
         explorerUrl: 'https://solscan.io',
         logo: 'https://i.imgur.com/xp7PYKk.png',
     },

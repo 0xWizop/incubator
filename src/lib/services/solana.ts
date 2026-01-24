@@ -2,8 +2,8 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL, ParsedTransactionWithMeta } fr
 import { Block, Transaction, Address } from '@/types';
 
 // Solana RPC connection
-// Use custom RPC if provided, otherwise use public (may be rate-limited)
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+// Using Helius RPC for reliable access (public Solana RPC is heavily rate-limited)
+const SOLANA_RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=27276b9e-3b2a-4476-8c33-3bc90f8d76a8';
 
 // Track if RPC is available (avoids spamming failed requests)
 let rpcAvailable = true;
@@ -65,6 +65,71 @@ export async function getBlock(slot: number): Promise<Block | null> {
     }
 }
 
+// Get transactions for a specific block
+export async function getBlockTransactions(slot: number): Promise<Transaction[]> {
+    try {
+        const connection = getConnection();
+        if (!connection) return [];
+
+        // Use getParsedBlock to get human-readable instruction data
+        const block = await connection.getParsedBlock(slot, {
+            maxSupportedTransactionVersion: 0,
+        });
+
+        if (!block || !block.transactions) return [];
+
+        const transactions: Transaction[] = [];
+
+        for (const tx of block.transactions) {
+            // Safety check for parsed transaction type
+            if (!('transaction' in tx) || !('message' in tx.transaction)) continue;
+
+            const parsedTx = tx as unknown as ParsedTransactionWithMeta;
+            const signature = parsedTx.transaction.signatures[0];
+
+            // Extract signer (fee payer is usually the first account)
+            // For parsed transactions, accountKeys are objects { pubkey, signer, ... }
+            const accountKeys = parsedTx.transaction.message.accountKeys;
+            const from = accountKeys[0]?.pubkey.toString() || 'Unknown';
+
+            let to: string | null = null;
+            let value = '0';
+
+            // Try to find a top-level SOL transfer
+            const instructions = parsedTx.transaction.message.instructions;
+            for (const ix of instructions) {
+                if ('parsed' in ix && ix.parsed?.type === 'transfer') {
+                    to = ix.parsed.info?.destination;
+                    value = (ix.parsed.info?.lamports / LAMPORTS_PER_SOL).toString();
+                    break;
+                }
+            }
+
+            // If no clear transfer, use the second account as 'to' or keep null
+            if (!to && accountKeys.length > 1) {
+                // Often the 2nd account is the program or recipient
+                to = accountKeys[1]?.pubkey.toString();
+            }
+
+            transactions.push({
+                hash: signature,
+                chainId: 'solana',
+                blockNumber: slot,
+                timestamp: block.blockTime || Math.floor(Date.now() / 1000),
+                from,
+                to,
+                value,
+                status: parsedTx.meta?.err ? 'failed' : 'success',
+            });
+        }
+
+        return transactions;
+    } catch (error) {
+        console.error(`Error fetching Solana block transactions ${slot}:`, error);
+        return [];
+    }
+}
+
 // Get latest blocks
 export async function getLatestBlocks(count = 10): Promise<Block[]> {
     try {
@@ -122,6 +187,25 @@ export async function getTransaction(signature: string): Promise<Transaction | n
             to: toAccount,
             value,
             status: tx.meta?.err ? 'failed' : 'success',
+            accounts: accountKeys.map(acc => ({
+                pubkey: acc.pubkey.toString(),
+                signer: acc.signer,
+                writable: acc.writable,
+            })),
+            instructions: instructions.map(ix => {
+                if ('parsed' in ix) {
+                    return {
+                        programId: ix.programId.toString(),
+                        program: ix.program,
+                        parsed: ix.parsed,
+                    };
+                } else {
+                    return {
+                        programId: ix.programId.toString(),
+                        data: ix.data,
+                    };
+                }
+            }),
         };
     } catch (error) {
         console.error(`Error fetching Solana transaction ${signature}:`, error);

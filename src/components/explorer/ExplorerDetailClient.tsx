@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
+import { getAddressLabel } from '@/lib/data/address-labels';
+import { FileCode, Shield } from 'lucide-react';
 
 export function ExplorerDetailClient() {
     const searchParams = useSearchParams();
@@ -152,8 +154,8 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
     }
 
     return (
-        <div className="flex flex-col h-full overflow-hidden w-full">
-            <div className="flex flex-col h-full p-4 sm:p-6 pb-6 max-w-7xl mx-auto w-full gap-4">
+        <div className="flex flex-col h-full sm:overflow-hidden overflow-y-auto w-full">
+            <div className="flex flex-col sm:h-full shrink-0 p-4 sm:p-6 pb-6 max-w-7xl mx-auto w-full gap-4">
                 <div>
                     <Breadcrumb items={[{ label: 'Block' }, { label: `#${number}` }]} />
 
@@ -242,7 +244,7 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                 </div>
 
                 {/* Transactions Section - Fixed Flex Column */}
-                <div className="card flex-1 min-h-0 flex flex-col bg-[var(--background-secondary)] mb-12">
+                <div className="card h-[600px] sm:h-auto sm:flex-1 sm:min-h-0 flex flex-col bg-[var(--background-secondary)] mb-12">
                     <div className="p-4 border-b border-[var(--border)] flex-shrink-0">
                         <h2 className="font-normal text-sm flex items-center gap-2">
                             Transactions ({transactions.length || block.transactions})
@@ -255,9 +257,9 @@ function BlockDetail({ number, initialChain }: { number: string; initialChain?: 
                             <p>{block.transactions > 0 ? 'Loading transactions...' : 'No transactions in this block'}</p>
                         </div>
                     ) : (
-                        <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
+                        <div className="flex-1 overflow-y-auto overflow-x-auto divide-y divide-[var(--border)]">
                             {paginatedTransactions.map((tx) => (
-                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${selectedChain}`} className="flex items-center justify-between p-3 hover:bg-[var(--background-tertiary)] transition-colors">
+                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${selectedChain}`} className="flex items-center justify-between p-3 hover:bg-[var(--background-tertiary)] transition-colors min-w-[600px]">
                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                         <div className="p-2 rounded-lg bg-[var(--primary)]/10 flex-shrink-0">
                                             <Layers className="w-4 h-4 text-[var(--primary)]" />
@@ -440,7 +442,8 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                                 {(() => {
                                     const price = getPriceForChain(transaction.chainId);
                                     const val = parseFloat(transaction.value);
-                                    return price && !isNaN(val) ? `≈${formatCurrency(val * price)}` : 'ETH';
+                                    const symbol = transaction.chainId === 'solana' ? 'SOL' : 'ETH';
+                                    return price && !isNaN(val) ? `≈${formatCurrency(val * price)}` : symbol;
                                 })()}
                             </p>
                         </div>
@@ -450,20 +453,96 @@ function TxDetail({ hash, initialChain }: { hash: string; initialChain?: ChainId
                         </div>
                         <div>
                             <p className="text-[10px] uppercase text-[var(--foreground-muted)]">Fee</p>
-                            <p className="font-mono text-base">{txFee.toFixed(5)}</p>
-                            <p className="text-[10px] text-[var(--foreground-muted)]">ETH</p>
+                            {selectedChain === 'solana' ? (
+                                <>
+                                    <p className="font-mono text-base">0.000005</p>
+                                    <p className="text-[10px] text-[var(--foreground-muted)]">SOL (Est.)</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="font-mono text-base">{txFee.toFixed(5)}</p>
+                                    <p className="text-[10px] text-[var(--foreground-muted)]">ETH</p>
+                                </>
+                            )}
                         </div>
                     </div>
 
-                    {/* Gas Details */}
-                    <div className="flex items-center gap-3 pt-3 border-t border-[var(--border)]/40 text-xs">
-                        <Fuel className="w-4 h-4 text-[var(--foreground-muted)]" />
-                        <span className="font-mono">{gasUsed.toLocaleString()}</span>
-                        <span className="text-[var(--foreground-muted)]">@</span>
-                        <span className="font-mono">{(gasPrice / 1e9).toFixed(1)} Gwei</span>
-                        <span className="text-[var(--foreground-muted)] ml-auto">Nonce: <span className="font-mono">{transaction.nonce || 0}</span></span>
-                    </div>
+                    {/* Gas Details - Hide for Solana or show different info */}
+                    {selectedChain !== 'solana' && (
+                        <div className="flex items-center gap-3 pt-3 border-t border-[var(--border)]/40 text-xs">
+                            <Fuel className="w-4 h-4 text-[var(--foreground-muted)]" />
+                            <span className="font-mono">{gasUsed.toLocaleString()}</span>
+                            <span className="text-[var(--foreground-muted)]">@</span>
+                            <span className="font-mono">{(gasPrice / 1e9).toFixed(1)} Gwei</span>
+                            <span className="text-[var(--foreground-muted)] ml-auto">Nonce: <span className="font-mono">{transaction.nonce || 0}</span></span>
+                        </div>
+                    )}
+                    {selectedChain === 'solana' && (
+                        <div className="flex items-center gap-3 pt-3 border-t border-[var(--border)]/40 text-xs">
+                            <Layers className="w-4 h-4 text-[var(--foreground-muted)]" />
+                            <span className="text-[var(--foreground-muted)]">Slot: <span className="font-mono">{transaction.blockNumber}</span></span>
+                            <span className="text-[var(--foreground-muted)] ml-auto">Version: <span className="font-mono">Legacy/V0</span></span>
+                        </div>
+                    )}
                 </div>
+
+                {/* Solana Specific Details: Instructions & Accounts */}
+                {selectedChain === 'solana' && (
+                    <>
+                        {/* Instructions */}
+                        <div className="card p-4 sm:p-5 bg-[var(--background-secondary)] flex flex-col gap-3">
+                            <h3 className="font-normal text-sm flex items-center gap-2">
+                                <FileCode className="w-4 h-4 text-[var(--primary)]" /> Instructions
+                            </h3>
+                            <div className="space-y-2">
+                                {transaction.instructions?.map((ix, idx) => {
+                                    const programLabel = getAddressLabel(ix.programId) || 'Unknown Program';
+                                    return (
+                                        <div key={idx} className="p-3 bg-[var(--background-tertiary)] rounded-lg text-xs font-mono break-all overflow-x-auto">
+                                            <div className="flex items-center gap-2 mb-1 text-[var(--foreground-muted)]">
+                                                <span className="text-[var(--primary)]">#{idx + 1}</span>
+                                                <Link href={`/app/explorer/detail/?type=address&id=${ix.programId}&chain=solana`} className="hover:underline text-[var(--foreground)]">{programLabel} ({ix.programId})</Link>
+                                            </div>
+                                            {ix.parsed ? (
+                                                <div className="bg-[var(--background)]/50 p-2 rounded border border-[var(--border)]/50">
+                                                    <div className="text-[var(--accent-blue)] mb-1 font-bold">{ix.parsed.type}</div>
+                                                    <pre className="whitespace-pre-wrap text-[var(--foreground-muted)] text-[10px]">{JSON.stringify(ix.parsed.info, null, 2)}</pre>
+                                                </div>
+                                            ) : (
+                                                <div className="text-[var(--foreground-muted)] break-all">Raw Data: {ix.data}</div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                                {!transaction.instructions?.length && <p className="text-[var(--foreground-muted)] text-sm">No instructions found.</p>}
+                            </div>
+                        </div>
+
+                        {/* Accounts */}
+                        <div className="card p-4 sm:p-5 bg-[var(--background-secondary)] flex flex-col gap-3">
+                            <h3 className="font-normal text-sm flex items-center gap-2">
+                                <User className="w-4 h-4 text-[var(--primary)]" /> Accounts Involved
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {transaction.accounts?.map((acc, idx) => (
+                                    <div key={idx} className="p-2 bg-[var(--background-tertiary)] rounded-lg flex items-center justify-between gap-2 text-xs">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-[var(--foreground-muted)] w-6 shrink-0">#{idx + 1}</span>
+                                            <Link href={`/app/explorer/detail/?type=address&id=${acc.pubkey}&chain=solana`} className="font-mono text-[var(--primary)] truncate hover:underline">
+                                                {getAddressLabel(acc.pubkey) || `${acc.pubkey.slice(0, 8)}...${acc.pubkey.slice(-8)}`}
+                                            </Link>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            {acc.signer && <span className="px-1.5 py-0.5 rounded bg-[var(--accent-green)]/10 text-[var(--accent-green)] text-[10px]">Signer</span>}
+                                            {acc.writable && <span className="px-1.5 py-0.5 rounded bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px]">Writable</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                                {!transaction.accounts?.length && <p className="text-[var(--foreground-muted)] text-sm">No accounts found.</p>}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -474,6 +553,8 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
     const { selectedChains } = useAppStore();
     const [balance, setBalance] = useState<string>('0');
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [tokens, setTokens] = useState<{ contractAddress: string; tokenBalance: string }[]>([]);
+    const [activeTab, setActiveTab] = useState<'txs' | 'tokens'>('txs');
     const [pageKeys, setPageKeys] = useState<{ fromKey?: string; toKey?: string }>({});
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -522,6 +603,14 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
                 const { transactions: txs, pageKeys: keys } = await alchemyService.getAddressTransactions(selectedChain, address);
                 setTransactions(txs);
                 setPageKeys(keys);
+
+                // Fetch tokens (especially for Solana)
+                if (selectedChain === 'solana') { // Optimized to only fetch for Solana for now or if needed
+                    const tokenData = await alchemyService.getTokenBalances(selectedChain, address);
+                    setTokens(tokenData);
+                } else {
+                    setTokens([]); // Reset or fetch for EVM if implemented
+                }
             } catch (error) {
                 console.error('Error fetching address:', error);
             } finally {
@@ -566,108 +655,79 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
     const recvCount = transactions.filter(tx => tx.to?.toLowerCase() === address.toLowerCase()).length;
 
     return (
-        <div className="flex flex-col h-full p-4 sm:p-6 pb-0 max-w-7xl mx-auto w-full gap-4 sm:gap-6 overflow-hidden">
-            {/* Top Fixed Section */}
-            <div className="flex-shrink-0 space-y-4 sm:space-y-6">
-                <Breadcrumb items={[{ label: 'Address' }, { label: shortAddress }]} />
-
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                        <div>
-                            <h1 className="text-base sm:text-lg font-normal mb-1">Address</h1>
-                            <div className="flex items-center gap-2">
-                                <code className="text-sm text-[var(--foreground-muted)] break-all">{address}</code>
-                                <CopyButton text={address} />
+        <div className="flex flex-col h-[calc(100dvh-100px)] sm:h-full p-2 sm:p-6 pb-0 max-w-7xl mx-auto w-full gap-2 sm:gap-6 overflow-hidden">
+            {/* Top Fixed Section - Ultra Compact */}
+            <div className="flex-shrink-0 bg-[var(--background)] z-10 pt-1 pb-1 border-b border-[var(--border)]/50">
+                <div className="flex flex-col gap-2">
+                    {/* Row 1: Address + Actions + Chain (All in one line if possible) */}
+                    <div className="flex items-center justify-between gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider leading-none">Address</span>
+                                <div className="flex items-center gap-1">
+                                    <code className="text-xs font-mono text-[var(--primary)] truncate">{shortAddress}</code>
+                                    <CopyButton text={address} />
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                onClick={() => setIsTrackModalOpen(true)}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--primary)] text-black hover:opacity-90 transition-opacity"
+                            >
+                                <Eye className="w-4 h-4" />
+                            </button>
+                            {/* Chain Selector - Icon Only on Mobile */}
+                            {initialChain ? (
+                                <div className="flex items-center justify-center w-7 h-7 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
+                                    <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-4 h-4 rounded-full" />
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    {selectedChains.filter(c => c !== 'solana').slice(0, 3).map((chain) => (
+                                        <button key={chain} onClick={() => setSelectedChain(chain)} className={clsx('w-7 h-7 flex items-center justify-center rounded-lg border transition-all', selectedChain === chain ? 'border-[var(--primary)] bg-transparent' : 'border-[var(--border)]')}>
+                                            <img src={chainLogos[chain]} alt={chain} className="w-4 h-4 rounded-full" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-                {/* Actions & Chain Selector */}
-                <div className="flex items-center gap-3 flex-wrap">
-                    <button
-                        onClick={() => setIsTrackModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary)] text-black text-sm hover:opacity-90 transition-opacity"
-                    >
-                        <Eye className="w-4 h-4" /> Track Wallet
-                    </button>
-                    {/* Chain Selector */}
-                    {initialChain ? (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background-tertiary)]">
-                            <img src={chainLogos[selectedChain]} alt={selectedChain} className="w-5 h-5 rounded-full" />
-                            <span className="text-sm capitalize">{selectedChain}</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {selectedChains.filter(c => c !== 'solana').map((chain) => (
-                                <button key={chain} onClick={() => setSelectedChain(chain)} className={clsx('flex items-center gap-2 px-3 py-2 rounded-lg border transition-all', selectedChain === chain ? 'border-[var(--primary)] bg-transparent' : 'border-[var(--border)]')}>
-                                    <img src={chainLogos[chain]} alt={chain} className="w-5 h-5 rounded-full" />
-                                    <span className="text-sm capitalize">{chain}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {/* Balance Card */}
-                    <div className="card p-6 bg-gradient-to-br from-[var(--background-secondary)] to-[var(--background-tertiary)] flex flex-col justify-center min-h-[140px]">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Wallet className="w-5 h-5 text-[var(--foreground-muted)]" />
-                            <span className="text-sm text-[var(--foreground-muted)] capitalize">Balance on {selectedChain}</span>
-                        </div>
-                        {loading ? (
-                            <div className="h-12 w-48 bg-[var(--background-tertiary)] rounded animate-pulse" />
-                        ) : (
-                            <>
-                                <p className="text-3xl sm:text-4xl font-mono mb-1">{parseFloat(balance).toFixed(4)} <span className="text-lg">{nativeSymbol}</span></p>
-                                <p className="text-lg text-[var(--foreground-muted)]">≈ ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Consolidated Stats Card */}
-                    <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {/* Transactions Stat */}
-                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
-                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
-                                <ArrowRightLeft className="w-4 h-4" />
+                    {/* Row 2: Balance + Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2">
+                        {/* Balance - Very Compact */}
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-[var(--background-secondary)] to-[var(--background-tertiary)] flex flex-col justify-center">
+                            <span className="text-[9px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Balance</span>
+                            <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-base font-mono leading-none">{parseFloat(balance).toFixed(4)}</span>
+                                <span className="text-[10px] text-[var(--foreground-muted)]">{nativeSymbol}</span>
                             </div>
-                            <div>
-                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Transactions</p>
-                                <p className="text-xl">{transactions.length}</p>
-                            </div>
+                            <span className="text-[10px] text-[var(--foreground-muted)] leading-none mt-1">≈ ${usdBalance.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 0 })}</span>
                         </div>
 
-                        {/* Sent Stat */}
-                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
-                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
-                                <ArrowUpRight className="w-4 h-4" />
+                        {/* Mini Stats Grid - 2x2 inside the right column */}
+                        <div className="grid grid-cols-2 gap-1.5">
+                            {/* Txs */}
+                            <div className="bg-[var(--background-secondary)] rounded-lg p-1.5 flex flex-col justify-center text-center border border-[var(--border)]/30">
+                                <span className="text-[8px] text-[var(--foreground-muted)] uppercase tracking-wider leading-none mb-0.5">Txs</span>
+                                <span className="text-xs font-mono leading-none">{transactions.length}</span>
                             </div>
-                            <div>
-                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Sent</p>
-                                <p className="text-xl">{sentCount}</p>
+                            {/* Tokens */}
+                            <div className="bg-[var(--background-secondary)] rounded-lg p-1.5 flex flex-col justify-center text-center border border-[var(--border)]/30 cursor-pointer hover:bg-[var(--background-tertiary)]" onClick={() => setActiveTab('tokens')}>
+                                <span className="text-[8px] text-[var(--foreground-muted)] uppercase tracking-wider leading-none mb-0.5">Tokens</span>
+                                <span className="text-xs font-mono leading-none text-[var(--foreground-muted)]">{tokens.length > 0 ? tokens.length : '-'}</span>
                             </div>
-                        </div>
-
-                        {/* Received Stat */}
-                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
-                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
-                                <ArrowDownLeft className="w-4 h-4" />
+                            {/* Sent */}
+                            <div className="bg-[var(--background-secondary)] rounded-lg p-1.5 flex flex-col justify-center text-center border border-[var(--border)]/30">
+                                <span className="text-[8px] text-[var(--accent-red)] uppercase tracking-wider leading-none mb-0.5">Out</span>
+                                <span className="text-xs font-mono leading-none">{sentCount}</span>
                             </div>
-                            <div>
-                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Received</p>
-                                <p className="text-xl">{recvCount}</p>
-                            </div>
-                        </div>
-
-                        {/* Tokens Stat */}
-                        <div className="card p-3 bg-[var(--background-secondary)] flex flex-col items-start justify-center gap-2 hover:border-[var(--primary)]/30 transition-colors group">
-                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 transition-colors">
-                                <Coins className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Tokens</p>
-                                <p className="text-xl text-[var(--foreground-muted)]">—</p>
+                            {/* Recv */}
+                            <div className="bg-[var(--background-secondary)] rounded-lg p-1.5 flex flex-col justify-center text-center border border-[var(--border)]/30">
+                                <span className="text-[8px] text-[var(--accent-green)] uppercase tracking-wider leading-none mb-0.5">In</span>
+                                <span className="text-xs font-mono leading-none">{recvCount}</span>
                             </div>
                         </div>
                     </div>
@@ -675,63 +735,108 @@ function AddressDetail({ address, initialChain }: { address: string; initialChai
             </div>
 
             {/* Bottom Scrollable Transactions */}
-            <div className="card flex-1 min-h-0 flex flex-col overflow-hidden p-0 mb-4 sm:mb-6 bg-[var(--background-secondary)]">
-                <div className="p-4 border-b border-[var(--border)] flex-shrink-0">
-                    <h2 className="font-normal text-sm flex items-center gap-2">Recent Transactions</h2>
+            {/* Bottom Scrollable Section with Tabs */}
+            <div className="card flex-1 min-h-0 flex flex-col overflow-hidden p-0 mb-0 sm:mb-6 bg-[var(--background-secondary)] shadow-none sm:shadow-md border-0 sm:border">
+                {/* Tabs */}
+                <div className="flex items-center gap-1 p-2 border-b border-[var(--border)] bg-[var(--background-tertiary)]/50 shrink-0">
+                    <button onClick={() => setActiveTab('txs')} className={clsx("px-3 py-1.5 rounded-md text-xs font-medium transition-colors", activeTab === 'txs' ? "bg-[var(--background-secondary)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]")}>
+                        Transactions
+                    </button>
+                    <button onClick={() => setActiveTab('tokens')} className={clsx("px-3 py-1.5 rounded-md text-xs font-medium transition-colors", activeTab === 'tokens' ? "bg-[var(--background-secondary)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]")}>
+                        Holdings
+                    </button>
                 </div>
 
-                {loading ? (
-                    <div className="p-8 text-center flex-1 flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-                    </div>
-                ) : transactions.length === 0 ? (
-                    <div className="p-12 text-center text-[var(--foreground-muted)] flex-1 flex flex-col items-center justify-center">
-                        <ArrowRightLeft className="w-12 h-12 mb-4 opacity-50" />
-                        <p>No transactions found</p>
-                    </div>
-                ) : (
-                    <div className="overflow-y-auto flex-1 overscroll-contain divide-y divide-[var(--border)]">
-                        {transactions.map((tx) => {
-                            const isSent = tx.from.toLowerCase() === address.toLowerCase();
-                            return (
-                                <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${tx.chainId}`} className="flex items-center gap-4 p-4 hover:bg-[var(--background-tertiary)] transition-colors group">
-                                    <div className={clsx('p-2 rounded-full flex-shrink-0 transition-colors', isSent ? 'bg-[var(--accent-red)]/10 group-hover:bg-[var(--accent-red)]/20' : 'bg-[var(--accent-green)]/10 group-hover:bg-[var(--accent-green)]/20')}>
-                                        {isSent ? <ArrowUpRight className="w-5 h-5 text-[var(--accent-red)]" /> : <ArrowDownLeft className="w-5 h-5 text-[var(--accent-green)]" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-sm">{isSent ? 'Sent' : 'Received'}</span>
-                                            {/* UI Fix: Removed font-mono, simplified text styles */}
-                                            <span className={clsx('text-sm block', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>
-                                                {isSent ? '-' : '+'}{parseFloat(tx.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.asset || nativeSymbol}
-                                                {(() => {
-                                                    const price = getPriceForChain(tx.chainId);
-                                                    const val = parseFloat(tx.value);
-                                                    return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] ml-1.5 text-xs font-normal">(≈{formatCurrency(val * price)})</span> : null;
-                                                })()}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs text-[var(--foreground-muted)]">
-                                            <span className="truncate opacity-70 hover:opacity-100 transition-opacity">{isSent ? `To: ${tx.to?.slice(0, 8)}...` : `From: ${tx.from.slice(0, 8)}...`}</span>
-                                            <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3 h-3" />{formatDistanceToNow(tx.timestamp * 1000, { addSuffix: true })}</span>
-                                        </div>
-                                    </div>
-                                </Link>
-                            );
-                        })}
+                {/* Content */}
+                {activeTab === 'txs' ? (
+                    <>
+                        {loading ? (
+                            <div className="p-8 text-center flex-1 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+                            </div>
+                        ) : transactions.length === 0 ? (
+                            <div className="p-12 text-center text-[var(--foreground-muted)] flex-1 flex flex-col items-center justify-center">
+                                <ArrowRightLeft className="w-12 h-12 mb-4 opacity-50" />
+                                <p>No transactions found</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-y-auto flex-1 overscroll-contain divide-y divide-[var(--border)] pb-40 sm:pb-0">
+                                {transactions.map((tx) => {
+                                    const isSent = tx.from.toLowerCase() === address.toLowerCase();
+                                    return (
+                                        <Link key={tx.hash} href={`/app/explorer/detail/?type=tx&id=${tx.hash}&chain=${tx.chainId}`} className="flex items-center gap-3 p-2.5 sm:p-4 hover:bg-[var(--background-tertiary)] transition-colors group">
+                                            <div className={clsx('p-2 rounded-full flex-shrink-0 transition-colors', isSent ? 'bg-[var(--accent-red)]/10 group-hover:bg-[var(--accent-red)]/20' : 'bg-[var(--accent-green)]/10 group-hover:bg-[var(--accent-green)]/20')}>
+                                                {isSent ? <ArrowUpRight className="w-4 h-4 text-[var(--accent-red)]" /> : <ArrowDownLeft className="w-4 h-4 text-[var(--accent-green)]" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-0.5 gap-2">
+                                                    <span className="text-xs sm:text-sm shrink-0 font-medium">{isSent ? 'Sent' : 'Received'}</span>
+                                                    <span className={clsx('text-xs sm:text-sm flex items-center justify-end gap-1.5 min-w-0 truncate', isSent ? 'text-[var(--accent-red)]' : 'text-[var(--accent-green)]')}>
+                                                        <span className="truncate max-w-[120px] sm:max-w-none">{isSent ? '-' : '+'}{parseFloat(tx.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.asset || nativeSymbol}</span>
+                                                        {(() => {
+                                                            const isNative = !tx.asset || tx.asset === nativeSymbol || tx.asset === 'ETH' || tx.asset === 'SOL';
+                                                            if (!isNative) return null;
 
-                        {/* Load More Button */}
-                        {(pageKeys.fromKey || pageKeys.toKey) && (
-                            <div className="p-4 text-center">
-                                <button
-                                    onClick={loadMore}
-                                    disabled={loadingMore}
-                                    className="btn btn-secondary w-full py-2 text-sm disabled:opacity-50"
-                                >
-                                    {loadingMore ? 'Loading...' : 'Load More Transactions'}
-                                </button>
+                                                            const price = getPriceForChain(tx.chainId);
+                                                            const val = parseFloat(tx.value);
+                                                            return price && !isNaN(val) ? <span className="text-[var(--foreground-muted)] text-[10px] sm:text-xs font-normal shrink-0">(≈{formatCurrency(val * price)})</span> : null;
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-[10px] sm:text-xs text-[var(--foreground-muted)]">
+                                                    <span className="truncate opacity-70 hover:opacity-100 transition-opacity max-w-[100px]">{isSent ? `To: ${tx.to?.slice(0, 8)}...` : `From: ${tx.from.slice(0, 8)}...`}</span>
+                                                    <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3 h-3" />{formatDistanceToNow(tx.timestamp * 1000, { addSuffix: true })}</span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+
+                                {/* Load More Button */}
+                                {(pageKeys.fromKey || pageKeys.toKey) && (
+                                    <div className="p-4 text-center">
+                                        <button
+                                            onClick={loadMore}
+                                            disabled={loadingMore}
+                                            className="btn btn-secondary w-full py-2 text-sm disabled:opacity-50"
+                                        >
+                                            {loadingMore ? 'Loading...' : 'Load More Transactions'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
+                    </>
+                ) : (
+                    <div className="overflow-y-auto flex-1 p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            {tokens.map((token, i) => (
+                                <div key={i} className="p-3 bg-[var(--background-tertiary)] rounded-lg border border-[var(--border)]/30 hover:border-[var(--primary)]/30 transition-colors">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-[var(--background-secondary)] flex items-center justify-center">
+                                                <Coins className="w-4 h-4 text-[var(--foreground-muted)]" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <Link href={`/app/explorer/detail/?type=address&id=${token.contractAddress}&chain=solana`} className="text-xs font-mono text-[var(--primary)] hover:underline truncate">
+                                                    {token.contractAddress.slice(0, 4)}...{token.contractAddress.slice(-4)}
+                                                </Link>
+                                                <span className="text-[10px] text-[var(--foreground-muted)] uppercase">Token</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="font-mono text-lg font-medium truncate" title={token.tokenBalance}>
+                                        {token.tokenBalance}
+                                    </div>
+                                </div>
+                            ))}
+                            {tokens.length === 0 && (
+                                <div className="col-span-full h-full flex flex-col items-center justify-center p-12 text-[var(--foreground-muted)]">
+                                    <Coins className="w-12 h-12 mb-3 opacity-20" />
+                                    <p>No tokens found or API not supported for this chain.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -763,7 +868,7 @@ function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
     return (
-        <button onClick={handleCopy} className="p-1 rounded hover:bg-[var(--background-tertiary)] transition-colors">
+        <button onClick={handleCopy} className="p-2 -m-1 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors relative z-20">
             {copied ? <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" /> : <Copy className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />}
         </button>
     );
